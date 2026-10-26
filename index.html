@@ -24,7 +24,7 @@ input,textarea{width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;b
 <div class="wrap" id="app"></div><div id="toast"></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
 <script>
 const TEST_TO='austin@techsourcedsolutions.com'; // every email goes ONLY here (enforced in Apps Script too)
-let API=new URLSearchParams(location.search).get('api')||localStorage.fdApi||'';
+let API=new URLSearchParams(location.search).get('api')||localStorage.fdApi||'https://script.google.com/macros/s/AKfycbwQDIAb7fwXFVL6g9AjA-tKGoUcwal0-tozzbwJ4EOcNnaHE4AcqUOxdXuNMvRpKYJAlw/exec';
 if(API)localStorage.fdApi=API;
 const ROLES={'1234':'Manager','0123':'Crew','6789':'Admin'};
 let role=sessionStorage.fdRole||'',jobs=[],root='',cur=null,pin='',photos=[];
