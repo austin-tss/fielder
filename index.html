@@ -23,18 +23,38 @@ input,textarea{width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;b
 <header><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div><button id="out" hidden onclick="logout()">Sign out</button></header>
 <div class="wrap" id="app"></div><div id="toast"></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
 <script>
-const TEST_TO='austin@techsourcedsolutions.com'; // every email goes ONLY here (enforced in Apps Script too)
+// ---- Rule-based quote rewriter (shared by app + script) ----
+var RW_SPECIES=['live oak','water oak','laurel oak','red oak','white oak','crepe myrtle','crape myrtle','sweetgum','sweet gum','magnolia','hickory','cypress','cedar','dogwood','maple','pecan','palm','pine','oak','elm','birch','holly','sycamore','poplar','willow','bamboo'];
+var RW_SVC=[[/\b(emergency|storm|fallen|down(ed)? tree)\b/,'24-Hour Emergency Service'],[/\bstump/,'Stump Grinding'],[/\b(remov\w*|take down|takedown|cut down|fell\w*)\b/,'Removal'],[/\bprun\w*/,'Pruning'],[/\b(trim\w*|thin\w*|raise|lift|clearance)\b/,'Trimming'],[/\b(haul\w*|clean ?up|debris|brush)\b/,'Debris Haul-Away & Cleanup'],[/\bpermit/,'Permit Paperwork'],[/\b(assess\w*|inspect\w*|evaluat\w*)\b/,'Tree Health Assessment'],[/\b(cabl\w*|brac\w*)\b/,'Cabling & Bracing'],[/\b(lot clear\w*|land clear\w*)\b/,'Lot Clearing']];
+function rwTitle(s){return s.replace(/\b[a-z]/g,function(c){return c.toUpperCase()}).replace(/\b(And|Of|The|By|To|In|On|At|With|A)\b/g,function(w,x,i){return i?w.toLowerCase():w})}
+function rwSentence(s){s=s.replace(/\s+/g,' ').trim();return s?s.charAt(0).toUpperCase()+s.slice(1)+(/[.!?]$/.test(s)?'':'.'):''}
+function rwPrice(s){var m=s.match(/\$\s?(\d[\d,]*(\.\d{1,2})?)\s*k?\b/i)||s.match(/(?:^|\s)(\d[\d,]{1,}(\.\d{1,2})?)\s*(dollars|bucks)?\s*$/i);
+  if(!m)return {p:null,rest:s};var v=parseFloat(m[1].replace(/,/g,''));if(/k\b/i.test(m[0]))v*=1000;return {p:v,rest:s.replace(m[0],' ')}}
+function rwItem(raw){var pr=rwPrice(raw),t=pr.rest.toLowerCase().replace(/\s+/g,' ').trim(),sp='',svc=[],dead=/\b(dead|dying|leaning|hazard\w*)\b/.exec(t),n=/\b(\d+|two|three|four|five)\s+(trees|oaks|pines|palms|stumps)\b/.exec(t);
+  for(var i=0;i<RW_SPECIES.length;i++)if(t.indexOf(RW_SPECIES[i])>=0){sp=RW_SPECIES[i].replace('crape','crepe').replace('sweet gum','sweetgum');break}
+  RW_SVC.forEach(function(r){if(r[0].test(t)&&svc.indexOf(r[1])<0)svc.push(r[1])});
+  if(!sp&&/\btrees?\b/.test(t))sp=' ';
+  var title;if(!svc.length)title=rwTitle(t.replace(/[.]+$/,''))||'Tree Service';
+  else{var tree=svc.filter(function(x){return /Removal|Pruning|Trimming|Cabling/.test(x)}),other=svc.filter(function(x){return tree.indexOf(x)<0});
+    var head=tree.length?((dead?rwTitle(dead[1])+' ':'')+(sp.trim()?rwTitle(sp)+' ':'')+'Tree '+tree.join(' & ')):'';
+    title=[head].concat(other).filter(Boolean).join(' & ');if(n)title+=' ('+n[1]+')';}
+  return {title:title,detail:rwSentence(pr.rest),price:pr.p}}
+function rewriteQuote(raw){return String(raw||'').split(/\n|;|,(?!\d{3})|\+|\band then\b|\balso\b|(?<=\d)\s+and\b/i).map(function(s){return s.trim()}).filter(function(s){return s.length>1}).map(rwItem)
+  .reduce(function(a,it){if(a.length&&it.price==null&&a[a.length-1].price==null&&false)return a;a.push(it);return a},[])}
+function money(v){return v==null||isNaN(v)?'':'$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function validEmail(e){return /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(String(e||'').trim())}
+
 let API=new URLSearchParams(location.search).get('api')||localStorage.fdApi||'https://script.google.com/macros/s/AKfycbwQDIAb7fwXFVL6g9AjA-tKGoUcwal0-tozzbwJ4EOcNnaHE4AcqUOxdXuNMvRpKYJAlw/exec';
 if(API)localStorage.fdApi=API;
 const ROLES={'1234':'Manager','0123':'Crew','6789':'Admin'};
-let role=sessionStorage.fdRole||'',jobs=[],root='',cur=null,pin='',photos=[];
+let blocks=[],role=sessionStorage.fdRole||'',jobs=[],root='',cur=null,pin='',photos=[];
 const $=s=>document.querySelector(s),A=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(e.t);e.t=setTimeout(()=>e.style.display='none',3500)}
 async function api(body){if(!API)throw Error('Backend not connected yet');
  const r=body?await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}):await fetch(API);
  const j=await r.json();if(j.ok===false)throw Error(j.err);return j}
-async function refresh(){try{const d=await api();jobs=d.jobs;root=d.root}catch(e){toast(e.message)}}
+async function refresh(){try{const d=await api();jobs=d.jobs;root=d.root;blocks=d.blocks||[]}catch(e){toast(e.message)}}
 function logout(){sessionStorage.fdRole='';role='';cur=null;render()}
 function shrink(f){return new Promise(res=>{const i=new Image();i.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))};i.src=URL.createObjectURL(f)})}
 async function pick(inp,cb){for(const f of inp.files)photos.push(await shrink(f));inp.value='';cb()}
@@ -58,19 +78,74 @@ function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){
 function stat(j){if(j.status=='invoiced')return j.invoice&&j.invoice.paid?'paid':'invoiced';if(j.status=='approved')return j.crew&&j.crew.length?'inprogress':'approved';return j.status}
 const SC={sent:'#112337',reply:'#7c3aed',approved:'#78a22f',inprogress:'#d97706',complete:'#34460d',invoiced:'#c2410c',paid:'#15803d',declined:'#8a8f98'};
 const ST={paid:'Paid',inprogress:'In progress',sent:'Quoted',approved:'Approved → crew',declined:'Declined',reply:'Customer replied',complete:'Done → admin',invoiced:'Invoiced'};
-function list(title,arr,go,extra=''){A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${esc(j.address)} <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' · '+esc(j.response.label):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')}
+function list(title,arr,go,extra=''){A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${esc(j.address)} <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' · '+esc(j.response.label):''}${av(j)?'<br>🕒 '+esc(av(j)):''} ${role=='Manager'?cfBadge(j):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')}
+function av(j){const r=j.response||{};return [r.avail,r.when].filter(Boolean).join(' - ')}
+// ---- schedule + conflicts ----
+const DAYN=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'],MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function hm(s){const[a,b]=String(s).split(':');return +a+(+b||0)/60}
+function hrs(t){t=t.toLowerCase();if(/morning|\bam\b/.test(t)&&!/\d/.test(t))return[8,12];if(/afternoon/.test(t))return[12,17];
+ const m=t.match(/\b(\d{1,2})(?::(\d\d))?\s*(am|pm)?\b(?!\s*\/)/);if(m&&(m[3]||/\bat\b/.test(t))){let h=+m[1]+(+m[2]||0)/60;if(m[3]=='pm'&&h<12)h+=12;if(!m[3]&&h<7)h+=12;return[h,Math.min(h+3,17)]}
+ if(/morning/.test(t))return[8,12];return[8,17]}
+function windows(j,days=21){const r=j.response||{},a=r.avail||'',w=(r.when||'').trim(),out=[],t0=new Date();t0.setHours(0,0,0,0);
+ if(w){const t=w.toLowerCase();let ds=[];const md=t.match(/\b(\d{1,2})\/(\d{1,2})\b/),mn=MON.findIndex(m=>new RegExp('\\b'+m+'[a-z]*\\.?\\s+(\\d{1,2})\\b').test(t));
+  if(md){const d=new Date(t0.getFullYear(),+md[1]-1,+md[2]);if(d<t0)d.setFullYear(d.getFullYear()+1);ds=[d]}
+  else if(mn>=0){const dn=+t.match(new RegExp('\\b'+MON[mn]+'[a-z]*\\.?\\s+(\\d{1,2})\\b'))[1],d=new Date(t0.getFullYear(),mn,dn);if(d<t0)d.setFullYear(d.getFullYear()+1);ds=[d]}
+  else if(/tomorrow/.test(t)){const d=new Date(t0);d.setDate(d.getDate()+1);ds=[d]}
+  else{const wd=DAYN.map((n,i)=>new RegExp('\\b'+n.slice(0,3)).test(t)?i:-1).filter(i=>i>=0);for(let i=1;i<=days;i++){const d=new Date(t0);d.setDate(d.getDate()+i);if(wd.includes(d.getDay()))ds.push(d)}}
+  const[h1,h2]=hrs(t);ds.forEach(d=>out.push({d:ymd(d),s:h1,e:h2}));if(out.length)return out}
+ const rule=/8-12/.test(a)?[1,8,12]:/12-5/.test(a)?[1,12,17]:/weekend/i.test(a)?[2,8,17]:a?[0,8,17]:null;if(!rule)return[];
+ for(let i=1;i<=days;i++){const d=new Date(t0);d.setDate(d.getDate()+i);const we=d.getDay()==0||d.getDay()==6;if(rule[0]==1&&we||rule[0]==2&&!we)continue;out.push({d:ymd(d),s:rule[1],e:rule[2]})}return out}
+function conflicts(j){const W=windows(j);if(!W.length)return null;const hit=[],open=[];
+ W.forEach(w=>{const ov=blocks.filter(b=>b.date==w.d&&b.job!=j.id&&hm(b.start)<w.e&&hm(b.end)>w.s);(ov.length?hit:open).push({w,ov})});return{W,hit,open}}
+function fmtD(s){const d=new Date(s+'T12:00');return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+function fmtT(s){let h=Math.floor(hm(s)),m=Math.round((hm(s)-h)*60);return((h%12)||12)+(m?':'+String(m).padStart(2,'0'):'')+(h<12?'a':'p')}
+function cfBadge(j){if(['complete','invoiced','declined'].includes(j.status))return'';const c=conflicts(j);if(!c||!c.hit.length)return c?'<span class="badge" style="background:#15803d">Schedule open</span>':'';
+ return `<span class="badge" style="background:${c.open.length?'#d97706':'#b91c1c'}">⚠ Schedule conflict${c.open.length?'':' – fully booked'}</span>`}
+function cfDetail(j){const c=conflicts(j);if(!c)return'';const bn=b=>`${fmtD(b.date)} ${fmtT(b.start)}-${fmtT(b.end)} ${esc(b.note||(jobs.find(x=>x.id==b.job)||{}).name||'')}`;
+ const uniq=[...new Map(c.hit.flatMap(h=>h.ov).map(b=>[b.id,b])).values()];
+ return `<div class="card" style="border:3px solid ${c.hit.length?(c.open.length?'#d97706':'#b91c1c'):'#15803d'}"><h2>${c.hit.length?'⚠ Schedule conflict':'✓ Schedule open'}</h2><p class="muted">Checked next 3 weeks against their pick: <b>${esc(av(j))}</b></p>
+ ${uniq.length?'<label>Overlapping blocks</label>'+uniq.map(b=>`<p style="margin:4px 0;color:#b91c1c">• ${bn(b)}</p>`).join(''):''}
+ <label>Open days that fit</label>${c.open.length?c.open.slice(0,6).map(o=>`<p style="margin:4px 0;color:#15803d">• ${fmtD(o.w.d)} ${fmtT(String(o.w.s))}-${fmtT(String(o.w.e))}</p>`).join(''):'<p style="color:#b91c1c">None in the next 3 weeks</p>'}</div>`}
+// Crew schedule (internal)
+let SV={mode:'week',start:null};
+function sched(){if(!SV.start){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());SV.start=d}
+ const s=new Date(SV.start),n=SV.mode=='week'?7:42;if(SV.mode=='month'){s.setDate(1);s.setDate(1-s.getDay())}
+ let cells='';for(let i=0;i<n;i++){const d=new Date(s);d.setDate(s.getDate()+i);const k=ymd(d),bs=blocks.filter(b=>b.date==k).sort((a,b)=>hm(a.start)-hm(b.start)),td=k==ymd(new Date());
+  cells+=SV.mode=='week'?`<div class="card" style="padding:10px 12px;margin:0 0 8px;${td?'border:3px solid var(--g)':''}"><b style="color:var(--n)">${fmtD(k)}</b>${bs.map(b=>`<button class="btn d" style="font-size:16px;padding:12px;margin:6px 0;text-align:left" onclick="blk('${b.id}')">${fmtT(b.start)}–${fmtT(b.end)} · ${esc(b.note||(jobs.find(x=>x.id==b.job)||{}).name||'Blocked')}</button>`).join('')||'<div class="muted">Open</div>'}<button class="btn gr" style="font-size:15px;padding:10px;margin:4px 0 0" onclick="blk('',\'${k}\')">+ Block this day</button></div>`
+  :`<div onclick="SV.mode='week';SV.start=new Date('${k}T00:00');SV.start.setDate(SV.start.getDate()-SV.start.getDay());sched()" style="background:${bs.length?'#fde7d7':'#fff'};border:${td?'3px solid var(--g)':'1px solid #dde3d3'};border-radius:8px;min-height:58px;padding:4px;font-size:13px;opacity:${d.getMonth()==new Date(SV.start).getMonth()||SV.mode=='week'?1:.5}"><b>${d.getDate()}</b>${bs.length?`<div style="color:#c2410c;font-weight:700">${bs.length} block${bs.length>1?'s':''}</div>`:''}</div>`}
+ const title=SV.mode=='week'?'Week of '+fmtD(ymd(SV.start)):new Date(SV.start).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+ A.innerHTML=`<div class="card"><h2>Crew Schedule</h2><div class="row"><button class="btn ${SV.mode=='week'?'':'gr'}" onclick="SV.mode='week';sched()">Week</button><button class="btn ${SV.mode=='month'?'':'gr'}" onclick="SV.mode='month';sched()">Month</button></div>
+ <button class="btn huge" onclick="blk('')">+ Block time</button><div class="row"><button class="btn n" onclick="mv(-1)">◀</button><button class="btn n" onclick="mv(1)">▶</button></div><h2 style="text-align:center">${title}</h2></div>
+ ${SV.mode=='month'?'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px">'+'SMTWTFS'.split('').map(x=>`<b style="text-align:center">${x}</b>`).join('')+cells+'</div>':cells}<button class="btn gr" onclick="render()">← Back to projects</button>`}
+function mv(k){const d=new Date(SV.start);if(SV.mode=='week')d.setDate(d.getDate()+7*k);else{d.setDate(15);d.setMonth(d.getMonth()+k);d.setDate(1)}SV.start=d;sched()}
+function blk(id,day){const b=blocks.find(x=>x.id==id)||{date:day||ymd(new Date()),start:'08:00',end:'17:00',job:'',note:''};
+ A.innerHTML=`<div class="card"><h2>${id?'Edit block':'Block time'}</h2><label>Date</label><input type="date" id="bd" value="${b.date}"><div class="row"><div style="flex:1"><label>Start</label><input type="time" id="bs" value="${b.start}"></div><div style="flex:1"><label>End</label><input type="time" id="be" value="${b.end}"></div></div>
+ <label>Job (optional)</label><select id="bj" style="width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:10px"><option value="">— none —</option>${jobs.map(j=>`<option value="${j.id}" ${j.id==b.job?'selected':''}>${esc(j.name)} · ${esc(j.address)}</option>`).join('')}</select>
+ <label>Note (optional)</label><input id="bn" value="${esc(b.note)}" placeholder="e.g. Crane rental, crew off">
+ <button class="btn huge" id="bsv" onclick="saveBlk('${id}')">Save</button>${id?`<button class="btn" style="background:#b91c1c" onclick="delBlk('${id}')">Delete block</button>`:''}<button class="btn gr" onclick="sched()">Cancel</button></div>`}
+async function saveBlk(id){const b={id,date:$('#bd').value,start:$('#bs').value,end:$('#be').value,job:$('#bj').value,note:$('#bn').value.trim()};if(!b.date||!b.start||!b.end)return toast('Pick date and times');if(hm(b.end)<=hm(b.start))return toast('End must be after start');
+ $('#bsv').disabled=true;try{const r=await api({a:'block',block:b});blocks=r.blocks;toast('Saved');sched()}catch(e){toast(e.message);$('#bsv').disabled=false}}
+async function delBlk(id){if(!confirm('Delete this block?'))return;try{const r=await api({a:'unblock',block:{id}});blocks=r.blocks;toast('Deleted');sched()}catch(e){toast(e.message)}}
+async function fixEmail(id){const e=prompt('Customer email');if(e==null)return;if(!validEmail(e))return toast('That email does not look right');try{await api({a:'email',id,email:e.trim()});await refresh();mview(id)}catch(x){toast(x.message)}}
 // Manager
-function mgr(){list('All my projects ('+jobs.length+')',[...jobs].sort((a,b)=>b.created<a.created?-1:1),'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button>`)}
+function mgr(){list('All my projects ('+jobs.length+')',[...jobs].sort((a,b)=>b.created<a.created?-1:1),'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button><button class="btn huge n" onclick="sched()">📅 Crew Schedule</button>`)}
 function newq(){photos=[];A.innerHTML=`<div class="card"><h2>New quote</h2>
-<label>Customer name</label><input id="nm"><label>Address</label><input id="ad"><label>Customer email</label><input id="em" type="email"><p class="muted">Test mode: all emails go to ${TEST_TO}</p>
+<label>Customer name</label><input id="nm"><label>Address</label><input id="ad"><label>Customer email</label><input id="em" type="email" inputmode="email" autocomplete="off">
 <label>Photos</label><input type="file" id="pf" accept="image/*" capture="environment" multiple hidden onchange="pick(this,showP)"><button class="btn d" onclick="$('#pf').click()">📷 Take photo</button><div id="pp"></div>
 <label>Quote (talk or type)</label><textarea id="qt" rows="6" placeholder="Remove the oak by the driveway, grind stump… $1,800"></textarea><button class="btn mic" id="mb">🎤 Talk</button>
-<button class="btn huge" id="sq" onclick="sendQ()">Send quote email</button><button class="btn gr" onclick="render()">Cancel</button></div>`;mic('mb','qt')}
+<button class="btn huge d" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" onclick="render()">Cancel</button></div>`;mic('mb','qt')}
 function showP(){$('#pp').innerHTML=imgs(photos)+`<p class="muted">${photos.length} photo(s)</p>`}
-async function sendQ(){const d={a:'create',name:$('#nm').value,address:$('#ad').value,email:$('#em').value,quote:$('#qt').value,photos};
- if(!d.name||!d.quote)return toast('Add name and quote');$('#sq').disabled=true;$('#sq').textContent='Sending…';
- try{await api(d);toast('Quote sent to '+TEST_TO);await refresh();render()}catch(e){toast(e.message);$('#sq').disabled=false;$('#sq').textContent='Send quote email'}}
-function mview(id){GAL=[];const j=jobs.find(x=>x.id==id);A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p>${esc(j.address)}</p><p><b>Status:</b> <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?'<br><b>Answer:</b> '+esc(j.response.label)+' '+esc(j.response.text):''}</p><p style="white-space:pre-wrap">${esc(j.quote)}</p>${imgs(j.photos)}${j.crew&&j.crew.length?'<label>Crew Before/After</label>'+imgs(j.crew):''}
+let IT=[];
+function prev(){if(!$('#qt').value.trim())return toast('Say or type the work first');IT=rewriteQuote($('#qt').value);drawPv()}
+function drawPv(){const t=IT.reduce((a,i)=>a+(Number(i.price)||0),0);$('#pv').innerHTML=`<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included.</p>
+${IT.map((i,n)=>`<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="${esc(i.title)}" oninput="IT[${n}].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT[${n}].detail=this.value" style="margin-top:6px;font-size:15px">${esc(i.detail)}</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="${i.price??''}" oninput="IT[${n}].price=this.value===''?null:Number(this.value.replace(/[$,]/g,''));$('#tot').textContent=money(IT.reduce((a,i)=>a+(Number(i.price)||0),0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice(${n},1);drawPv()">Remove</button></div></div>`).join('')}
+<button class="btn gr" onclick="IT.push({title:'',detail:'',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">${money(t)}</span></b></p>
+<button class="btn huge" id="sq" onclick="sendQ()">Send quote email + PDF</button></div>`;$('#pv').scrollIntoView({behavior:'smooth'})}
+async function sendQ(){const d={a:'create',name:$('#nm').value.trim(),address:$('#ad').value.trim(),email:$('#em').value.trim(),quote:$('#qt').value,items:IT.filter(i=>i.title.trim()),photos};
+ if(!d.name)return toast('Add the customer name');if(!d.email)return toast('Customer email is required to send the quote');if(!validEmail(d.email))return toast('That email does not look right. Check it.');if(!d.items.length)return toast('Add at least one line');$('#sq').disabled=true;$('#sq').textContent='Sending…';
+ try{await api(d);toast('Quote + PDF sent to '+d.email);await refresh();render()}catch(e){toast(e.message);$('#sq').disabled=false;$('#sq').textContent='Send quote email + PDF'}}
+function mview(id){GAL=[];const j=jobs.find(x=>x.id==id);A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p>${esc(j.address)}</p><p><b>Status:</b> <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?'<br><b>Answer:</b> '+esc(j.response.label)+' '+esc(j.response.text):''}</p>${j.est?'<p class="muted">'+j.est+(j.pdf?` · <a href="${j.pdf}" target="_blank">PDF</a>`:'')+'</p>':''}<p>📧 ${esc(j.email)||'<b style="color:#b91c1c">No email</b>'} <a href="#" onclick="fixEmail('${id}');return false">edit</a></p>${av(j)?'<p style="font-size:18px">🕒 <b>Customer prefers:</b> '+esc(av(j))+'</p>':''}${items(j)}${cfDetail(j)}${imgs(j.photos)}${j.crew&&j.crew.length?'<label>Crew Before/After</label>'+imgs(j.crew):''}
 ${j.status=='sent'||j.status=='reply'?`<p class="muted">Customer answered by phone? Mark it:</p><div class="row"><button class="btn" onclick="ans('${id}','A')">A</button><button class="btn d" onclick="ans('${id}','B')">B</button><button class="btn gr" onclick="ans('${id}','C')">C</button></div>`:''}
 ${j.folder?`<p><a href="${j.folder}" target="_blank">Project photos in Drive</a></p>`:''}<button class="btn gr" onclick="render()">← Back</button></div>`}
 async function ans(id,a){try{await api({a:'respond',id,ans:a});await refresh();mview(id)}catch(e){toast(e.message)}}
@@ -78,7 +153,7 @@ async function ans(id,a){try{await api({a:'respond',id,ans:a});await refresh();m
 function crew(){const a=jobs.filter(j=>j.status=='approved');if(a.length==1)return cview(a[0].id);list('Your jobs',a,'cview')}
 function cview(id){GAL=[];cur=id;const j=jobs.find(x=>x.id==id),b=j.crew.filter(p=>p.kind=='before'),af=j.crew.filter(p=>p.kind=='after');
  A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p style="font-size:18px">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(j.address)}" target="_blank">${esc(j.address)}</a></p>
-<label>Scope</label><p style="white-space:pre-wrap;font-size:18px">${esc(j.quote)}</p>${j.notes?'<label>Manager notes</label><p>'+esc(j.notes)+'</p>':''}${j.response&&j.response.text?'<label>Customer said</label><p>'+esc(j.response.text)+'</p>':''}
+${av(j)?'<p style="font-size:18px;background:#f1f5ea;padding:10px;border-radius:10px">🕒 <b>Customer prefers:</b> '+esc(av(j))+'</p>':''}<label>Scope</label>${items(j)}${j.notes?'<label>Manager notes</label><p>'+esc(j.notes)+'</p>':''}${j.response&&j.response.text?'<label>Customer said</label><p>'+esc(j.response.text)+'</p>':''}
 <label>Manager photos</label>${imgs(j.photos)}</div>
 <div class="card"><h2>Before (${b.length})</h2>${imgs(b)}<input type="file" id="bf" accept="image/*" capture="environment" multiple hidden onchange="up(this,'before')"><button class="btn d" onclick="$('#bf').click()">📷 Before photo</button></div>
 <div class="card"><h2>After (${af.length})</h2>${imgs(af)}<input type="file" id="af" accept="image/*" capture="environment" multiple hidden onchange="up(this,'after')"><button class="btn d" onclick="$('#af').click()">📷 After photo</button></div>
@@ -90,15 +165,16 @@ async function done(id){if(!confirm('Mark job complete?'))return;$('#jc').disabl
  try{await api({a:'finish',id,notes:$('#cn').value});toast('Done! Recap emailed, sent to admin');await refresh();render()}catch(e){toast(e.message);$('#jc').disabled=false}}
 // Admin
 function admin(){list('Invoices',jobs.filter(j=>j.status=='complete'||j.status=='invoiced'),'aview')}
+function items(j){if(!j.items)return `<p style="white-space:pre-wrap">${esc(j.quote)}</p>`;return j.items.map(i=>`<p style="margin:6px 0;font-size:17px"><b>${esc(i.title)}</b>${i.price!=null&&i.price!==''?' — '+money(Number(i.price)):''}<br><span class="muted">${esc(i.detail)}</span></p>`).join('')+`<p style="font-size:19px"><b>Total: ${money(j.total)}</b></p>`}
 function amt(q){const m=String(q).match(/\$\s?[\d,]+(\.\d\d)?/g);return m?m[m.length-1]:''}
 function aview(id){GAL=[];const j=jobs.find(x=>x.id==id),v=j.invoice||{},paid=v.paid;
  A.innerHTML=`<div class="card"><h2>Invoice ${j.id} ${j.status=='invoiced'?`<span class="badge ${paid?'paid':'open'}">${paid?'PAID':'OPEN'}</span>`:''}</h2>
-<p><b>${esc(j.name)}</b><br>${esc(j.address)}</p><label>Work (from quote)</label><p style="white-space:pre-wrap">${esc(j.quote)}</p>
-<label>Amount</label><input id="am" value="${esc(v.amount||amt(j.quote))}"><label>Note</label><textarea id="an" rows="2">${esc(v.note||'Payment due within 15 days. Thank you!')}</textarea>
+<p><b>${esc(j.name)}</b><br>${esc(j.address)}</p><label>Work (from quote)</label>${items(j)}
+<label>Amount</label><input id="am" value="${esc(v.amount||(j.total!=null?money(j.total):amt(j.quote)))}"><label>Note</label><textarea id="an" rows="2">${esc(v.note||'Payment due within 15 days. Thank you!')}</textarea>
 <button class="btn huge" onclick="inv('${id}')">${j.invoice?'Resend':'Send'} invoice</button>
 ${j.status=='invoiced'?`<button class="btn ${paid?'gr':'d'}" onclick="paid('${id}',${!paid})">${paid?'Mark OPEN':'Mark PAID'}</button>`:''}
 <label>Before / After</label>${imgs(j.crew)}<button class="btn gr" onclick="render()">← Back</button></div>`}
-async function inv(id){try{await api({a:'invoice',id,amount:$('#am').value,note:$('#an').value});toast('Invoice sent to '+TEST_TO);await refresh();aview(id)}catch(e){toast(e.message)}}
+async function inv(id){try{await api({a:'invoice',id,amount:$('#am').value,note:$('#an').value});toast('Invoice sent to customer');await refresh();aview(id)}catch(e){toast(e.message)}}
 async function paid(id,p){try{await api({a:'paid',id,paid:p});await refresh();aview(id)}catch(e){toast(e.message)}}
 if(role)refresh().then(render);else render();
 </script></body></html>
