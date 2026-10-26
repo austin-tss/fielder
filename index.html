@@ -21,7 +21,7 @@ input,textarea{width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;b
 .muted{color:#666;font-size:14px}#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--n);color:#fff;padding:14px 20px;border-radius:12px;display:none;font-size:17px;z-index:9}
 </style></head><body>
 <header><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div><button id="out" hidden onclick="logout()">Sign out</button></header>
-<div class="wrap" id="app"></div><div id="toast"></div>
+<div class="wrap" id="app"></div><div id="toast"></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
 <script>
 const TEST_TO='austin@techsourcedsolutions.com'; // every email goes ONLY here (enforced in Apps Script too)
 let API=new URLSearchParams(location.search).get('api')||localStorage.fdApi||'';
@@ -43,18 +43,24 @@ function mic(btnId,fieldId){const SR=window.SpeechRecognition||window.webkitSpee
  let r=null;b.onclick=()=>{if(r){r.stop();return}r=new SR();r.lang='en-US';r.continuous=true;r.interimResults=false;
   r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)q.value+=(q.value?' ':'')+e.results[i][0].transcript.trim()};
   r.onend=()=>{r=null;b.classList.remove('on');b.textContent='🎤 Talk'};r.start();b.classList.add('on');b.textContent='⏹ Stop'}}
-function imgs(l){return '<div class="ph">'+(l||[]).map(p=>`<img src="${esc(p.url||p)}">`).join('')+'</div>'}
+let GAL=[];function src(p){return typeof p=='string'?p:'https://lh3.googleusercontent.com/d/'+p.id+'=w1000'}
+function imgs(l){l=l||[];const s=GAL.length;GAL.push(...l);return '<div class="ph">'+l.map((p,i)=>`<img loading="lazy" src="${esc(src(p))}" data-id="${p.id||''}" onerror="fb(this)" onclick="big(${s+i})">`).join('')+'</div>'}
+async function fb(im){if(im.dataset.tried||!im.dataset.id)return;im.dataset.tried=1;try{const r=await fetch(API+'?a=img&id='+im.dataset.id);const j=await r.json();im.src=j.data}catch(e){}}
+let gi=0;function big(i){gi=i;const im=document.querySelector(`.ph img[onclick="big(${i})"]`);$('#lbi').src=im?im.src:src(GAL[i]);$('#lb').style.display='flex'}
+function nav(d){big((gi+d+GAL.length)%GAL.length)}
 function setupCard(){return API?'':`<div class="card"><h2>Connect backend</h2><p class="muted">Paste the Apps Script web app URL once.</p><input id="apiu" placeholder="https://script.google.com/macros/s/.../exec"><button class="btn n" onclick="localStorage.fdApi=API=$('#apiu').value.trim();render()">Save</button></div>`}
-function render(){$('#out').hidden=!role;$('#who').textContent=role?role+' view':'Tree Care & Service';
+function render(){GAL=[];$('#out').hidden=!role;$('#who').textContent=role?role+' view':'Tree Care & Service';
  if(!role){pin='';A.innerHTML=setupCard()+`<div class="card"><h2>Enter your PIN</h2><div id="dots"></div><div class="pin">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
  <p class="muted">Free estimates · 24 HR emergency · (850) 656-8737</p>`;return}
  ({Manager:mgr,Crew:crew,Admin:admin})[role]()}
 function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){if(k!='✓')pin+=k}
  $('#dots').textContent='•'.repeat(pin.length);if(pin.length==4){if(ROLES[pin]){role=sessionStorage.fdRole=ROLES[pin];refresh().then(render);A.innerHTML='<div class="card">Loading…</div>'}else{toast('Wrong PIN');pin='';$('#dots').textContent=''}}}
-const ST={sent:'Quote sent',approved:'Approved → crew',declined:'Declined',reply:'Customer replied',complete:'Done → admin',invoiced:'Invoiced'};
-function list(title,arr,go,extra=''){A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${esc(j.address)} · ${ST[j.status]||j.status}${j.response?' · '+esc(j.response.label):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')}
+function stat(j){if(j.status=='invoiced')return j.invoice&&j.invoice.paid?'paid':'invoiced';if(j.status=='approved')return j.crew&&j.crew.length?'inprogress':'approved';return j.status}
+const SC={sent:'#112337',reply:'#7c3aed',approved:'#78a22f',inprogress:'#d97706',complete:'#34460d',invoiced:'#c2410c',paid:'#15803d',declined:'#8a8f98'};
+const ST={paid:'Paid',inprogress:'In progress',sent:'Quoted',approved:'Approved → crew',declined:'Declined',reply:'Customer replied',complete:'Done → admin',invoiced:'Invoiced'};
+function list(title,arr,go,extra=''){A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${esc(j.address)} <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' · '+esc(j.response.label):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')}
 // Manager
-function mgr(){list('All jobs',jobs,'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button>`)}
+function mgr(){list('All my projects ('+jobs.length+')',[...jobs].sort((a,b)=>b.created<a.created?-1:1),'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button>`)}
 function newq(){photos=[];A.innerHTML=`<div class="card"><h2>New quote</h2>
 <label>Customer name</label><input id="nm"><label>Address</label><input id="ad"><label>Customer email</label><input id="em" type="email"><p class="muted">Test mode: all emails go to ${TEST_TO}</p>
 <label>Photos</label><input type="file" id="pf" accept="image/*" capture="environment" multiple hidden onchange="pick(this,showP)"><button class="btn d" onclick="$('#pf').click()">📷 Take photo</button><div id="pp"></div>
@@ -64,13 +70,13 @@ function showP(){$('#pp').innerHTML=imgs(photos)+`<p class="muted">${photos.leng
 async function sendQ(){const d={a:'create',name:$('#nm').value,address:$('#ad').value,email:$('#em').value,quote:$('#qt').value,photos};
  if(!d.name||!d.quote)return toast('Add name and quote');$('#sq').disabled=true;$('#sq').textContent='Sending…';
  try{await api(d);toast('Quote sent to '+TEST_TO);await refresh();render()}catch(e){toast(e.message);$('#sq').disabled=false;$('#sq').textContent='Send quote email'}}
-function mview(id){const j=jobs.find(x=>x.id==id);A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p>${esc(j.address)}</p><p><b>Status:</b> ${ST[j.status]}${j.response?'<br><b>Answer:</b> '+esc(j.response.label)+' '+esc(j.response.text):''}</p><p style="white-space:pre-wrap">${esc(j.quote)}</p>${imgs(j.photos)}
+function mview(id){GAL=[];const j=jobs.find(x=>x.id==id);A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p>${esc(j.address)}</p><p><b>Status:</b> <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?'<br><b>Answer:</b> '+esc(j.response.label)+' '+esc(j.response.text):''}</p><p style="white-space:pre-wrap">${esc(j.quote)}</p>${imgs(j.photos)}${j.crew&&j.crew.length?'<label>Crew Before/After</label>'+imgs(j.crew):''}
 ${j.status=='sent'||j.status=='reply'?`<p class="muted">Customer answered by phone? Mark it:</p><div class="row"><button class="btn" onclick="ans('${id}','A')">A</button><button class="btn d" onclick="ans('${id}','B')">B</button><button class="btn gr" onclick="ans('${id}','C')">C</button></div>`:''}
 ${j.folder?`<p><a href="${j.folder}" target="_blank">Project photos in Drive</a></p>`:''}<button class="btn gr" onclick="render()">← Back</button></div>`}
 async function ans(id,a){try{await api({a:'respond',id,ans:a});await refresh();mview(id)}catch(e){toast(e.message)}}
 // Crew
 function crew(){const a=jobs.filter(j=>j.status=='approved');if(a.length==1)return cview(a[0].id);list('Your jobs',a,'cview')}
-function cview(id){cur=id;const j=jobs.find(x=>x.id==id),b=j.crew.filter(p=>p.kind=='before'),af=j.crew.filter(p=>p.kind=='after');
+function cview(id){GAL=[];cur=id;const j=jobs.find(x=>x.id==id),b=j.crew.filter(p=>p.kind=='before'),af=j.crew.filter(p=>p.kind=='after');
  A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p style="font-size:18px">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(j.address)}" target="_blank">${esc(j.address)}</a></p>
 <label>Scope</label><p style="white-space:pre-wrap;font-size:18px">${esc(j.quote)}</p>${j.notes?'<label>Manager notes</label><p>'+esc(j.notes)+'</p>':''}${j.response&&j.response.text?'<label>Customer said</label><p>'+esc(j.response.text)+'</p>':''}
 <label>Manager photos</label>${imgs(j.photos)}</div>
@@ -85,7 +91,7 @@ async function done(id){if(!confirm('Mark job complete?'))return;$('#jc').disabl
 // Admin
 function admin(){list('Invoices',jobs.filter(j=>j.status=='complete'||j.status=='invoiced'),'aview')}
 function amt(q){const m=String(q).match(/\$\s?[\d,]+(\.\d\d)?/g);return m?m[m.length-1]:''}
-function aview(id){const j=jobs.find(x=>x.id==id),v=j.invoice||{},paid=v.paid;
+function aview(id){GAL=[];const j=jobs.find(x=>x.id==id),v=j.invoice||{},paid=v.paid;
  A.innerHTML=`<div class="card"><h2>Invoice ${j.id} ${j.status=='invoiced'?`<span class="badge ${paid?'paid':'open'}">${paid?'PAID':'OPEN'}</span>`:''}</h2>
 <p><b>${esc(j.name)}</b><br>${esc(j.address)}</p><label>Work (from quote)</label><p style="white-space:pre-wrap">${esc(j.quote)}</p>
 <label>Amount</label><input id="am" value="${esc(v.amount||amt(j.quote))}"><label>Note</label><textarea id="an" rows="2">${esc(v.note||'Payment due within 15 days. Thank you!')}</textarea>

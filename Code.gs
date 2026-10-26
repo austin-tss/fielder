@@ -45,6 +45,7 @@ function doGet(e){var p=e.parameter||{};
       respond_(j,p.ans,p.text);save_(js);
       return page_('<h3 style="color:#34460d">Thank you!</h3><p>Your answer was recorded: <b>'+esc_(j.response.label)+'</b>'+(p.text?' - '+esc_(p.text):'')+'</p>');
     }finally{L.releaseLock();}}
+  if(p.a=='img'){var b=DriveApp.getFileById(p.id).getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   return out_({ok:true,root:root_().getUrl(),jobs:load_()});}
 function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScriptLock();L.waitLock(30000);var j,send=null;
   try{var js=load_();
