@@ -19,6 +19,8 @@ input,textarea{width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;b
 .badge.open{background:#c2410c}.badge.paid{background:var(--g)}
 .row{display:flex;gap:8px}.row .btn{flex:1}.mic{background:var(--dg)}.mic.on{background:#c2410c}
 .muted{color:#666;font-size:14px}#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--n);color:#fff;padding:14px 20px;border-radius:12px;display:none;font-size:17px;z-index:9}
+.sug{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:2px solid #78a22f;border-radius:12px;box-shadow:0 8px 24px rgba(17,35,55,.18);z-index:30;overflow:hidden}
+.sug button{display:block;width:100%;text-align:left;font:inherit;font-size:17px;min-height:56px;padding:14px 16px;border:0;border-bottom:1px solid #eef0ea;background:#fff;color:#112337}.sug button:last-child{border:0}.sug button:active,.sug button:hover{background:#eef6dc}.sug .h{padding:12px 16px;color:#5b6168;font-size:14px}
 </style></head><body>
 <header><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div><button id="out" hidden onclick="logout()">Sign out</button></header>
 <div class="wrap" id="app"></div><div id="toast"></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
@@ -130,11 +132,37 @@ async function delBlk(id){if(!confirm('Delete this block?'))return;try{const r=a
 async function fixEmail(id){const e=prompt('Customer email');if(e==null)return;if(!validEmail(e))return toast('That email does not look right');try{await api({a:'email',id,email:e.trim()});await refresh();mview(id)}catch(x){toast(x.message)}}
 // Manager
 function mgr(){list('All my projects ('+jobs.length+')',[...jobs].sort((a,b)=>b.created<a.created?-1:1),'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button><button class="btn huge n" onclick="sched()">📅 Crew Schedule</button>`)}
+// ===== Address autocomplete (free, keyless: Photon, falling back to Nominatim) =====
+const STATES={alabama:'AL',alaska:'AK',arizona:'AZ',arkansas:'AR',california:'CA',colorado:'CO',connecticut:'CT',delaware:'DE',florida:'FL',georgia:'GA',hawaii:'HI',idaho:'ID',illinois:'IL',indiana:'IN',iowa:'IA',kansas:'KS',kentucky:'KY',louisiana:'LA',maine:'ME',maryland:'MD',massachusetts:'MA',michigan:'MI',minnesota:'MN',mississippi:'MS',missouri:'MO',montana:'MT',nebraska:'NE',nevada:'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND',ohio:'OH',oklahoma:'OK',oregon:'OR',pennsylvania:'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD',tennessee:'TN',texas:'TX',utah:'UT',vermont:'VT',virginia:'VA',washington:'WA','west virginia':'WV',wisconsin:'WI',wyoming:'WY','district of columbia':'DC'};
+const st2=s=>STATES[String(s||'').toLowerCase()]||s||'';
+const SUF={drive:'Dr',road:'Rd',street:'St',avenue:'Ave',lane:'Ln',boulevard:'Blvd',court:'Ct',circle:'Cir',highway:'Hwy',parkway:'Pkwy',trail:'Trl',place:'Pl',terrace:'Ter',square:'Sq',north:'N',south:'S',east:'E',west:'W'};
+const abbr=s=>String(s||'').split(' ').map(w=>SUF[w.toLowerCase()]||w).join(' ');
+function fmtAddr(o){const l1=[o.num,abbr(o.street||o.name)].filter(Boolean).join(' '),stz=[st2(o.state),o.zip].filter(Boolean).join(' ');return [l1,o.city,stz].filter(Boolean).join(', ')}
+let GEO=null,GEOASKED=false;
+function geo(){if(GEO||GEOASKED||!navigator.geolocation)return;GEOASKED=true;try{navigator.geolocation.getCurrentPosition(p=>{GEO={lat:p.coords.latitude,lon:p.coords.longitude}},()=>{},{timeout:5000,maximumAge:600000})}catch(e){}}
+function tmo(ms){const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal}
+async function photon(q){const g=GEO||{lat:30.44,lon:-84.28},tn=(q.match(/^\s*(\d{1,6})\b/)||[])[1];
+ const r=await fetch('https://photon.komoot.io/api/?limit=8&lang=en&lat='+g.lat+'&lon='+g.lon+'&q='+encodeURIComponent(q),{signal:tmo(4500)});if(!r.ok)throw Error('photon');
+ const j=await r.json();return (j.features||[]).filter(f=>(f.properties.countrycode||'').toUpperCase()=='US').map(f=>{const p=f.properties;return fmtAddr({num:p.housenumber||(!p.street&&p.type=='street'&&p.name&&!/^\d/.test(p.name)?tn:''),street:p.street,name:p.street?'':p.name,city:p.city||p.town||p.village||p.county,state:p.state,zip:p.postcode})})}
+async function nominatim(q){const g=GEO,vb=g?[g.lon-1.5,g.lat+1.2,g.lon+1.5,g.lat-1.2]:[-88.0,32.0,-82.0,29.5];
+ const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=us&bounded=0&viewbox='+vb.join(',')+'&q='+encodeURIComponent(q),{signal:tmo(5000)});if(!r.ok)throw Error('nominatim');
+ return (await r.json()).map(x=>{const a=x.address||{};return fmtAddr({num:a.house_number,street:a.road,name:a.road?'':x.name,city:a.city||a.town||a.village||a.hamlet||a.county,state:a.state,zip:a.postcode})})}
+function addrAC(id,cb){const inp=document.getElementById(id),box=document.getElementById(id+'sug');if(!inp||!box)return;let t=null,seq=0;
+ const hide=()=>{box.hidden=true;box.innerHTML=''};
+ const show=l=>{if(!l.length)return hide();box.innerHTML=l.map((a,i)=>`<button type="button" data-i="${i}">📍 ${esc(a)}</button>`).join('');box.hidden=false;box.querySelectorAll('button').forEach(b=>b.onpointerdown=e=>{e.preventDefault();inp.value=l[+b.dataset.i];hide();if(cb)cb()})};
+ const note=m=>{box.innerHTML=`<div class="h">${m}</div>`;box.hidden=false};
+ inp.addEventListener('focus',geo);inp.addEventListener('blur',()=>setTimeout(hide,200));
+ inp.addEventListener('input',()=>{clearTimeout(t);const q=inp.value.trim(),my=++seq;if(q.length<6)return hide();
+  t=setTimeout(async()=>{if(navigator.onLine===false)return note('Offline: suggestions need internet. You can still type the address.');
+   const tn=/^\s*\d{1,6}\b/.test(q);let l=[];try{l=await photon(q)}catch(e){}
+   if(tn&&l.length&&my==seq){try{const n2=await nominatim(q);l=[...n2,...l]}catch(e){}}
+   if(my!=seq)return;if(!l.length){try{l=await nominatim(q)}catch(e){if(my==seq)return note('Suggestions unavailable right now. You can still type the address.');return}}
+   if(my!=seq)return;const rk=s=>/, FL\b/.test(s)?0:/, GA\b/.test(s)?1:/, AL\b/.test(s)?2:3;l=[...new Set(l.filter(Boolean))].map((s,i)=>[s,i]).sort((a,b)=>rk(a[0])-rk(b[0])||a[1]-b[1]).map(x=>x[0]).slice(0,5);if(l.length)show(l);else hide()},300)})}
 function newq(){photos=[];A.innerHTML=`<div class="card"><h2>New quote</h2>
-<label>Customer name</label><input id="nm"><label>Address</label><input id="ad"><label>Customer email</label><input id="em" type="email" inputmode="email" autocomplete="off">
+<label>Customer name</label><input id="nm"><label>Address</label><div style="position:relative"><input id="ad" autocomplete="off" autocapitalize="words" placeholder="Start typing the address"><div class="sug" id="adsug" hidden></div></div><label>Customer email</label><input id="em" type="email" inputmode="email" autocomplete="off">
 <label>Photos</label><input type="file" id="pf" accept="image/*" capture="environment" multiple hidden onchange="pick(this,showP)"><button class="btn d" onclick="$('#pf').click()">📷 Take photo</button><div id="pp"></div>
 <label>Quote (talk or type)</label><textarea id="qt" rows="6" placeholder="Remove the oak by the driveway, grind stump… $1,800"></textarea><button class="btn mic" id="mb">🎤 Talk</button>
-<button class="btn huge d" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" onclick="render()">Cancel</button></div>`;mic('mb','qt')}
+<button class="btn huge d" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" onclick="render()">Cancel</button></div>`;mic('mb','qt');addrAC('ad')}
 function showP(){$('#pp').innerHTML=imgs(photos)+`<p class="muted">${photos.length} photo(s)</p>`}
 let IT=[];
 function prev(){if(!$('#qt').value.trim())return toast('Say or type the work first');IT=rewriteQuote($('#qt').value);drawPv()}
