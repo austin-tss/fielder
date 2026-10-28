@@ -44,6 +44,9 @@ const jobs = [{
 }];
 let settings = { form: null, quoteBody: '', quoteSubject: '', quoteSign: '', theme: 'classic' };
 const feedback = [];
+let VOICE = false;
+export function setVoice(v) { VOICE = !!v; }
+export const created = [];
 let blocks = [];
 let employees = [{ id: 'E1', name: 'Ada Admin', email: 'ada@example.com', role: 'Admin', pin: '5511' }, { id: 'E2', name: 'Sam Saw', email: 'sam@example.com', role: 'Crew', pin: '5522' }];
 export const outbox = [];
@@ -64,7 +67,7 @@ function customerHtml(job) {
 function publicSettings() {
   const form = FD.normalizeForm(settings.form);
   settings.form = form;
-  return { form, quoteBody: settings.quoteBody || '', quoteSubject: settings.quoteSubject || '', quoteSign: settings.quoteSign || '', theme: settings.theme === 'dark' ? 'dark' : 'classic' };
+  return { form, quoteBody: settings.quoteBody || '', quoteSubject: settings.quoteSubject || '', quoteSign: settings.quoteSign || '', theme: settings.theme === 'dark' ? 'dark' : 'classic', voice: VOICE, placesKey: '' };
 }
 
 function handleApi(req, res, body) {
@@ -105,6 +108,16 @@ function handleApi(req, res, body) {
     return send(res, 200, JSON.stringify({ ok: true, blocks }));
   }
   if (d.a === 'qnList') return send(res, 200, JSON.stringify({ ok: true, items: [{ id: 'Q1', name: 'Mock Request', subject: 'Quote request', received: '2026-10-27T12:00:00Z' }, { id: 'Q2', name: 'Mock Request 2', subject: 'Estimate', received: '2026-10-27T13:00:00Z' }] }));
+  if (d.a === 'voiceQuote') {
+    if (!VOICE) return send(res, 200, JSON.stringify({ ok: false, setup: true, err: 'Voice quotes need setup' }));
+    if (!d.audio && !d.text) return send(res, 200, JSON.stringify({ ok: false, err: 'Say or type the quote first.' }));
+    return send(res, 200, JSON.stringify({ ok: true, result: {
+      transcript: 'mock',
+      customer: { name: 'Pat Voice', phone: '850-555-0101', email: 'pat.voice@example.com', address: '12 Live Oak Ln, Tallahassee, FL 32312' },
+      estimate: { items: [{ service: 'Live Oak Removal', description: 'Remove the leaning live oak by the driveway.', qty: 1, price: 1800 }, { service: 'Stump Grinding', description: 'Grind the stump below grade.', qty: 2, price: 150 }], total: 2100, customerNotes: 'Work can start next week.' },
+      crew: { access: 'Gate code 4321, dog in yard', hazards: 'Power line over the oak', equipment: 'Bucket truck and stump grinder', cleanup: 'Haul all debris', trees: 'Oak on the left of the driveway, 30 inch', internalNotes: 'Customer is picky, price is firm' }
+    } }));
+  }
   if (d.a === 'archive') {
     const job = jobs.find((j) => j.id === d.id);
     if (!job) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
@@ -165,6 +178,7 @@ function handleApi(req, res, body) {
       crew: []
     };
     jobs.unshift(job);
+    created.push({ body: d, html: customerHtml(job) });
     return send(res, 200, JSON.stringify({ ok: true, job, customerHtml: customerHtml(job) }));
   }
   if (d.a === 'qedit') {

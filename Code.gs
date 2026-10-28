@@ -55,7 +55,9 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
   var TREE_OPTIONS = ['Live oak', 'Water oak', 'Laurel oak', 'Red oak', 'White oak', 'Crepe myrtle', 'Sweetgum', 'Magnolia', 'Hickory', 'Cypress', 'Cedar', 'Dogwood', 'Maple', 'Pecan', 'Palm', 'Pine', 'Oak', 'Elm', 'Birch', 'Holly', 'Sycamore', 'Poplar', 'Willow', 'Bamboo', 'Other'];
   var TIMING_OPTIONS = ['Scheduled', 'Within a week', '24-hour emergency'];
   var ACCESS_OPTIONS = ['Street', 'Backyard', 'Gated', 'Tight access', 'Crane needed'];
-  var BUILTIN_IDS = ['name', 'address', 'email', 'phone', 'service', 'species', 'timing', 'access', 'photos', 'quote', 'addl', 'inote'];
+  // Core fields can never be removed from the quote form. Everything else can be removed and added back.
+  var CORE_IDS = ['name', 'address', 'email'];
+  var BUILTIN_IDS = ['ai', 'name', 'address', 'email', 'phone', 'service', 'species', 'timing', 'access', 'photos', 'quote', 'addl', 'inote'];
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -80,6 +82,7 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
         { name: 'Permit Paperwork', price: '' }
       ],
       fields: [
+        { id: 'ai', label: 'Have AI fill this quote out', kind: 'ai', show: true, customer: false },
         { id: 'name', label: 'Customer name', kind: 'text', show: true, customer: true },
         { id: 'address', label: 'Address', kind: 'address', show: true, customer: true },
         { id: 'email', label: 'Customer email', kind: 'email', show: true, customer: true },
@@ -127,12 +130,12 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
         if (name && opts.indexOf(name) < 0 && opts.length < 40) opts.push(name);
       });
       var custDefault = !!(builtin && builtin.customer);
-      var customer = lock ? false : (typeof f.customer === 'boolean' ? f.customer : custDefault);
+      var customer = lock || id === 'ai' ? false : (typeof f.customer === 'boolean' ? f.customer : custDefault);
       fields.push({
         id: id,
         label: cleanName(f.label || (builtin && builtin.label) || 'Field', 80) || 'Field',
         kind: kind,
-        show: lock ? true : f.show === false ? false : true,
+        show: CORE_IDS.indexOf(id) >= 0 ? true : f.show === false ? false : true,
         customer: customer,
         lock: lock,
         builtin: !!builtin,
@@ -272,8 +275,11 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
     opts = opts || {};
     form = normalizeForm(form);
     var html = '';
+    var ai = formField(form, 'ai');
+    // The AI button always sits at the very top of the form when it is shown.
+    if (ai && ai.show !== false) html += '<div data-field="ai" id="aibox"><button class="btn huge" id="aibtn" type="button" onclick="aiStart()">🎙 ' + esc(ai.label) + '</button><div id="aistat" class="muted" style="text-align:center;margin-top:6px"></div></div>';
     form.fields.forEach(function (f) {
-      if (f.show === false) return;
+      if (f.show === false || f.id === 'ai') return;
       var label = '<label>' + esc(f.label) + '</label>';
       var wrap = function (inner) { return '<div data-field="' + esc(f.id) + '">' + inner + '</div>'; };
       if (f.id === 'name') html += wrap(label + '<input id="nm" autocomplete="name">');
@@ -315,9 +321,12 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
         ? '<label>Dropdown choices, separated by commas</label><input data-fld="' + i + '" data-k="options" value="' + esc((f.options || []).join(', ')) + '">'
         : '';
       var remove = f.builtin ? '' : '<button class="btn gr" type="button" onclick="removeField(' + i + ')">Remove field</button>';
-      return '<div class="line" data-field-row="' + esc(f.id) + '"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-fld="' + i + '" data-k="show" ' + (f.show !== false ? 'checked' : '') + (f.lock ? ' disabled' : '') + '> Show</label>' +
+      return '<div class="line" data-field-row="' + esc(f.id) + '"' + (f.show === false ? ' style="opacity:.7"' : '') + '><input type="checkbox" class="sr" aria-hidden="true" tabindex="-1" data-fld="' + i + '" data-k="show" ' + (f.show !== false ? 'checked' : '') + (CORE_IDS.indexOf(f.id) >= 0 ? ' disabled' : '') + '>' +
+        (CORE_IDS.indexOf(f.id) >= 0 ? '<p class="muted" style="margin:0 0 6px">Always on the form</p>' : f.show === false
+          ? '<div class="row" style="align-items:center"><span class="muted" style="flex:1">Removed from the quote form</span><button class="btn n" type="button" style="margin:0;flex:0 0 auto;width:auto;padding:12px 18px" onclick="toggleField(' + i + ',true)">Add back</button></div>'
+          : '<div class="row" style="justify-content:flex-end"><button class="btn gr" type="button" style="margin:0 0 6px;width:auto;padding:12px 18px;color:#b91c1c" onclick="toggleField(' + i + ',false)">Remove from form</button></div>') +
         '<input data-fld="' + i + '" data-k="label" value="' + esc(f.label) + '">' +
-        '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-fld="' + i + '" data-k="customer" ' + (f.customer ? 'checked' : '') + (f.lock ? ' disabled' : '') + '> Customer sees this</label>' +
+        '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-fld="' + i + '" data-k="customer" ' + (f.customer ? 'checked' : '') + (f.lock || f.id === 'ai' ? ' disabled' : '') + '> Customer sees this</label>' +
         opts +
         '<div class="row"><button class="btn gr" type="button" onclick="moveField(' + i + ',-1)">Up</button><button class="btn gr" type="button" onclick="moveField(' + i + ',1)">Down</button></div>' +
         remove + '</div>';
@@ -348,6 +357,7 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
   }
 
   var FDForm = {
+    CORE_IDS: CORE_IDS,
     DEFAULT_BODY: DEFAULT_BODY,
     DEFAULT_SUBJECT: DEFAULT_SUBJECT,
     DEFAULT_SIGN: DEFAULT_SIGN,
@@ -377,7 +387,7 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
 // FORMJS_END
 function loadObj_(n){var r=root_(),it=r.getFilesByName(n);if(!it.hasNext())return {};var raw='';try{raw=it.next().getBlob().getDataAsString()||''}catch(e){return {}}if(!raw||raw==='[]')return {};try{var o=JSON.parse(raw);if(!o||typeof o!=='object'||Array.isArray(o))return {};return o}catch(e2){return {}}}
 function saveObj_(o,n){var r=root_(),it=r.getFilesByName(n),f=it.hasNext()?it.next():r.createFile(n,'{}','application/json');f.setContent(JSON.stringify(o))}
-function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic',qbo:qboPublic_()}}
+function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic',qbo:qboPublic_(),voice:!!prop_('GEMINI_API_KEY'),placesKey:String(prop_('GOOGLE_PLACES_KEY')||'')}}
 function bodyHtml_(body){if(body===FDForm.DEFAULT_BODY)return body;return FDForm.emailText(body)}
 function signHtml_(sign){if(sign===FDForm.DEFAULT_SIGN)return '<p>Sincerely,<br><b>'+CO.name+'</b></p>';return '<p>'+FDForm.emailText(sign)+'</p>'}
 function custBlock_(j){try{var form=settings_().form,face=FDForm.customerJob(j);return FDForm.specHtml(face,form)+FDForm.additionalNotesHtml(face,form)}catch(e){return ''}}
@@ -493,6 +503,7 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
   if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'){if(me!=='Admin')return {ok:false,err:'Only Admin can manage employees.'};return empApi_(d);}if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
   if(d.a=='qboconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
   if(d.a=='qbodisconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};saveObj_({},'qbo.json');return {ok:true,settings:settings_()};}
+  if(d.a=='voiceQuote'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};return voiceQuote_(d);}
   if(d.a=='qnList')return v5Api_(d);
   if(d.a=='qnScan'){var added=scanQuoteEmails();return added<0?BUSY_:{ok:true,added:added};}
   if(d.a=='smsOnWay')return smsOnWay_(d);
@@ -649,3 +660,38 @@ function empApi_(d){
   var label={Manager:'Estimator',Crew:'Crew',Admin:'Admin'}[add.role],mailed=false,mailErr='';
   try{var mr=mail_({to:add.email,replyTo:CO.email,name:CO.name,subject:'Your Fielder Field Desk login code',htmlBody:'<p>Hi '+esc_(add.name)+',</p><p>You have been added to Fielder Field Desk as <b>'+label+'</b>.</p><p>Your login code is <b style="font-size:22px;letter-spacing:3px">'+add.pin+'</b></p><p>Open <a href="https://austin-tss.github.io/fielder/">austin-tss.github.io/fielder</a> and enter the code. Keep it private.</p>'});mailed=!!(mr&&mr.sent);}catch(x){mailErr=String(x&&x.message||x)}
   return {ok:true,code:add.pin,mailed:mailed,mailErr:mailErr,employee:empPublic_(add),employees:emps_().map(empPublic_)};}
+
+// ===== Voice quotes: Gemini sorts a spoken walk-through into customer, estimate, and crew-only parts. =====
+// Needs Script Property GEMINI_API_KEY. Nothing is saved or sent here; the app pre-fills the form for review.
+// Crew-only details are returned separately and the app puts them only in Internal notes (never on the estimate or email).
+var VOICE_MODEL='gemini-2.5-flash';
+function voiceSchema_(){var S={type:'STRING'},N={type:'NUMBER'};
+  return {type:'OBJECT',properties:{
+    transcript:S,
+    customer:{type:'OBJECT',properties:{name:S,phone:S,email:S,address:S}},
+    estimate:{type:'OBJECT',properties:{items:{type:'ARRAY',items:{type:'OBJECT',properties:{service:S,description:S,qty:N,price:N},required:['service','description']}},total:N,customerNotes:S}},
+    crew:{type:'OBJECT',properties:{access:S,hazards:S,equipment:S,cleanup:S,trees:S,internalNotes:S}}},
+    required:['customer','estimate','crew']};}
+function voicePrompt_(){var svc=[];try{svc=(settings_().form.services||[]).map(function(x){return x.name+(x.price?' ($'+x.price+')':'')})}catch(e){}
+  return 'You are the estimator assistant for '+CO.name+', a tree service in Tallahassee, Florida. The estimator is walking a job and talking out loud. '+
+  'Split what they say into three parts. CUSTOMER: name, phone, email, street address with city, state, zip if said. '+
+  'ESTIMATE (customer sees this): one line item per piece of work with a short professional service title, a one-sentence customer-friendly description, qty (default 1), and price in US dollars if a price was said (else 0); total of the prices; customerNotes = only things meant for the customer (scheduling promises, warranty, what is included). '+
+  'CREW (internal only, never shown to the customer): access and gate codes, dogs, parking; hazards such as power lines, structures, dead wood, bees; equipment needed such as bucket truck, crane, stump grinder, mats; haul-away and cleanup instructions; tree locations and details such as species, size, which side of the house; and any other internal remark, opinion, or margin talk. '+
+  'Never put gate codes, hazards, equipment, opinions about the customer, or internal pricing talk in the estimate. Leave a field empty if it was not said. Do not invent prices or contact details. '+
+  'Also return the plain transcript. Common services: '+svc.join(', ')+'.';}
+function voiceQuote_(d){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Voice quotes need setup: add GEMINI_API_KEY in Script Properties.'};
+  var parts=[{text:voicePrompt_()}],text=clip_(d.text,8000),audio=String(d.audio||''),mime=String(d.mime||'audio/webm').split(';')[0];
+  if(audio){if(audio.length>14000000)return {ok:false,err:'That recording is too long. Keep it under about 5 minutes.'};parts.push({inline_data:{mime_type:mime,data:audio}});}
+  if(text)parts.push({text:'Estimator notes:\n'+text});
+  if(!audio&&!text)return {ok:false,err:'Say or type the quote first.'};
+  var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+VOICE_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
+    payload:JSON.stringify({contents:[{role:'user',parts:parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseSchema:voiceSchema_()}})});
+  var code=res.getResponseCode(),body={};try{body=JSON.parse(res.getContentText()||'{}')}catch(e){}
+  if(code<200||code>=300){Logger.log('Gemini '+code+' '+res.getContentText().slice(0,500));return {ok:false,err:'Gemini could not read that ('+code+'). Try again or type the notes.'};}
+  var out={};try{out=JSON.parse(body.candidates[0].content.parts.map(function(x){return x.text||''}).join(''))}catch(e2){return {ok:false,err:'Gemini answer was not readable. Try again.'};}
+  return {ok:true,result:voiceClean_(out)};}
+function voiceClean_(o){o=o||{};var c=o.customer||{},e=o.estimate||{},k=o.crew||{},S=function(v,n){return clip_(v,n||1000)};
+  var items=(e.items||[]).slice(0,30).map(function(i){var q=Number(i.qty)||1,p=Number(i.price)||0;return {service:S(i.service,120),description:S(i.description,600),qty:q,price:p}});
+  return {transcript:S(o.transcript,8000),customer:{name:S(c.name,120),phone:S(c.phone,40),email:S(c.email,200),address:S(c.address,300)},
+    estimate:{items:items,total:items.reduce(function(a,i){return a+i.qty*i.price},0),customerNotes:S(e.customerNotes,1500)},
+    crew:{access:S(k.access),hazards:S(k.hazards),equipment:S(k.equipment),cleanup:S(k.cleanup),trees:S(k.trees),internalNotes:S(k.internalNotes,2000)}};}

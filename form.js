@@ -8,7 +8,9 @@
   var TREE_OPTIONS = ['Live oak', 'Water oak', 'Laurel oak', 'Red oak', 'White oak', 'Crepe myrtle', 'Sweetgum', 'Magnolia', 'Hickory', 'Cypress', 'Cedar', 'Dogwood', 'Maple', 'Pecan', 'Palm', 'Pine', 'Oak', 'Elm', 'Birch', 'Holly', 'Sycamore', 'Poplar', 'Willow', 'Bamboo', 'Other'];
   var TIMING_OPTIONS = ['Scheduled', 'Within a week', '24-hour emergency'];
   var ACCESS_OPTIONS = ['Street', 'Backyard', 'Gated', 'Tight access', 'Crane needed'];
-  var BUILTIN_IDS = ['name', 'address', 'email', 'phone', 'service', 'species', 'timing', 'access', 'photos', 'quote', 'addl', 'inote'];
+  // Core fields can never be removed from the quote form. Everything else can be removed and added back.
+  var CORE_IDS = ['name', 'address', 'email'];
+  var BUILTIN_IDS = ['ai', 'name', 'address', 'email', 'phone', 'service', 'species', 'timing', 'access', 'photos', 'quote', 'addl', 'inote'];
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -33,6 +35,7 @@
         { name: 'Permit Paperwork', price: '' }
       ],
       fields: [
+        { id: 'ai', label: 'Have AI fill this quote out', kind: 'ai', show: true, customer: false },
         { id: 'name', label: 'Customer name', kind: 'text', show: true, customer: true },
         { id: 'address', label: 'Address', kind: 'address', show: true, customer: true },
         { id: 'email', label: 'Customer email', kind: 'email', show: true, customer: true },
@@ -80,12 +83,12 @@
         if (name && opts.indexOf(name) < 0 && opts.length < 40) opts.push(name);
       });
       var custDefault = !!(builtin && builtin.customer);
-      var customer = lock ? false : (typeof f.customer === 'boolean' ? f.customer : custDefault);
+      var customer = lock || id === 'ai' ? false : (typeof f.customer === 'boolean' ? f.customer : custDefault);
       fields.push({
         id: id,
         label: cleanName(f.label || (builtin && builtin.label) || 'Field', 80) || 'Field',
         kind: kind,
-        show: lock ? true : f.show === false ? false : true,
+        show: CORE_IDS.indexOf(id) >= 0 ? true : f.show === false ? false : true,
         customer: customer,
         lock: lock,
         builtin: !!builtin,
@@ -225,8 +228,11 @@
     opts = opts || {};
     form = normalizeForm(form);
     var html = '';
+    var ai = formField(form, 'ai');
+    // The AI button always sits at the very top of the form when it is shown.
+    if (ai && ai.show !== false) html += '<div data-field="ai" id="aibox"><button class="btn huge" id="aibtn" type="button" onclick="aiStart()">🎙 ' + esc(ai.label) + '</button><div id="aistat" class="muted" style="text-align:center;margin-top:6px"></div></div>';
     form.fields.forEach(function (f) {
-      if (f.show === false) return;
+      if (f.show === false || f.id === 'ai') return;
       var label = '<label>' + esc(f.label) + '</label>';
       var wrap = function (inner) { return '<div data-field="' + esc(f.id) + '">' + inner + '</div>'; };
       if (f.id === 'name') html += wrap(label + '<input id="nm" autocomplete="name">');
@@ -268,9 +274,12 @@
         ? '<label>Dropdown choices, separated by commas</label><input data-fld="' + i + '" data-k="options" value="' + esc((f.options || []).join(', ')) + '">'
         : '';
       var remove = f.builtin ? '' : '<button class="btn gr" type="button" onclick="removeField(' + i + ')">Remove field</button>';
-      return '<div class="line" data-field-row="' + esc(f.id) + '"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-fld="' + i + '" data-k="show" ' + (f.show !== false ? 'checked' : '') + (f.lock ? ' disabled' : '') + '> Show</label>' +
+      return '<div class="line" data-field-row="' + esc(f.id) + '"' + (f.show === false ? ' style="opacity:.7"' : '') + '><input type="checkbox" class="sr" aria-hidden="true" tabindex="-1" data-fld="' + i + '" data-k="show" ' + (f.show !== false ? 'checked' : '') + (CORE_IDS.indexOf(f.id) >= 0 ? ' disabled' : '') + '>' +
+        (CORE_IDS.indexOf(f.id) >= 0 ? '<p class="muted" style="margin:0 0 6px">Always on the form</p>' : f.show === false
+          ? '<div class="row" style="align-items:center"><span class="muted" style="flex:1">Removed from the quote form</span><button class="btn n" type="button" style="margin:0;flex:0 0 auto;width:auto;padding:12px 18px" onclick="toggleField(' + i + ',true)">Add back</button></div>'
+          : '<div class="row" style="justify-content:flex-end"><button class="btn gr" type="button" style="margin:0 0 6px;width:auto;padding:12px 18px;color:#b91c1c" onclick="toggleField(' + i + ',false)">Remove from form</button></div>') +
         '<input data-fld="' + i + '" data-k="label" value="' + esc(f.label) + '">' +
-        '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-fld="' + i + '" data-k="customer" ' + (f.customer ? 'checked' : '') + (f.lock ? ' disabled' : '') + '> Customer sees this</label>' +
+        '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-fld="' + i + '" data-k="customer" ' + (f.customer ? 'checked' : '') + (f.lock || f.id === 'ai' ? ' disabled' : '') + '> Customer sees this</label>' +
         opts +
         '<div class="row"><button class="btn gr" type="button" onclick="moveField(' + i + ',-1)">Up</button><button class="btn gr" type="button" onclick="moveField(' + i + ',1)">Down</button></div>' +
         remove + '</div>';
@@ -301,6 +310,7 @@
   }
 
   var FDForm = {
+    CORE_IDS: CORE_IDS,
     DEFAULT_BODY: DEFAULT_BODY,
     DEFAULT_SUBJECT: DEFAULT_SUBJECT,
     DEFAULT_SIGN: DEFAULT_SIGN,

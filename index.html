@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Fielder Field Desk</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#112337">
+<title>Fielder Field Desk</title><link rel="preconnect" href="https://places.googleapis.com" crossorigin><link rel="preconnect" href="https://photon.komoot.io" crossorigin><link rel="dns-prefetch" href="https://nominatim.openstreetmap.org"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#112337">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Fielder">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1179x2556.png">
@@ -26,7 +26,7 @@ header img{height:46px;width:auto;background:#fff;border-radius:8px;padding:2px;
 .wrap{max-width:560px;margin:0 auto;padding:16px}
 .card{background:#fff;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 4px rgba(17,35,55,.08)}
 h2{color:var(--n);margin:4px 0 12px;font-size:22px}label{display:block;font-weight:700;margin:12px 0 6px}
-input,textarea,select{width:100%;font-size:18px;padding:14px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--c)}input[type=checkbox]{width:22px;height:22px;padding:0;vertical-align:middle}.line{padding:12px 0;border-bottom:1px solid #eef0ea}
+input,textarea,select{font-family:inherit;width:100%;font-size:18px;padding:14px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--c)}input[type=checkbox]{width:22px;height:22px;padding:0;vertical-align:middle}.line{padding:12px 0;border-bottom:1px solid #eef0ea}
 .btn{display:block;width:100%;font-size:18px;font-weight:700;padding:16px;margin:12px 0 0;border:0;border-radius:14px;background:var(--g);color:#fff;cursor:pointer}
 .btn.n{background:var(--n)}.btn.d{background:var(--dg)}.btn.gr{background:#eef1ea;color:var(--n)}.btn.huge{font-size:22px;padding:22px}.btn:disabled{opacity:.6}
 .pin{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pin button{font-size:28px;padding:20px;border-radius:14px;border:0;background:var(--n);color:#fff}
@@ -49,9 +49,13 @@ input,textarea,select{width:100%;font-size:18px;padding:14px;border:2px solid va
 #modal{position:fixed;inset:0;z-index:50;background:rgba(17,35,55,.45);display:flex;align-items:center;justify-content:center;padding:20px}#modal[hidden]{display:none}
 #modal .card{width:100%;max-width:420px;margin:0}
 #undo{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:13;background:var(--n);color:#fff;border-radius:12px;padding:10px 12px 10px 18px;display:flex;align-items:center;gap:12px;font-size:17px;max-width:92vw}#undo[hidden]{display:none}#undo button{font:inherit;font-weight:800;border:0;border-radius:10px;padding:10px 14px;background:var(--g);color:#fff;cursor:pointer}
-.listhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0 10px}.listhead h2{margin:0}.listhead button{font:inherit;font-weight:700;font-size:16px;border:0;border-radius:10px;padding:12px 16px;background:#eef1ea;color:var(--n);cursor:pointer}
+.listhead{scroll-margin-top:150px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 10px}.listhead h2{margin:0}.listhead button{font:inherit;font-weight:700;font-size:16px;border:0;border-radius:10px;padding:12px 16px;background:#eef1ea;color:var(--n);cursor:pointer}
 .dayhd{font:inherit;font-weight:700;font-size:17px;color:var(--n);background:transparent;border:0;padding:6px 0;cursor:pointer;text-decoration:underline}
-.perbar{display:flex;align-items:center;gap:6px;margin:0 0 12px}.perbar span{font-weight:700;color:var(--n);margin-right:4px}.perbar button{flex:1;font:inherit;font-weight:800;font-size:18px;min-height:52px;border:2px solid var(--n);border-radius:12px;background:#fff;color:var(--n);cursor:pointer}.perbar button.on{background:var(--n);color:#fff}
+.tbox{position:relative}.tbox textarea{padding-bottom:62px;display:block}
+.ctrash,.cmic{position:absolute;bottom:8px;width:48px;height:48px;border:0;border-radius:24px;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;margin:0;z-index:2}
+.ctrash{left:8px;background:#f1f2ee;color:#b42318}.cmic{right:8px;background:var(--n);color:#fff}.cmic.on{background:#b42318}
+.persel{margin-left:auto;font-weight:700;font-size:15px;color:var(--n);display:flex;align-items:center;gap:6px;margin-top:0;margin-bottom:0}.persel select{width:auto;font-size:16px;padding:8px 10px;border-radius:10px}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 4px}.pager span{font-weight:700;color:var(--n)}.pager button{font:inherit;font-weight:700;font-size:17px;min-height:48px;padding:10px 16px;border:0;border-radius:12px;background:var(--n);color:#fff;cursor:pointer}.pager button:disabled{background:#d9ddd3;color:#7a8070}
 .srow{display:flex;align-items:center;gap:12px;width:100%;min-height:72px;padding:12px 14px;margin:0 0 10px;background:#fff;border:2px solid var(--line);border-radius:14px;text-align:left;color:var(--n);font:inherit;cursor:pointer;box-shadow:0 1px 4px rgba(17,35,55,.08)}
 .srow span{flex:1;min-width:0}.srow b{display:block;font-size:18px}.srow small{display:block;margin-top:2px;font-size:14px;color:#5c6370}.srow i{font-style:normal;font-size:28px;color:var(--g)}
 .conn .st{display:inline-block;padding:4px 10px;border-radius:20px;font-weight:700;font-size:14px;color:#fff;background:#8a8f98}.conn .st.on{background:var(--g)}
@@ -67,8 +71,11 @@ input[type=radio]{width:22px;height:22px;padding:0;margin:0;flex:0 0 22px}
 <div id="topstick"><header><button id="brand" type="button" onclick="logoHome()" aria-label="Fielder Field Desk, Home"><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="gear" type="button" hidden onclick="openSet()" aria-label="Settings" title="Settings">⚙<span class="sr">Settings</span></button><button id="out" type="button" hidden onclick="logout()">Sign out</button></header>
 <div id="navbar" hidden><button id="back" type="button" onclick="goBack()">← Back</button><button id="navhome" type="button" onclick="navHome()">Home</button></div></div>
 <div class="wrap" id="app"></div><div id="toast"></div><div id="selbar" hidden><button class="btn gr" type="button" onclick="selOff()">Cancel</button><button class="btn red" id="seldel" type="button" onclick="delSel()">Delete 0 selected</button></div><div id="modal" hidden></div><div id="undo" hidden><span id="undot"></span><button type="button" id="undob">Undo</button></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
-<script src="form.js?v=20261027q"></script>
+<script src="form.js?v=20261028v"></script>
 <script>
+// Account rep shown under "Contact my account rep". PLACEHOLDER phone: swap these two lines for the real contact.
+const REP_NAME='William Griffin';
+const REP_PHONE='(850) 555-0100';
 // ---- Rule-based quote rewriter (shared by app + script) ----
 var RW_SPECIES=['live oak','water oak','laurel oak','red oak','white oak','crepe myrtle','crape myrtle','sweetgum','sweet gum','magnolia','hickory','cypress','cedar','dogwood','maple','pecan','palm','pine','oak','elm','birch','holly','sycamore','poplar','willow','bamboo'];
 var RW_SVC=[[/\b(emergency|storm|fallen|down(ed)? tree)\b/,'24-Hour Emergency Service'],[/\bstump/,'Stump Grinding'],[/\b(remov\w*|take down|takedown|cut down|fell\w*)\b/,'Removal'],[/\bprun\w*/,'Pruning'],[/\b(trim\w*|thin\w*|raise|lift|clearance)\b/,'Trimming'],[/\b(haul\w*|clean ?up|debris|brush)\b/,'Debris Haul-Away & Cleanup'],[/\bpermit/,'Permit Paperwork'],[/\b(assess\w*|inspect\w*|evaluat\w*)\b/,'Tree Health Assessment'],[/\b(cabl\w*|brac\w*)\b/,'Cabling & Bracing'],[/\b(lot clear\w*|land clear\w*)\b/,'Lot Clearing']];
@@ -122,10 +129,10 @@ function logout(){try{localStorage.removeItem('fdCache')}catch(e){}SEL=null;selB
 function shrink(f){return new Promise(res=>{const i=new Image();i.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))};i.src=URL.createObjectURL(f)})}
 async function pick(inp,cb){for(const f of inp.files)photos.push(await shrink(f));inp.value='';cb()}
 function mic(btnId,fieldId){const SR=window.SpeechRecognition||window.webkitSpeechRecognition,b=$('#'+btnId),q=$('#'+fieldId);
- if(!SR){b.onclick=()=>toast('Voice not supported here. Use the keyboard mic.');return}
+ if(!b||!q)return;if(!SR){b.onclick=()=>toast('Voice not supported here. Use the keyboard mic.');return}
  let r=null;b.onclick=()=>{if(r){r.stop();return}r=new SR();r.lang='en-US';r.continuous=true;r.interimResults=false;
   r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)q.value+=(q.value?' ':'')+e.results[i][0].transcript.trim()};
-  r.onend=()=>{r=null;b.classList.remove('on');b.textContent='🎤 Talk'};r.start();b.classList.add('on');b.textContent='⏹ Stop'}}
+  const ic=b.classList.contains('cmic');r.onend=()=>{r=null;b.classList.remove('on');b.textContent=ic?'🎤':'🎤 Talk'};r.start();b.classList.add('on');b.textContent=ic?'⏹':'⏹ Stop'}}
 let GAL=[];function src(p){return typeof p=='string'?p:'https://lh3.googleusercontent.com/d/'+p.id+'=w1000'}
 function imgs(l){l=l||[];const s=GAL.length;GAL.push(...l);return '<div class="ph">'+l.map((p,i)=>`<img loading="lazy" src="${esc(src(p))}" data-id="${p.id||''}" onerror="fb(this)" onclick="big(${s+i})">`).join('')+'</div>'}
 async function fb(im){if(im.dataset.tried||!im.dataset.id)return;im.dataset.tried=1;try{const r=await fetch(API+'?a=img&id='+im.dataset.id+'&pin='+encodeURIComponent(myPin()));const j=await r.json();im.src=j.data}catch(e){}}
@@ -138,8 +145,18 @@ let BACKFN=null,editId='';
 function armBack(fn){BACKFN=fn||null;var b=$('#navbar');if(b)b.hidden=!BACKFN}
 // Unsaved-changes guard: typing in a form marks it dirty; any new screen clears it.
 let DIRTY=false;
-A.addEventListener('input',e=>{if(e.target&&e.target.id!=='find')DIRTY=true});
+A.addEventListener('input',e=>{if(e.target&&e.target.id!=='find'&&e.target.id!=='persel')DIRTY=true});
 new MutationObserver(()=>{DIRTY=false}).observe(A,{childList:true});
+// Every text box gets a trash can (bottom-left, clears with Undo) and a mic (bottom-right, dictation).
+let TAN=0;
+function boxTools(){A.querySelectorAll('textarea').forEach(t=>{if(t.closest('.tbox'))return;if(!t.id)t.id='ta'+(++TAN);
+ const w=document.createElement('div');w.className='tbox';t.parentNode.insertBefore(w,t);w.appendChild(t);
+ const tr=document.createElement('button');tr.type='button';tr.className='ctrash';tr.setAttribute('aria-label','Clear this box');tr.title='Clear';tr.textContent='🗑';tr.onclick=()=>clearBox(t);w.appendChild(tr);
+ const old={qt:'mb',cn:'cm'}[t.id],ob=old&&document.getElementById(old);let m;
+ if(ob){m=ob;m.className='cmic';m.textContent='🎤';}else{m=document.createElement('button');m.type='button';m.className='cmic';m.id='mic-'+t.id;m.textContent='🎤';}
+ m.setAttribute('aria-label','Talk into this box');w.appendChild(m);if(!ob)mic(m.id,t.id)})}
+function clearBox(t){const v=t.value;if(!v)return;t.value='';t.dispatchEvent(new Event('input',{bubbles:true}));undoBar('Cleared',()=>{t.value=v;t.dispatchEvent(new Event('input',{bubbles:true}))},6000)}
+new MutationObserver(()=>boxTools()).observe(A,{childList:true,subtree:true});
 function okToLeave(){if(!DIRTY)return true;if(!confirm('Leave without saving?'))return false;DIRTY=false;return true}
 function goBack(){if(BACKFN&&okToLeave())BACKFN()}
 function logoHome(){if(!role)return;navHome()}
@@ -152,7 +169,8 @@ function render(){GAL=[];applyTheme();if(/^(set|setform|conn)$/.test(view)&&role
  if(view==='conn')return connScreen();
  if(view==='emp'&&role==='Admin')return empScreen();
  if(view==='fq'&&role==='Manager')return fqScreen();
- if(view==='fb')return feedbackScreen();
+ if(view==='fb')view='';
+ if(view==='rep')return repScreen();
  ({Manager:mgr,Crew:crew,Admin:admin})[role]()}
 function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){if(k!='✓')pin+=k}
  $('#dots').textContent='•'.repeat(pin.length);if(pin.length==4)login(pin)}
@@ -170,23 +188,26 @@ const canDel=()=>role==='Manager'||role==='Admin';let SEL=null;
 function cardTap(id,go){if(SEL){SEL.has(id)?SEL.delete(id):SEL.add(id);drawList();selBar();return}window[go](id)}
 function jobCard(j,go){const on=SEL&&SEL.has(j.id);return `<button class="job${on?' sel':''}" type="button" data-id="${esc(j.id)}" onclick="cardTap('${j.id}','${go}')">${canDel()&&!SEL?`<span class="trash" role="button" aria-label="Delete estimate" title="Delete" onclick="event.stopPropagation();delOne('${j.id}')">🗑</span>`:''}${SEL?`<span class="ck">${on?'✓':''}</span>`:''}<span class="t">${j.total!=null?money(j.total):''}</span><b>${esc(j.name)}</b><div class="a">${listAddr(j.address)}${j.est?' · '+esc(j.est):''}</div><span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' <span class="muted">'+esc(j.response.label)+'</span>':''}${av(j)?'<div class="a" style="margin:6px 0 0">🕒 '+esc(av(j))+'</div>':''} ${role=='Manager'?cfBadge(j):''}</button>`}
 function listMatch(j){const q=LQ.trim().toLowerCase();return !q||[j.name,j.address,j.est,j.email].join(' ').toLowerCase().includes(q)}
-function list(title,arr,go,extra=''){armBack(null);LIST=[title,arr,go];SHOWN=PER;if(SEL&&!LIST_KEEP)SEL=null;LIST_KEEP=false;selBar();A.innerHTML=`${extra}<div class="listhead"><h2>${title}</h2>${canDel()&&arr.length?`<button type="button" id="selbtn" onclick="SEL?selOff():selOn()">${SEL?'Done':'Select'}</button>`:''}</div><div class="perbar" id="perbar"><span>Show</span>${[5,10,25,50].map(n=>`<button type="button" data-n="${n}" class="${n==PER?'on':''}" onclick="setPer(${n})">${n}</button>`).join('')}</div>${arr.length>4?`<input id="find" type="search" placeholder="Search name, address or estimate #" value="${esc(LQ)}" autocomplete="off" oninput="LQ=this.value;SHOWN=PER;drawList()" style="margin:0 0 12px;font-size:16px">`:''}<div id="jl"></div><button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button>`+'<button class="btn gr" id="fbhome" type="button" onclick="openFb()">Send feedback to the development team</button>';drawList()}
+function list(title,arr,go,extra=''){armBack(null);LIST=[title,arr,go];PG=1;if(SEL&&!LIST_KEEP)SEL=null;LIST_KEEP=false;selBar();A.innerHTML=`${extra}<div class="listhead"><h2>${title}</h2><label class="persel">Show <select id="persel" onchange="setPer(+this.value)">${[5,10,25,50].map(n=>`<option value="${n}"${n==PER?' selected':''}>${n}</option>`).join('')}</select></label>${canDel()&&arr.length?`<button type="button" id="selbtn" onclick="SEL?selOff():selOn()">${SEL?'Done':'Select'}</button>`:''}</div>${arr.length>4?`<input id="find" type="search" placeholder="Search name, address or estimate #" value="${esc(LQ)}" autocomplete="off" oninput="LQ=this.value;PG=1;drawList()" style="margin:0 0 12px;font-size:16px">`:''}<div id="jl"></div><button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button>`+'<button class="btn gr" id="rephome" type="button" onclick="openRep()">Contact my account rep</button>';drawList()}
 // Newest first; how many to show is remembered on this device.
-let PER=[5,10,25,50].includes(+localStorage.fdPer)?+localStorage.fdPer:10,SHOWN=PER;
-function setPer(n){PER=n;SHOWN=n;try{localStorage.fdPer=String(n)}catch(e){}document.querySelectorAll('#perbar button').forEach(b=>b.classList.toggle('on',+b.dataset.n==n));drawList()}
+let PER=[5,10,25,50].includes(+localStorage.fdPer)?+localStorage.fdPer:10,PG=1;
+function setPer(n){PER=n;PG=1;try{localStorage.fdPer=String(n)}catch(e){}const sl=$('#persel');if(sl)sl.value=String(n);drawList()}
+function goPage(d){PG+=d;drawList();const h=$('.listhead');if(h)h.scrollIntoView({block:'start'})}
 let LIST_KEEP=false;
 function selOn(){SEL=new Set();LIST_KEEP=true;render();selBar()}
 function selOff(){SEL=null;selBar();render()}
 function selBar(){const b=$('#selbar');if(!b)return;b.hidden=!SEL;if(SEL){$('#seldel').textContent='Delete '+SEL.size+' selected';$('#seldel').disabled=!SEL.size}}
 function askDel(msg){return new Promise(res=>{const m=$('#modal');m.innerHTML=`<div class="card" role="dialog" aria-modal="true"><h2>${esc(msg)}</h2><p class="muted">It moves out of every list. You can undo right after.</p><div class="row"><button class="btn gr" type="button" id="mcancel">Cancel</button><button class="btn red" type="button" id="mok">Delete</button></div></div>`;m.hidden=false;
  const done=v=>{m.hidden=true;m.innerHTML='';res(v)};$('#mcancel').onclick=()=>done(false);$('#mok').onclick=()=>done(true);m.onclick=e=>{if(e.target===m)done(false)}})}
-let UNDOT=null;function showUndo(ids){const u=$('#undo');$('#undot').textContent=(ids.length==1?'Estimate':ids.length+' estimates')+' deleted';u.hidden=false;clearTimeout(UNDOT);UNDOT=setTimeout(()=>u.hidden=true,8000);
+let UNDOT=null;function undoBar(text,fn,ms){const u=$('#undo');$('#undot').textContent=text;u.hidden=false;clearTimeout(UNDOT);UNDOT=setTimeout(()=>u.hidden=true,ms||8000);$('#undob').onclick=()=>{u.hidden=true;clearTimeout(UNDOT);fn()}}
+function showUndo(ids){const u=$('#undo');$('#undot').textContent=(ids.length==1?'Estimate':ids.length+' estimates')+' deleted';u.hidden=false;clearTimeout(UNDOT);UNDOT=setTimeout(()=>u.hidden=true,8000);
  $('#undob').onclick=async()=>{u.hidden=true;clearTimeout(UNDOT);let bad=0;for(const id of ids){try{await api({a:'archive',id,undo:true})}catch(e){bad++}}await refresh();render();toast(bad?bad+' could not be restored. Try again.':'Restored')}}
 async function delIds(ids){let ok=[],bad=[];for(const id of ids){try{await api({a:'archive',id});ok.push(id)}catch(e){bad.push(id)}}
  SEL=null;selBar();await refresh();render();if(ok.length)showUndo(ok);if(bad.length)toast(bad.length+' of '+ids.length+' could not be deleted. Try again.')}
 async function delOne(id){if(!canDel())return;if(!(await askDel('Delete this estimate?')))return;await delIds([id])}
 async function delSel(){if(!SEL||!SEL.size)return;const ids=[...SEL];if(!(await askDel(ids.length==1?'Delete this estimate?':'Delete '+ids.length+' estimates?')))return;await delIds(ids)}
-let LIST=null;function drawList(){const el=$('#jl');if(!el||!LIST)return;const a=LIST[1].filter(listMatch),sh=a.slice(0,SHOWN);el.innerHTML=a.length?sh.map(j=>jobCard(j,LIST[2])).join('')+(a.length>PER?`<p class="muted" id="showing" style="text-align:center;margin:6px 0 0">Showing ${sh.length} of ${a.length}</p>`+(sh.length<a.length?`<button class="btn n" id="more" type="button" onclick="SHOWN+=PER;drawList()">Show ${Math.min(PER,a.length-sh.length)} more</button>`:`<button class="btn gr" id="less" type="button" onclick="SHOWN=PER;drawList();window.scrollTo(0,0)">Show fewer</button>`):''):'<p class="muted" style="text-align:center;padding:20px">'+(LQ.trim()?'No matches.':'Nothing here right now.')+'</p>'}
+let LIST=null;function drawList(){const el=$('#jl');if(!el||!LIST)return;const a=LIST[1].filter(listMatch),pages=Math.max(1,Math.ceil(a.length/PER));PG=Math.min(Math.max(1,PG),pages);const sh=a.slice((PG-1)*PER,PG*PER);
+ el.innerHTML=a.length?sh.map(j=>jobCard(j,LIST[2])).join('')+(pages>1?`<div class="pager" id="pager"><button type="button" id="pgprev" onclick="goPage(-1)"${PG<=1?' disabled':''}>‹ Prev</button><span id="pginfo">Page ${PG} of ${pages}</span><button type="button" id="pgnext" onclick="goPage(1)"${PG>=pages?' disabled':''}>Next ›</button></div>`:''):'<p class="muted" style="text-align:center;padding:20px">'+(LQ.trim()?'No matches.':'Nothing here right now.')+'</p>'}
 function mapU(a,g){const e=encodeURIComponent(a);return g?'https://www.google.com/maps/dir/?api=1&destination='+e:'https://maps.apple.com/?daddr='+e}
 function listAddr(a){a=String(a||'').trim();if(!a)return '';const q=esc(JSON.stringify(a));return `${esc(a)} <span class="gmap" role="link" onclick="event.stopPropagation();event.preventDefault();openMap(${q})">📍 Apple Maps</span> <span class="gmap" role="link" onclick="event.stopPropagation();event.preventDefault();openMap(${q},1)">Google Maps</span>`}
 function openMap(a,g){window.open(mapU(a,g),'_blank')}
@@ -268,24 +289,44 @@ const abbr=s=>String(s||'').split(' ').map(w=>SUF[w.toLowerCase()]||w).join(' ')
 function fmtAddr(o){const l1=[o.num,abbr(o.street||o.name)].filter(Boolean).join(' '),stz=[st2(o.state),o.zip].filter(Boolean).join(' ');return [l1,o.city,stz].filter(Boolean).join(', ')}
 let GEO=null,GEOASKED=false;
 function geo(){if(GEO||GEOASKED||!navigator.geolocation)return;GEOASKED=true;try{navigator.geolocation.getCurrentPosition(p=>{GEO={lat:p.coords.latitude,lon:p.coords.longitude}},()=>{},{timeout:5000,maximumAge:600000})}catch(e){}}
-function tmo(ms){const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal}
-async function photon(q){const g=GEO||{lat:30.44,lon:-84.28},tn=(q.match(/^\s*(\d{1,6})\b/)||[])[1];
- const r=await fetch('https://photon.komoot.io/api/?limit=8&lang=en&lat='+g.lat+'&lon='+g.lon+'&q='+encodeURIComponent(q),{signal:tmo(4500)});if(!r.ok)throw Error('photon');
+// ---- Address lookup: Google Places (New) when the office adds a key, else Photon, else Nominatim. Fast: 200 ms debounce, 3+ chars, aborts stale requests, caches answers. ----
+const TLH={lat:30.4383,lon:-84.2807},AREA=[-86.6,29.5,-81.9,31.9]; // North Florida + South Georgia
+const ACC=new Map();function acGet(k){if(ACC.has(k))return ACC.get(k);try{const v=sessionStorage.getItem('ac:'+k);if(v){const l=JSON.parse(v);ACC.set(k,l);return l}}catch(e){}return null}
+function acPut(k,l){ACC.set(k,l);try{sessionStorage.setItem('ac:'+k,JSON.stringify(l))}catch(e){}}
+// Google Places (New) browser key: restricted by HTTP referrer to austin-tss.github.io and localhost, Places API (New) only.
+const PLACES_KEY='AIzaSyC8j6_kOsgrlox57bVgof4vrbMEYz2RnsU';
+// Local test runs on 127.0.0.1 never call Google or Photon unless ?ac=1 is in the address.
+const AC_OFF=location.hostname==='127.0.0.1'&&!/[?&]ac=1/.test(location.search);
+function placesKey(){return (SET&&SET.placesKey)||PLACES_KEY}
+let GSESS='';function gSession(){if(!GSESS)GSESS=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random());return GSESS}
+async function gPlaces(q,sig){const g=GEO||TLH;const r=await fetch('https://places.googleapis.com/v1/places:autocomplete',{method:'POST',signal:sig,headers:{'Content-Type':'application/json','X-Goog-Api-Key':placesKey()},
+  body:JSON.stringify({input:q,sessionToken:gSession(),includedRegionCodes:['us'],locationBias:{circle:{center:{latitude:g.lat,longitude:g.lon},radius:50000}}})});if(!r.ok)throw Error('places');
+ const j=await r.json();return (j.suggestions||[]).map(x=>x.placePrediction).filter(Boolean).slice(0,6).map(p=>({label:String(p.text&&p.text.text||'').replace(/, USA$/,''),place:p.placeId}))}
+// Picking a Google suggestion ends the session with one Place Details call (formatted address only).
+async function gDetails(id){try{const r=await fetch('https://places.googleapis.com/v1/places/'+encodeURIComponent(id)+'?sessionToken='+encodeURIComponent(gSession()),{headers:{'X-Goog-Api-Key':placesKey(),'X-Goog-FieldMask':'formattedAddress'}});GSESS='';if(!r.ok)return '';return String((await r.json()).formattedAddress||'').replace(/, USA$/,'')}catch(e){GSESS='';return ''}}
+async function photon(q,sig){const g=GEO||TLH,tn=(q.match(/^\s*(\d{1,6})\b/)||[])[1];
+ const r=await fetch('https://photon.komoot.io/api/?limit=6&lang=en&lat='+g.lat+'&lon='+g.lon+'&bbox='+AREA.join(',')+'&q='+encodeURIComponent(q),{signal:sig});if(!r.ok)throw Error('photon');
  const j=await r.json();return (j.features||[]).filter(f=>(f.properties.countrycode||'').toUpperCase()=='US').map(f=>{const p=f.properties;return fmtAddr({num:p.housenumber||(!p.street&&p.type=='street'&&p.name&&!/^\d/.test(p.name)?tn:''),street:p.street,name:p.street?'':p.name,city:p.city||p.town||p.village||p.county,state:p.state,zip:p.postcode})})}
-async function nominatim(q){const g=GEO,vb=g?[g.lon-1.5,g.lat+1.2,g.lon+1.5,g.lat-1.2]:[-88.0,32.0,-82.0,29.5];
- const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=us&bounded=0&viewbox='+vb.join(',')+'&q='+encodeURIComponent(q),{signal:tmo(5000)});if(!r.ok)throw Error('nominatim');
+async function nominatim(q,sig){const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=us&bounded=0&viewbox='+[AREA[0],AREA[3],AREA[2],AREA[1]].join(',')+'&q='+encodeURIComponent(q),{signal:sig});if(!r.ok)throw Error('nominatim');
  return (await r.json()).map(x=>{const a=x.address||{};return fmtAddr({num:a.house_number,street:a.road,name:a.road?'':x.name,city:a.city||a.town||a.village||a.hamlet||a.county,state:a.state,zip:a.postcode})})}
-function addrAC(id,cb){const inp=document.getElementById(id),box=document.getElementById(id+'sug');if(!inp||!box)return;let t=null,seq=0;
+async function lookup(q,sig){const k=(placesKey()?'g:':'o:')+q.toLowerCase();const hit=acGet(k);if(hit)return hit;let l=[];
+ if(placesKey()){try{l=await gPlaces(q,sig)}catch(e){if(e.name==='AbortError')throw e;l=[]}}
+ if(!l.length){try{l=await photon(q,sig)}catch(e){if(e.name==='AbortError')throw e}
+  if(!l.length||/^\s*\d{1,6}\b/.test(q)&&!l.some(x=>/^\d/.test(x))){try{l=[...(await nominatim(q,sig)),...l]}catch(e){if(e.name==='AbortError')throw e}}
+  const rk=s=>/, FL\b/.test(s)?0:/, GA\b/.test(s)?1:/, AL\b/.test(s)?2:3;
+  l=[...new Set(l.filter(x=>x&&!addrBad(x)&&x.indexOf(',')>0))].map((s,i)=>[s,i]).sort((a,b)=>rk(a[0])-rk(b[0])||a[1]-b[1]).map(x=>({label:x[0]})).slice(0,6)}
+ acPut(k,l);return l}
+function addrAC(id,cb){const inp=document.getElementById(id),box=document.getElementById(id+'sug');if(!inp||!box)return;let t=null,ctl=null;
  const hide=()=>{box.hidden=true;box.innerHTML=''};
- const show=l=>{l=l.filter(x=>!addrBad(x)&&x.indexOf(',')>0);if(!l.length)return hide();box.innerHTML=l.map((a,i)=>`<button type="button" data-i="${i}">📍 ${esc(a)}</button>`).join('');box.hidden=false;box.querySelectorAll('button').forEach(b=>b.onpointerdown=e=>{e.preventDefault();inp.value=l[+b.dataset.i];hide();if(cb)cb()})};
+ const show=l=>{if(!l.length)return hide();box.innerHTML=l.map((a,i)=>`<button type="button" data-i="${i}">📍 ${esc(a.label)}</button>`).join('');box.hidden=false;
+  box.querySelectorAll('button').forEach(b=>b.onpointerdown=async e=>{e.preventDefault();const it=l[+b.dataset.i];inp.value=it.label;hide();if(it.place){const f=await gDetails(it.place);if(f)inp.value=f}inp.dispatchEvent(new Event('input',{bubbles:true}));hide();if(cb)cb()})};
  const note=m=>{box.innerHTML=`<div class="h">${m}</div>`;box.hidden=false};
  inp.addEventListener('focus',geo);inp.addEventListener('blur',()=>setTimeout(hide,200));
- inp.addEventListener('input',()=>{clearTimeout(t);const q=inp.value.trim(),my=++seq;if(q.length<6)return hide();
+ inp.addEventListener('input',e=>{if(!e.isTrusted||AC_OFF)return;clearTimeout(t);if(ctl)ctl.abort();const q=inp.value.trim();if(q.length<3)return hide();
+  const c=acGet((placesKey()?'g:':'o:')+q.toLowerCase());if(c){show(c);return}
   t=setTimeout(async()=>{if(navigator.onLine===false)return note('Offline: suggestions need internet. You can still type the address.');
-   const tn=/^\s*\d{1,6}\b/.test(q);let l=[];try{l=await photon(q)}catch(e){}
-   if(tn&&l.length&&my==seq){try{const n2=await nominatim(q);l=[...n2,...l]}catch(e){}}
-   if(my!=seq)return;if(!l.length){try{l=await nominatim(q)}catch(e){if(my==seq)return note('Suggestions unavailable right now. You can still type the address.');return}}
-   if(my!=seq)return;const rk=s=>/, FL\b/.test(s)?0:/, GA\b/.test(s)?1:/, AL\b/.test(s)?2:3;l=[...new Set(l.filter(Boolean))].map((s,i)=>[s,i]).sort((a,b)=>rk(a[0])-rk(b[0])||a[1]-b[1]).map(x=>x[0]).slice(0,5);if(l.length)show(l);else hide()},300)})}
+   ctl=new AbortController();const my=ctl;const to=setTimeout(()=>my.abort(),6000);
+   try{const l=await lookup(q,my.signal);if(my===ctl)l.length?show(l):hide()}catch(x){if(my===ctl&&x.name!=='AbortError')note('Suggestions unavailable right now. You can still type the address.')}finally{clearTimeout(to)}},200)})}
 function showP(){$('#pp').innerHTML=imgs(photos)+`<p class="muted">${photos.length} photo(s)</p>`}
 let IT=[];
 async function sendQ(){if($('#ad')&&addrBad($('#ad').value))return toast('Add the full address: street, city, state, zip');if(!$('#nm'))return toast('Show Customer name in Settings before sending');if(!$('#em'))return toast('Show Customer email in Settings before sending');const d=Object.assign({a:'create',name:$('#nm').value.trim(),address:$('#ad')?$('#ad').value.trim():'',email:$('#em').value.trim(),quote:$('#qt')?$('#qt').value:'',items:IT.filter(i=>i.title&&i.title.trim()),photos:photos},quoteExtra());
@@ -358,6 +399,7 @@ function readEditor(){
 function addService(){readEditor();FORM.services.push({name:'',price:''});formScreen()}
 function delService(i){readEditor();FORM.services.splice(i,1);formScreen()}
 function moveField(i,d){readEditor();var j=i+d;if(!FORM||j<0||j>=FORM.fields.length)return;var row=FORM.fields.splice(i,1)[0];FORM.fields.splice(j,0,row);formScreen()}
+function toggleField(i,on){readEditor();const f=FORM.fields[i];if(!f||FDForm.CORE_IDS.indexOf(f.id)>=0)return;if(!on&&!confirm('Remove "'+f.label+'" from the quote form? You can add it back.'))return;f.show=!!on;formScreen()}
 function removeField(i){readEditor();var f=FORM.fields[i];if(!f||f.builtin||f.lock)return;FORM.fields.splice(i,1);formScreen()}
 function addFormField(){
   readEditor();
@@ -407,7 +449,38 @@ function quoteExtra(){
 }
 function quoteFace(){var x=quoteExtra();return {service:x.service,species:x.species,timing:x.timing,access:x.access,phone:x.phone,additionalNotes:x.additionalNotes,internalNotes:x.internalNotes,custom:x.custom}}
 function staffNotes(j){return (j.service?'<p><b>Service:</b> '+esc(j.service)+'</p>':'')+(j.species?'<p><b>Tree:</b> '+esc(j.species)+'</p>':'')+(j.timing?'<p><b>Timing:</b> '+esc(j.timing)+'</p>':'')+(j.access?'<p><b>Site access:</b> '+esc(j.access)+'</p>':'')+(j.additionalNotes?'<p><b>Notes for customer:</b> '+esc(j.additionalNotes)+'</p>':'')+(j.internalNotes?'<p><b>Internal notes:</b> '+esc(j.internalNotes)+' <span class="muted">Not on the customer estimate.</span></p>':'')}
-function newq(pre){photos=[];view='';editId=pre&&pre.id?pre.id:'';var backTo=editId;var from=role;A.innerHTML='<div class="card"><h2>'+(editId?'Edit quote':'New quote')+'</h2>'+FDForm.quoteFieldsHtml(formCfg(),{emailNote:window.FD_EMAIL_NOTE||''})+'<button class="btn huge d" type="button" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" type="button" onclick="goBack()">Cancel</button></div>';if(pre)fillQuote(pre);if($('#mb')&&$('#qt'))mic('mb','qt');if($('#ad'))addrAC('ad');armBack(function(){editId='';if(backTo&&from==='Admin')aview(backTo);else if(backTo)mview(backTo);else render()})}
+function newq(pre){photos=[];view='';editId=pre&&pre.id?pre.id:'';var backTo=editId;var from=role;A.innerHTML='<div class="card"><h2>'+(editId?'Edit quote':'New quote')+'</h2>'+FDForm.quoteFieldsHtml(formCfg(),{emailNote:window.FD_EMAIL_NOTE||''})+'<button class="btn huge d" type="button" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" type="button" onclick="goBack()">Cancel</button></div>';aiInit();if(pre)fillQuote(pre);if($('#mb')&&$('#qt'))mic('mb','qt');if($('#ad'))addrAC('ad');armBack(function(){editId='';if(backTo&&from==='Admin')aview(backTo);else if(backTo)mview(backTo);else render()})}
+// ===== Have AI fill this quote out (Gemini via the Field Desk script). Nothing is saved or sent until the estimator taps Send. =====
+let AIREC=null,AICH=[],AIT=null,AIS=0;
+function aiReady(){return !!(SET&&SET.voice)}
+function aiInit(){const b=$('#aibtn');if(!b)return;if(!aiReady()){b.classList.add('gr');b.disabled=true;b.textContent='🎙 Voice quotes need setup';$('#aistat').textContent='Ask the office to add the Gemini key.'}}
+function aiStat(t){const e=$('#aistat');if(e)e.textContent=t}
+async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');const b=$('#aibtn');
+ if(AIREC){AIREC.stop();return}
+ if(!navigator.mediaDevices||!window.MediaRecorder){const t=$('#qt')?$('#qt').value.trim():'';if(!t)return toast('Recording is not supported here. Type or dictate the quote in the box, then tap the button again.');return aiSend({text:t})}
+ let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){return toast('Microphone blocked. Allow it, or type the quote in the box.')}
+ const mt=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm'].find(m=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))||'';
+ AICH=[];AIREC=new MediaRecorder(st,mt?{mimeType:mt}:undefined);AIREC.ondataavailable=e=>{if(e.data&&e.data.size)AICH.push(e.data)};
+ AIREC.onstop=async()=>{st.getTracks().forEach(t=>t.stop());clearInterval(AIT);const mime=(AIREC.mimeType||mt||'audio/webm');AIREC=null;b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
+  const blob=new Blob(AICH,{type:mime});if(blob.size<800)return aiStat('Nothing recorded. Try again.');
+  const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]||'');fr.readAsDataURL(blob)});
+  aiSend({audio:b64,mime,text:$('#qt')?$('#qt').value.trim():''})};
+ AIREC.start();AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
+ AIT=setInterval(()=>{const s=Math.round((Date.now()-AIS)/1000);aiStat('Recording '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+(s>240?' (keep it under 5 minutes)':''));if(s>=300&&AIREC)AIREC.stop()},1000)}
+async function aiSend(body){const b=$('#aibtn');b.disabled=true;aiStat('AI is filling the quote…');
+ try{const r=await api(Object.assign({a:'voiceQuote',pin:myPin()},body));aiFill(r.result||{});aiStat('Filled in. Check everything before you send.')}
+ catch(e){aiStat('');toast(REDEPLOY(e.message)||/role cannot do that/.test(e.message)?'Voice quotes need a Field Desk script update first.':e.message)}
+ b.disabled=false}
+// Customer and estimate parts go to customer-facing fields. Crew parts go ONLY to Internal notes.
+function aiFill(o){const c=o.customer||{},e=o.estimate||{},k=o.crew||{};
+ const put=(id,v)=>{const el=$('#'+id);if(el&&v&&!el.value.trim()){el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))}};
+ put('nm',c.name);put('ph',c.phone);put('em',c.email);put('ad',c.address);
+ const addl=$('#addl');if(addl&&e.customerNotes){addl.value=(addl.value.trim()?addl.value.trim()+'\n':'')+e.customerNotes;addl.dispatchEvent(new Event('input',{bubbles:true}))}
+ const crew=[['Access/gate',k.access],['Hazards',k.hazards],['Equipment',k.equipment],['Haul-away/cleanup',k.cleanup],['Trees',k.trees],['Notes',k.internalNotes]].filter(x=>x[1]&&String(x[1]).trim()).map(x=>x[0]+': '+String(x[1]).trim()).join('\n');
+ const ino=$('#inote');if(ino&&crew){ino.value=(ino.value.trim()?ino.value.trim()+'\n':'')+crew;ino.dispatchEvent(new Event('input',{bubbles:true}))}
+ const items=(e.items||[]).filter(i=>i&&(i.service||i.description)).map(i=>{const q=Number(i.qty)||1,p=Number(i.price)||0;return {title:String(i.service||'').trim()||'Tree Service',detail:String(i.description||'').trim()+(q>1?' (qty '+q+')':''),price:p?q*p:null}});
+ if(items.length&&$('#pv')){IT=items;drawPv()}
+ DIRTY=true}
 function ensureOption(id,value){var el=document.getElementById(id);if(!el||!value)return;if(![...el.options].some(function(o){return o.value===value||o.textContent===value})){var o=document.createElement('option');o.textContent=value;o.value=value;el.appendChild(o)}el.value=value}
 function fillQuote(pre){if($('#nm'))$('#nm').value=pre.name||'';if($('#ad'))$('#ad').value=pre.address||'';if($('#em'))$('#em').value=pre.email||'';if($('#ph'))$('#ph').value=pre.phone||'';ensureOption('svc',pre.service||'');ensureOption('species',pre.species||'');ensureOption('timing',pre.timing||'');ensureOption('access',pre.access||'');if($('#qt'))$('#qt').value=pre.quote||'';if($('#addl'))$('#addl').value=pre.additionalNotes||'';if($('#inote'))$('#inote').value=pre.internalNotes||'';formCfg().fields.forEach(function(f){if(f.builtin)return;var el=document.getElementById('cx-'+f.id);if(!el||!pre.custom)return;if(el.type==='checkbox')el.checked=!!pre.custom[f.id];else el.value=pre.custom[f.id]||''});IT=(pre.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}});if(IT.length)drawPv()}
 function editQuote(id){var j=jobs.find(function(x){return x.id===id});if(!j)return;newq(j);window.scrollTo(0,0)}
@@ -418,6 +491,8 @@ function editCustomer(id){var j=jobs.find(function(x){return x.id===id});if(!j)r
 async function saveCustomer(){if(addrBad($('#cad').value))return toast('Add the full address: street, city, state, zip');var email=$('#cem').value.trim();if(email&&!validEmail(email))return toast('That email does not look right');if(!email)return toast('Customer email is required');var b=$('#csave');if(b){b.disabled=true;b.textContent='Saving…'}try{await api({a:'cedit',pin:myPin(),ids:window.CIDS||[],name:$('#cnm').value.trim(),phone:$('#cph').value.trim(),email:email,address:$('#cad').value.trim(),phone2:$('#cph2').value.trim(),contact2:$('#cct2').value.trim()});toast('Customer saved');await refresh();var id=(window.CIDS||[])[0];if(id&&role==='Admin')aview(id);else if(id)mview(id);else render()}catch(e){toast(String(e.message||e)==='Bad action'?'Editing needs a Field Desk script redeploy before it can be saved.':e.message);if(b){b.disabled=false;b.textContent='Save customer'}}}
 async function saveEdit(send){if($('#ad')&&addrBad($('#ad').value))return toast('Add the full address: street, city, state, zip');var id=editId;if(!id)return;var d=Object.assign({a:'qedit',id:id,send:!!send,name:$('#nm')?$('#nm').value.trim():'',address:$('#ad')?$('#ad').value.trim():'',email:$('#em')?$('#em').value.trim():'',quote:$('#qt')?$('#qt').value:'',items:IT.filter(function(i){return i.title&&String(i.title).trim()})},quoteExtra());if(d.email&&!validEmail(d.email))return toast('That email does not look right');if(!d.email)return toast('Customer email is required');if(!d.items.length)return toast('Add at least one line');var b=send?$('#sq'):$('#sqsave');var other=send?$('#sqsave'):$('#sq');if(b){b.disabled=true;b.textContent=send?'Sending…':'Saving…'}if(other)other.disabled=true;try{await api(d);editId='';toast(send?'Updated estimate sent to '+d.email:'Quote saved');await refresh();if(role==='Admin')aview(id);else mview(id)}catch(e){toast(String(e.message||e)==='Bad action'?'Editing needs a Field Desk script redeploy before it can be saved.':e.message);if(b){b.disabled=false;b.textContent=send?'Send updated estimate':'Save'}if(other)other.disabled=false}}
 async function saveInv(id){try{await api({a:'iedit',id:id,amount:$('#am').value,note:$('#an').value});toast('Invoice saved');await refresh();aview(id)}catch(e){toast(String(e.message||e)==='Bad action'?'Editing needs a Field Desk script redeploy before it can be saved.':e.message)}}
+function openRep(){view='rep';repScreen();window.scrollTo(0,0)}
+function repScreen(){const tel=REP_PHONE.replace(/[^\d+]/g,'');A.innerHTML=`<div class="card" id="repcard"><h2>Your account rep</h2><p style="font-size:24px;font-weight:800;color:var(--n);margin:4px 0">${esc(REP_NAME)}</p><p style="font-size:20px;margin:0 0 6px">${esc(REP_PHONE)}</p><a class="btn huge" id="repcall" href="tel:${tel}" style="text-decoration:none;text-align:center">📞 Call</a><a class="btn huge n" id="reptext" href="sms:${tel}" style="text-decoration:none;text-align:center">💬 Text</a></div>`;armBack(function(){view='';render()})}
 function openFb(){view='fb';feedbackScreen();window.scrollTo(0,0)}
 function feedbackScreen(){A.innerHTML='<div class="card"><h2>Feedback for the development team</h2><p class="muted">Tell the development team what to change in Field Desk. Your note goes straight to them.</p><textarea id="fbtext" rows="6" placeholder="What should we change?"></textarea><button class="btn huge" id="fbsend" type="button" onclick="sendFeedback()">Send to the development team</button></div>';armBack(function(){view='';render()})}
 async function sendFeedback(){var text=$('#fbtext')?$('#fbtext').value.trim():'';if(!text)return toast('Write a note first');var b=$('#fbsend');if(b){b.disabled=true;b.textContent='Sending…'}try{await api({a:'feedback',pin:myPin(),role:role,text:text});if($('#fbtext'))$('#fbtext').value='';toast('Sent to the development team. Thank you!')}catch(e){toast(String(e.message||e)==='Bad action'?'Feedback needs a Field Desk script redeploy before it can be saved.':e.message)}if(b){b.disabled=false;b.textContent='Send to the development team'}}

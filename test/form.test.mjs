@@ -110,7 +110,7 @@ test('Code.gs stays live, embeds the form, and strips internal notes before cust
   assert.ok(gs.includes("d.a=='settings'"));
   assert.ok(gs.includes('formFields_'));
   assert.equal(/concrete|coating|epoxy|flake/i.test(html + fs.readFileSync(path.join(root, 'form.js'), 'utf8')), false);
-  assert.ok(html.includes('form.js?v=20261027q'));
+  assert.ok(html.includes('form.js?v=20261028v'));
   assert.ok(html.includes('openSet()'));
   assert.equal(gs.split('mail_({to:j.email').length - 1, 3);
   assert.equal(gs.split('MailApp.sendEmail(').length - 1, 1);
@@ -123,6 +123,6 @@ test('Code.gs stays live, embeds the form, and strips internal notes before cust
   assert.ok(gs.includes('if(d.send)send=sendQuote_'));
   assert.equal(FD.specHtml({ phone2: 'SECRET-PHONE2', contact2: 'SECRET-CONTACT', service: 'Pruning' }, FD.normalizeForm(null)).includes('SECRET-PHONE2'), false);
   assert.ok(html.includes('id="back"'));
-  assert.ok(html.includes('id="fbhome"'));
+  assert.ok(html.includes('id="rephome"'));
   assert.ok(html.includes('Edit customer'));
 });
