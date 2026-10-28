@@ -45,13 +45,13 @@ page.on('dialog', (d) => d.accept());
 try {
   await page.goto(base + '/?api=' + encodeURIComponent(base + '/exec'), { waitUntil: 'networkidle0' });
   await waitText(page, 'Enter your PIN');
-  const backOnPin = await page.$eval('#back', (el) => el.hidden);
+  const backOnPin = await page.$eval('#navbar', (el) => el.hidden);
   if (!backOnPin) fail('back button should be hidden on the PIN screen');
   await pressPin(page, '1234');
   await waitText(page, 'Feedback');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Existing Oak')).click());
   await waitText(page, 'SECRET-OLD-INTERNAL');
-  const backShown = await page.$eval('#back', (el) => !el.hidden);
+  const backShown = await page.$eval('#navbar', (el) => !el.hidden);
   if (!backShown) fail('back button missing on the job');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Edit quote').click());
   await waitText(page, 'Edit quote');
@@ -97,7 +97,7 @@ try {
 
   await page.evaluate(() => document.getElementById('brand').click());
   await waitText(page, 'New customer quote');
-  const homeBack = await page.$eval('#back', (el) => el.hidden);
+  const homeBack = await page.$eval('#navbar', (el) => el.hidden);
   if (!homeBack) fail('logo home should hide the back button');
   await page.evaluate(() => document.getElementById('fbhome').click());
   await waitText(page, 'Tell us what to change');
@@ -108,7 +108,7 @@ try {
   await page.evaluate(() => document.getElementById('back').click());
   await waitText(page, 'New customer quote');
 
-  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Settings')).click());
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.id === 'gear').click());
   await waitText(page, 'Appearance');
   await page.evaluate(() => document.querySelector('input[name="theme"][value="dark"]').click());
   await page.evaluate(() => document.getElementById('ss').click());
@@ -120,7 +120,7 @@ try {
   await waitText(page, 'Feedback');
   const stillDark = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   if (stillDark !== 'dark') fail('dark theme did not stay on home');
-  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Settings')).click());
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.id === 'gear').click());
   await page.evaluate(() => document.querySelector('input[name="theme"][value="classic"]').click());
   await page.evaluate(() => document.getElementById('ss').click());
   await waitText(page, 'Quote form saved');

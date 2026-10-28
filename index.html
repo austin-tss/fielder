@@ -3,34 +3,52 @@
 <style>
 .maddr{color:#112337;font-weight:700;text-decoration:underline;cursor:pointer}.gmap{display:inline-block;font-size:13px;font-weight:700;color:#fff;background:#78a22f;border-radius:999px;padding:3px 9px;margin-left:4px;text-decoration:none;cursor:pointer;white-space:nowrap}.btn .maddr{color:inherit}[data-theme=dark] .maddr{color:#cfe3a8}
 
-:root{--n:#112337;--g:#78a22f;--dg:#34460d;--c:#231f20}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--c);background:#f4f6f1}
-header{background:var(--n);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px}
-header img{height:42px;background:#fff;border-radius:8px;padding:3px}header b{font-size:19px}header small{display:block;color:#b9d68a}
-#back,#out{background:transparent;border:2px solid #b9d68a;color:#fff;border-radius:10px;padding:8px 12px;font-size:18px}
-#out{margin-left:auto;font-size:15px}#brand{display:flex;align-items:center;gap:12px;background:transparent;border:0;color:#fff;padding:0;text-align:left;min-width:0}
+:root{--n:#112337;--g:#78a22f;--dg:#34460d;--c:#231f20;--bg:#f4f5f2;--line:#d6dccd}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--c);background:var(--bg)}
+#topstick{position:sticky;top:0;z-index:8}
+header{background:var(--n);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
+header img{height:46px;width:auto;background:#fff;border-radius:8px;padding:2px;flex:0 0 auto}header b{font-size:18px;line-height:1.15;display:block}header small{display:block;color:#b9d68a;font-size:13px;margin-top:2px}
+#brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;background:transparent;border:0;color:#fff;padding:0;text-align:left;font:inherit;cursor:pointer}
+#out{flex:0 0 auto;background:transparent;border:1px solid #c5d3b0;color:#fff;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer}
+#gear{flex:0 0 auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid #c5d3b0;color:#fff;border-radius:10px;padding:0;font-size:22px;line-height:1;cursor:pointer}
+#gear[hidden],#out[hidden]{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#navbar{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border-bottom:1px solid var(--line);padding:8px 12px}
+#navbar[hidden]{display:none}
+#navbar button{font:inherit;font-weight:700;font-size:16px;border:0;border-radius:10px;padding:10px 14px;background:#eef1ea;color:var(--n);cursor:pointer}
+#navbar #navhome{margin-left:auto}
+.wrap{max-width:560px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 4px rgba(17,35,55,.08)}
+h2{color:var(--n);margin:4px 0 12px;font-size:22px}label{display:block;font-weight:700;margin:12px 0 6px}
+input,textarea,select{width:100%;font-size:18px;padding:14px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--c)}input[type=checkbox]{width:22px;height:22px;padding:0;vertical-align:middle}.line{padding:12px 0;border-bottom:1px solid #eef0ea}
+.btn{display:block;width:100%;font-size:18px;font-weight:700;padding:16px;margin:12px 0 0;border:0;border-radius:14px;background:var(--g);color:#fff;cursor:pointer}
+.btn.n{background:var(--n)}.btn.d{background:var(--dg)}.btn.gr{background:#eef1ea;color:var(--n)}.btn.huge{font-size:22px;padding:22px}.btn:disabled{opacity:.6}
+.pin{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pin button{font-size:28px;padding:20px;border-radius:14px;border:0;background:var(--n);color:#fff}
+#dots{font-size:34px;text-align:center;letter-spacing:12px;min-height:44px}
+.ph{display:flex;flex-wrap:wrap;gap:6px}.ph img{width:31%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#e8ebe3}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-weight:700;font-size:14px;color:#fff;background:#8a8f98}
+.badge.open{background:#c2410c}.badge.paid{background:var(--g)}
+.row{display:flex;gap:8px}.row .btn{flex:1;min-width:0}.mic{background:var(--dg)}.mic.on{background:#c2410c}
+.muted{color:#5c6370;font-size:14px}#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--n);color:#fff;padding:14px 20px;border-radius:12px;display:none;font-size:17px;z-index:9;max-width:90vw;text-align:center}
+.job{display:block;width:100%;text-align:left;font:inherit;background:#fff;border:0;border-radius:16px;padding:16px 18px;margin:0 0 10px;color:var(--c);box-shadow:0 1px 2px rgba(17,35,55,.06),0 4px 12px rgba(17,35,55,.05);cursor:pointer}
+.job b{font-size:17px;color:var(--n);display:block}.job .a{color:#5c6370;font-size:14px;margin:3px 0 8px}.job .t{float:right;font-weight:700;color:var(--dg)}
+.tabs{display:flex;gap:8px;margin:0 0 14px}
+.tabs button{flex:1;font:inherit;font-weight:700;font-size:16px;padding:14px 4px;line-height:1.2;border:0;background:#e6eadf;color:var(--n);border-radius:12px;cursor:pointer}
+.tabs button.on{background:var(--n);color:#fff}.tabs .cnt{display:block;font-size:22px;font-weight:800}.tabs button.on .cnt{color:#b9d68a}
+.srow{display:flex;align-items:center;gap:12px;width:100%;min-height:72px;padding:12px 14px;margin:0 0 10px;background:#fff;border:2px solid var(--line);border-radius:14px;text-align:left;color:var(--n);font:inherit;cursor:pointer;box-shadow:0 1px 4px rgba(17,35,55,.08)}
+.srow span{flex:1;min-width:0}.srow b{display:block;font-size:18px}.srow small{display:block;margin-top:2px;font-size:14px;color:#5c6370}.srow i{font-style:normal;font-size:28px;color:var(--g)}
+.conn .st{display:inline-block;padding:4px 10px;border-radius:20px;font-weight:700;font-size:14px;color:#fff;background:#8a8f98}.conn .st.on{background:var(--g)}
 html[data-theme=dark] body{background:#0c1826;color:#e8eedf}
 html[data-theme=dark] .card{background:#17304a;color:#e8eedf}
 html[data-theme=dark] h2,html[data-theme=dark] label{color:#f4f7ef}
 html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark] select{background:#0e1c2e;color:#f4f7ef;border-color:#34506e}
 html[data-theme=dark] .muted{color:#c5d0bc}
-.wrap{max-width:560px;margin:0 auto;padding:16px}
-.card{background:#fff;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-h2{color:var(--n);margin:4px 0 12px}label{display:block;font-weight:700;margin:12px 0 6px}
-input,textarea,select{width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:10px;background:#fff}input[type=checkbox]{width:22px;height:22px;padding:0;vertical-align:middle}.line{padding:10px 0;border-bottom:1px solid #e6e9e0}
-.btn{display:block;width:100%;font-size:20px;font-weight:700;padding:18px;margin:10px 0;border:0;border-radius:14px;background:var(--g);color:#fff}
-.btn.n{background:var(--n)}.btn.d{background:var(--dg)}.btn.gr{background:#8a8f98}.btn.huge{font-size:26px;padding:28px}
-.pin{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pin button{font-size:28px;padding:20px;border-radius:14px;border:0;background:var(--n);color:#fff}
-#dots{font-size:34px;text-align:center;letter-spacing:12px;min-height:44px}
-.ph{display:flex;flex-wrap:wrap;gap:6px}.ph img{width:31%;aspect-ratio:1;object-fit:cover;border-radius:8px}
-.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-weight:700;font-size:14px;color:#fff;background:#8a8f98}
-.badge.open{background:#c2410c}.badge.paid{background:var(--g)}
-.row{display:flex;gap:8px}.row .btn{flex:1}.mic{background:var(--dg)}.mic.on{background:#c2410c}
-.muted{color:#666;font-size:14px}#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--n);color:#fff;padding:14px 20px;border-radius:12px;display:none;font-size:17px;z-index:9}
+input[type=radio]{width:22px;height:22px;padding:0;margin:0;flex:0 0 22px}
 .sug{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:2px solid #78a22f;border-radius:12px;box-shadow:0 8px 24px rgba(17,35,55,.18);z-index:30;overflow:hidden}
 .sug button{display:block;width:100%;text-align:left;font:inherit;font-size:17px;min-height:56px;padding:14px 16px;border:0;border-bottom:1px solid #eef0ea;background:#fff;color:#112337}.sug button:last-child{border:0}.sug button:active,.sug button:hover{background:#eef6dc}.sug .h{padding:12px 16px;color:#5b6168;font-size:14px}
 </style></head><body>
-<header><button id="back" type="button" hidden onclick="goBack()" aria-label="Back">←</button><button id="brand" type="button" onclick="navHome()"><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="out" hidden onclick="logout()">Sign out</button></header>
+<div id="topstick"><header><button id="brand" type="button" onclick="navHome()" aria-label="Fielder Field Desk, Home"><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="gear" type="button" hidden onclick="openSet()" aria-label="Settings" title="Settings">⚙<span class="sr">Settings</span></button><button id="out" type="button" hidden onclick="logout()">Sign out</button></header>
+<div id="navbar" hidden><button id="back" type="button" onclick="goBack()">← Back</button><button id="navhome" type="button" onclick="navHome()">Home</button></div></div>
 <div class="wrap" id="app"></div><div id="toast"></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
 <script src="form.js?v=20261027q"></script>
 <script>
@@ -93,13 +111,15 @@ function setupCard(){return API?'':`<div class="card"><h2>Connect backend</h2><p
 function themeName(){return SET&&SET.theme==='dark'?'dark':'classic'}
 function applyTheme(){if(themeName()==='dark')document.documentElement.setAttribute('data-theme','dark');else document.documentElement.removeAttribute('data-theme')}
 let BACKFN=null,editId='';
-function armBack(fn){BACKFN=fn||null;var b=$('#back');if(b)b.hidden=!BACKFN}
+function armBack(fn){BACKFN=fn||null;var b=$('#navbar');if(b)b.hidden=!BACKFN}
 function goBack(){if(BACKFN)BACKFN()}
 function navHome(){view='';cur=null;editId='';armBack(null);render();window.scrollTo(0,0)}
-function render(){GAL=[];applyTheme();if(view==='set'&&role!=='Manager')view='';if(view==='fb'&&!role)view='';$('#out').hidden=!role;$('#who').textContent=role?role+' view':'Tree Care & Service';
+function render(){GAL=[];applyTheme();if(/^(set|setform|conn)$/.test(view)&&role!=='Manager')view='';$('#gear').hidden=role!=='Manager';if(view==='fb'&&!role)view='';$('#out').hidden=!role;$('#who').textContent=role?role+' view':'Tree Care & Service';
  if(!role){pin='';view='';editId='';armBack(null);A.innerHTML=setupCard()+`<div class="card"><h2>Enter your PIN</h2><div id="dots"></div><div class="pin">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
  <p class="muted">Free estimates · 24 HR emergency · (850) 656-8737</p>`;return}
  if(view==='set')return setScreen();
+ if(view==='setform')return formScreen();
+ if(view==='conn')return connScreen();
  if(view==='fb')return feedbackScreen();
  ({Manager:mgr,Crew:crew,Admin:admin})[role]()}
 function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){if(k!='✓')pin+=k}
@@ -113,7 +133,11 @@ async function login(p){pin='';$('#dots').textContent='';let r=null,old=false;
 function stat(j){if(j.status=='invoiced')return j.invoice&&j.invoice.paid?'paid':'invoiced';if(j.status=='approved')return j.crew&&j.crew.length?'inprogress':'approved';return j.status}
 const SC={sent:'#112337',reply:'#7c3aed',approved:'#78a22f',inprogress:'#d97706',complete:'#34460d',invoiced:'#c2410c',paid:'#15803d',declined:'#8a8f98'};
 const ST={paid:'Paid',inprogress:'In progress',sent:'Quoted',approved:'Approved → crew',declined:'Declined',reply:'Customer replied',complete:'Done → admin',invoiced:'Invoiced'};
-function list(title,arr,go,extra=''){armBack(null);A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${listAddr(j.address)} <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' · '+esc(j.response.label):''}${av(j)?'<br>🕒 '+esc(av(j)):''} ${role=='Manager'?cfBadge(j):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')+'<button class="btn n" id="fbhome" type="button" onclick="openFb()">Feedback</button>'}
+let LQ='';
+function jobCard(j,go){return `<button class="job" type="button" onclick="${go}('${j.id}')"><span class="t">${j.total!=null?money(j.total):''}</span><b>${esc(j.name)}</b><div class="a">${listAddr(j.address)}${j.est?' · '+esc(j.est):''}</div><span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' <span class="muted">'+esc(j.response.label)+'</span>':''}${av(j)?'<div class="a" style="margin:6px 0 0">🕒 '+esc(av(j))+'</div>':''} ${role=='Manager'?cfBadge(j):''}</button>`}
+function listMatch(j){const q=LQ.trim().toLowerCase();return !q||[j.name,j.address,j.est,j.email].join(' ').toLowerCase().includes(q)}
+function list(title,arr,go,extra=''){armBack(null);LIST=[title,arr,go];A.innerHTML=`${extra}<h2 style="margin:18px 0 10px">${title}</h2>${arr.length>4?`<input id="find" type="search" placeholder="Search name, address or estimate #" value="${esc(LQ)}" autocomplete="off" oninput="LQ=this.value;drawList()" style="margin:0 0 12px;font-size:16px">`:''}<div id="jl"></div><button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')+'<button class="btn gr" id="fbhome" type="button" onclick="openFb()">Feedback</button>';drawList()}
+let LIST=null;function drawList(){const el=$('#jl');if(!el||!LIST)return;const a=LIST[1].filter(listMatch);el.innerHTML=a.length?a.map(j=>jobCard(j,LIST[2])).join(''):'<p class="muted" style="text-align:center;padding:20px">'+(LQ.trim()?'No matches.':'Nothing here right now.')+'</p>'}
 function mapU(a,g){const e=encodeURIComponent(a);return g?'https://www.google.com/maps/dir/?api=1&destination='+e:'https://maps.apple.com/?daddr='+e}
 function listAddr(a){a=String(a||'').trim();if(!a)return '';const q=esc(JSON.stringify(a));return `${esc(a)} <span class="gmap" role="link" onclick="event.stopPropagation();event.preventDefault();openMap(${q})">📍 Apple Maps</span> <span class="gmap" role="link" onclick="event.stopPropagation();event.preventDefault();openMap(${q},1)">Google Maps</span>`}
 function openMap(a,g){window.open(mapU(a,g),'_blank')}
@@ -168,7 +192,7 @@ async function saveBlk(id){const b={id,date:$('#bd').value,start:$('#bs').value,
 async function delBlk(id){if(!confirm('Delete this block?'))return;try{const r=await api({a:'unblock',block:{id}});blocks=r.blocks;toast('Deleted');sched()}catch(e){toast(e.message)}}
 async function fixEmail(id){const e=prompt('Customer email');if(e==null)return;if(!validEmail(e))return toast('That email does not look right');try{await api({a:'email',id,email:e.trim()});await refresh();mview(id)}catch(x){toast(x.message)}}
 // Manager
-function mgr(){list('All my projects ('+jobs.length+')',[...jobs].sort((a,b)=>b.created<a.created?-1:1),'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button><button class="btn huge n" onclick="qn()">📥 Quotes Needed</button><button class="btn huge n" onclick="sched()">📅 Crew Schedule</button><button class="btn n" onclick="openSet()">Settings</button>`)}
+function mgr(){list('All my projects ('+jobs.length+')',[...jobs].sort((a,b)=>b.created<a.created?-1:1),'mview',`<button class="btn huge" onclick="newq()">+ New customer quote</button><div class="row"><button class="btn n" onclick="qn()">📥 Quotes Needed</button><button class="btn n" onclick="sched()">📅 Schedule</button></div>`)}
 // ===== Address autocomplete (free, keyless: Photon, falling back to Nominatim) =====
 const STATES={alabama:'AL',alaska:'AK',arizona:'AZ',arkansas:'AR',california:'CA',colorado:'CO',connecticut:'CT',delaware:'DE',florida:'FL',georgia:'GA',hawaii:'HI',idaho:'ID',illinois:'IL',indiana:'IN',iowa:'IA',kansas:'KS',kentucky:'KY',louisiana:'LA',maine:'ME',maryland:'MD',massachusetts:'MA',michigan:'MI',minnesota:'MN',mississippi:'MS',missouri:'MO',montana:'MT',nebraska:'NE',nevada:'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND',ohio:'OH',oklahoma:'OK',oregon:'OR',pennsylvania:'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD',tennessee:'TN',texas:'TX',utah:'UT',vermont:'VT',virginia:'VA',washington:'WA','west virginia':'WV',wisconsin:'WI',wyoming:'WY','district of columbia':'DC'};
 const st2=s=>STATES[String(s||'').toLowerCase()]||s||'';
@@ -237,7 +261,15 @@ function openSet(){if(role!=='Manager'&&role!=='Owner')return;view='set';FORM=JS
 function closeSet(){view='';FORM=null;render()}
 function themePick(){var r=document.querySelector('input[name="theme"]:checked');return r&&r.value==='dark'?'dark':'classic'}
 function appearanceHtml(){var cur=themeName();return '<div class="card"><h2>Appearance</h2><p class="muted">Modern dark restyles Field Desk. Classic is the original look.</p><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="theme" value="dark"'+(cur==='dark'?' checked':'')+'> Modern dark</label><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="theme" value="classic"'+(cur!=='dark'?' checked':'')+'> Classic</label></div>'}
-function setScreen(){var html=FDForm.settingsHtml(FORM,MAIL);html=html.replace('<button class="btn huge" id="ss"','<div id="look">'+appearanceHtml()+'</div><button class="btn huge" id="ss"');A.innerHTML='<h2 style="margin-top:0">Settings</h2>'+html;armBack(closeSet)}
+function srowBtn(id,title,sub,fn){return '<button class="srow" id="'+id+'" type="button" onclick="'+fn+'"><span><b>'+title+'</b><small>'+sub+'</small></span><i>›</i></button>'}
+function setScreen(){view='set';var q=(SET&&SET.qbo)||{};A.innerHTML='<h2 style="margin-top:0">Settings</h2>'+srowBtn('row-form','Quote form','Services, prices, fields, and estimate wording','openForm()')+srowBtn('row-conn','Connections','QuickBooks: '+(q.connected?'Connected':'Not connected'),'openConn()')+'<div id="look">'+appearanceHtml()+'</div><button class="btn huge" id="ss" type="button" onclick="saveSet()">Save settings</button><button class="btn gr" type="button" onclick="closeSet()">Back</button>';armBack(closeSet)}
+function openForm(){readEditor();view='setform';formScreen();window.scrollTo(0,0)}
+function backToSet(){readEditor();view='set';setScreen();window.scrollTo(0,0)}
+function formScreen(){var html=FDForm.settingsHtml(FORM,MAIL).replace('<button class="btn gr" type="button" onclick="closeSet()">Back</button>','<button class="btn gr" type="button" onclick="backToSet()">← Back to Settings</button>');A.innerHTML=html;armBack(backToSet)}
+function openConn(){readEditor();view='conn';connScreen();window.scrollTo(0,0)}
+function connScreen(){var q=(SET&&SET.qbo)||{};A.innerHTML='<h2 style="margin-top:0">Connections</h2><div class="card conn" id="conn-qbo"><h2>QuickBooks</h2><p style="margin:0 0 8px"><span class="st'+(q.connected?' on':'')+'">'+(q.connected?'Connected':'Not connected')+'</span> <span class="muted">'+esc(q.env||'sandbox')+'</span></p><p class="muted">Connecting links your QuickBooks Online company to Field Desk. Automatic syncing of customers and invoices is not turned on yet.</p><button class="btn n" type="button" onclick="qboConnect()">Connect QuickBooks</button>'+(q.connected?'<button class="btn gr" type="button" onclick="qboOff()">Disconnect</button>':'')+'</div><button class="btn gr" type="button" onclick="backToSet()">← Back to Settings</button>';armBack(backToSet)}
+async function qboConnect(){try{const r=await api({a:'qboconnect',pin:myPin()});if(r.url)location.href=r.url}catch(e){toast(REDEPLOY(e.message)?'Connections need a Field Desk script redeploy first.':e.message)}}
+async function qboOff(){if(!confirm('Disconnect QuickBooks?'))return;try{const r=await api({a:'qbodisconnect',pin:myPin()});if(r.settings)SET=r.settings;toast('QuickBooks disconnected');connScreen()}catch(e){toast(e.message)}}
 function readEditor(){
   if(!FORM)return;
   document.querySelectorAll('[data-svc]').forEach(function(el){var i=+el.dataset.svc;if(!FORM.services[i])return;FORM.services[i][el.dataset.k]=el.value});
@@ -247,10 +279,10 @@ function readEditor(){
   if($('#qbody'))MAIL.body=$('#qbody').value;
   if($('#qsign'))MAIL.sign=$('#qsign').value;
 }
-function addService(){readEditor();FORM.services.push({name:'',price:''});setScreen()}
-function delService(i){readEditor();FORM.services.splice(i,1);setScreen()}
-function moveField(i,d){readEditor();var j=i+d;if(!FORM||j<0||j>=FORM.fields.length)return;var row=FORM.fields.splice(i,1)[0];FORM.fields.splice(j,0,row);setScreen()}
-function removeField(i){readEditor();var f=FORM.fields[i];if(!f||f.builtin||f.lock)return;FORM.fields.splice(i,1);setScreen()}
+function addService(){readEditor();FORM.services.push({name:'',price:''});formScreen()}
+function delService(i){readEditor();FORM.services.splice(i,1);formScreen()}
+function moveField(i,d){readEditor();var j=i+d;if(!FORM||j<0||j>=FORM.fields.length)return;var row=FORM.fields.splice(i,1)[0];FORM.fields.splice(j,0,row);formScreen()}
+function removeField(i){readEditor();var f=FORM.fields[i];if(!f||f.builtin||f.lock)return;FORM.fields.splice(i,1);formScreen()}
 function addFormField(){
   readEditor();
   var label=($('#nfname')&&$('#nfname').value.trim())||'';
@@ -259,17 +291,17 @@ function addFormField(){
   var id='c'+Date.now().toString(36);
   var options=kind==='select'?String(($('#nfopts')&&$('#nfopts').value)||'').split(',').map(function(s){return s.trim()}).filter(Boolean):[];
   FORM.fields.push({id:id,label:label,kind:kind,show:true,customer:!!($('#nfcust')&&$('#nfcust').checked),lock:false,builtin:false,options:options});
-  setScreen();
+  formScreen();
 }
-function resetForm(){readEditor();FORM=FDForm.normalizeForm(FDForm.defaultForm());setScreen()}
+function resetForm(){readEditor();FORM=FDForm.normalizeForm(FDForm.defaultForm());formScreen()}
 function resetWording(){if(!MAIL)MAIL={};MAIL.subject=FDForm.DEFAULT_SUBJECT;MAIL.body=FDForm.DEFAULT_BODY;MAIL.sign=FDForm.DEFAULT_SIGN;if($('#qsub'))$('#qsub').value=MAIL.subject;if($('#qbody'))$('#qbody').value=MAIL.body;if($('#qsign'))$('#qsign').value=MAIL.sign}
 async function saveSet(){
   readEditor();
   var b=$('#ss');if(b){b.disabled=true;b.textContent='Saving…'}
   try{
-    var r=await api({a:'settings',pin:'1234',form:FORM,quoteSubject:MAIL.subject,quoteBody:MAIL.body,quoteSign:MAIL.sign,theme:themePick()});
+    var r=await api({a:'settings',pin:myPin(),form:FORM,quoteSubject:MAIL.subject,quoteBody:MAIL.body,quoteSign:MAIL.sign,theme:themePick()});
     SET=r.settings||SET;FORM=JSON.parse(JSON.stringify(formCfg()));MAIL=mailNow();applyTheme();
-    toast('Quote form saved');setScreen();
+    toast('Quote form saved');if(view==='setform')formScreen();else setScreen();
   }catch(e){
     var m=String(e.message||e);
     toast(m==='Bad action'?'Settings need a Field Desk script redeploy before they can be saved.':m);

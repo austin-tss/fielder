@@ -56,7 +56,8 @@ try {
   await pressPin(page, '1234');
   await waitText(page, 'New customer quote');
   await waitText(page, 'Existing Oak');
-  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Settings')).click());
+  await page.evaluate(() => document.getElementById('gear').click());
+  await page.evaluate(() => document.getElementById('row-form').click());
   await waitText(page, 'Services and line prices');
   await waitText(page, 'Customer sees this');
   await shot(page, 'fielder-02-quote-form-editor');
@@ -88,6 +89,7 @@ try {
   await page.click('#ss');
   await waitText(page, 'Quote form saved');
 
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === '← Back to Settings').click());
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Back').click());
   await waitText(page, 'Existing Oak');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Existing Oak')).click());
@@ -159,7 +161,8 @@ try {
   if (!check.block.includes('Call first')) fail('customer-visible custom field missing');
   if (check.subject !== 'Tree estimate FT-EST-2026-0099 for Pat Homeowner') fail('wording was ' + check.subject);
 
-  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Settings')).click());
+  await page.evaluate(() => document.getElementById('gear').click());
+  await page.evaluate(() => document.getElementById('row-form').click());
   await waitText(page, 'Reset form to default');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset form to default').click());
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset wording to default').click());
@@ -167,7 +170,7 @@ try {
   if (!subject.includes('Your estimate from Fielder Tree Service')) fail('wording reset failed: ' + subject);
   await page.click('#ss');
   await waitText(page, 'Quote form saved');
-  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Back').click());
+  await page.evaluate(() => document.getElementById('navhome').click());
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('New customer quote')).click());
   await waitText(page, 'Tree');
   await page.waitForSelector('[data-field="species"]');

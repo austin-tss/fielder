@@ -367,7 +367,7 @@ function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN
 // FORMJS_END
 function loadObj_(n){var r=root_(),it=r.getFilesByName(n);if(!it.hasNext())return {};var raw='';try{raw=it.next().getBlob().getDataAsString()||''}catch(e){return {}}if(!raw||raw==='[]')return {};try{var o=JSON.parse(raw);if(!o||typeof o!=='object'||Array.isArray(o))return {};return o}catch(e2){return {}}}
 function saveObj_(o,n){var r=root_(),it=r.getFilesByName(n),f=it.hasNext()?it.next():r.createFile(n,'{}','application/json');f.setContent(JSON.stringify(o))}
-function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic'}}
+function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic',qbo:qboPublic_()}}
 function bodyHtml_(body){if(body===FDForm.DEFAULT_BODY)return body;return FDForm.emailText(body)}
 function signHtml_(sign){if(sign===FDForm.DEFAULT_SIGN)return '<p>Sincerely,<br><b>'+CO.name+'</b></p>';return '<p>'+FDForm.emailText(sign)+'</p>'}
 function custBlock_(j){try{var form=settings_().form,face=FDForm.customerJob(j);return FDForm.specHtml(face,form)+FDForm.additionalNotesHtml(face,form)}catch(e){return ''}}
@@ -463,6 +463,7 @@ function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=
    '<button class=go>Send my answer</button></form>');}
 function doGet(e){try{return get_(e)}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
 function get_(e){var p=(e&&e.parameter)||{};
+  if(p.code&&p.state)return qboFinish_(p);
   if(p.a=='img'){var fi;try{fi=DriveApp.getFileById(p.id)}catch(x){return out_({ok:false,err:'Not found'})}if(!inRoot_(fi))return out_({ok:false,err:'Not found'});var b=fi.getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   if(p.a=='respond'){var js=load_(),j=js.filter(function(x){return x.id==p.id})[0];if(!j)return page_('<h2>Estimate not found</h2><p>Please call '+CO.phone+'.</p>');
     if(p.ans!='C'&&!p.done)return respForm_(j,p.ans);
@@ -479,6 +480,8 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(d.a=='login'){var lr=roleOf_(d);return lr?{ok:true,role:lr}:{ok:false,err:'Wrong PIN'};}
   var me=roleOf_(d);if(!me)return {ok:false,err:'PIN required'};if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
+  if(d.a=='qboconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
+  if(d.a=='qbodisconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};saveObj_({},'qbo.json');return {ok:true,settings:settings_()};}
   if(d.a=='qnList')return v5Api_(d);
   if(d.a=='qnScan'){var added=scanQuoteEmails();return added<0?BUSY_:{ok:true,added:added};}
   if(d.a=='smsOnWay')return smsOnWay_(d);
@@ -599,3 +602,18 @@ function v5Api_(d){
     if(!j.phone)return {ok:false,err:'Add the customer phone first.'};var res=sendSms_(j.phone,smsText_('onway',j));logSms_(j,'onway',res);save_(js);
     return res.skipped=='not configured'?{ok:false,err:'Text messages are not set up yet (Twilio not configured).'}:res.ok?{ok:true,job:j}:{ok:false,err:'Text not sent ('+(res.skipped||res.code)+').'};}
   return null;}
+
+// ===== QuickBooks Online connection (same OAuth flow as the Southern Concrete desk). Needs Script Properties QBO_CLIENT_ID, QBO_CLIENT_SECRET, optional QBO_ENV=production. =====
+function qboProp_(n){try{return String(PropertiesService.getScriptProperties().getProperty(n)||'')}catch(e){return ''}}
+function qboEnv_(){return qboProp_('QBO_ENV').toLowerCase()==='production'?'production':'sandbox'}
+function qboRedirect_(){return ScriptApp.getService().getUrl()}
+function qboPublic_(){var o={};try{o=loadObj_('qbo.json')}catch(e){o={}}return {connected:!!(o.refreshToken&&o.realmId),env:o.env||qboEnv_(),ready:!!(qboProp_('QBO_CLIENT_ID')&&qboProp_('QBO_CLIENT_SECRET'))}}
+function qboExchange_(body){var res=UrlFetchApp.fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',{method:'post',contentType:'application/x-www-form-urlencoded',muteHttpExceptions:true,headers:{Authorization:'Basic '+Utilities.base64Encode(qboProp_('QBO_CLIENT_ID')+':'+qboProp_('QBO_CLIENT_SECRET')),Accept:'application/json'},payload:body});
+  if(res.getResponseCode()<200||res.getResponseCode()>=300)throw new Error('QuickBooks auth failed');return JSON.parse(res.getContentText()||'{}')}
+function qboApplyTok_(cur,tok,realm){cur=cur||{};cur.accessToken=tok.access_token;if(tok.refresh_token)cur.refreshToken=tok.refresh_token;cur.accessExp=Date.now()+(Number(tok.expires_in)||3000)*1000-60000;if(realm)cur.realmId=realm;cur.env=qboEnv_();saveObj_(cur,'qbo.json');return cur}
+function qboConnectUrl_(){var id=qboProp_('QBO_CLIENT_ID'),sec=qboProp_('QBO_CLIENT_SECRET');if(!id||!sec)return '';var st=Utilities.getUuid();PropertiesService.getScriptProperties().setProperty('QBO_STATE',st);
+  return 'https://appcenter.intuit.com/connect/oauth2?client_id='+encodeURIComponent(id)+'&response_type=code&scope='+encodeURIComponent('com.intuit.quickbooks.accounting')+'&redirect_uri='+encodeURIComponent(qboRedirect_())+'&state='+encodeURIComponent(st)}
+function qboFinish_(p){var expect=qboProp_('QBO_STATE');if(!p.code||!p.state||p.state!==expect)return page_('<h2>QuickBooks</h2><p>That connection link was not valid. Use Connect in Settings again.</p>');
+  try{PropertiesService.getScriptProperties().deleteProperty('QBO_STATE')}catch(e){}
+  try{qboApplyTok_({},qboExchange_('grant_type=authorization_code&code='+encodeURIComponent(p.code)+'&redirect_uri='+encodeURIComponent(qboRedirect_())),p.realmId)}catch(e2){return page_('<h2>QuickBooks</h2><p>Could not finish connecting. Check the Intuit keys and try again.</p>')}
+  return page_('<h2>QuickBooks connected</h2><p>You can close this tab and return to the app.</p><p><a href="https://austin-tss.github.io/fielder/">Back to Fielder Field Desk</a></p>')}
