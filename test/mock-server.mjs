@@ -25,8 +25,25 @@ const jobs = [{
   created: '2026-10-01T12:00:00.000Z',
   photos: [],
   crew: []
+}, {
+  id: 'FT-DONE',
+  est: 'FT-EST-2026-0002',
+  name: 'Finished Pine',
+  address: '2 Pine St, Tallahassee, FL',
+  email: 'pine@example.com',
+  service: 'Pruning',
+  quote: 'Prune the pine',
+  items: [{ title: 'Pruning', detail: 'Prune the pine.', price: 600 }],
+  total: 600,
+  additionalNotes: 'Pine note',
+  internalNotes: 'SECRET-PINE',
+  status: 'complete',
+  created: '2026-10-02T12:00:00.000Z',
+  photos: [],
+  crew: []
 }];
-let settings = { form: null, quoteBody: '', quoteSubject: '', quoteSign: '' };
+let settings = { form: null, quoteBody: '', quoteSubject: '', quoteSign: '', theme: 'classic' };
+const feedback = [];
 const hits = [];
 
 function send(res, code, body, type) {
@@ -42,7 +59,7 @@ function customerHtml(job) {
 function publicSettings() {
   const form = FD.normalizeForm(settings.form);
   settings.form = form;
-  return { form, quoteBody: settings.quoteBody || '', quoteSubject: settings.quoteSubject || '', quoteSign: settings.quoteSign || '' };
+  return { form, quoteBody: settings.quoteBody || '', quoteSubject: settings.quoteSubject || '', quoteSign: settings.quoteSign || '', theme: settings.theme === 'dark' ? 'dark' : 'classic' };
 }
 
 function handleApi(req, res, body) {
@@ -51,16 +68,34 @@ function handleApi(req, res, body) {
     return;
   }
   const d = JSON.parse(body || '{}');
-  hits.push({ a: d.a || '', to: d.email || '', keys: Object.keys(d) });
+  hits.push({ a: d.a || '', to: d.email || '', send: !!d.send, keys: Object.keys(d) });
   if (d.a === 'settings') {
     if (String(d.pin || '') !== '1234') return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
     settings = {
       form: FD.normalizeForm(d.form),
       quoteBody: String(d.quoteBody || ''),
       quoteSubject: String(d.quoteSubject || ''),
-      quoteSign: String(d.quoteSign || '')
+      quoteSign: String(d.quoteSign || ''),
+      theme: d.theme === 'dark' ? 'dark' : (d.theme === 'classic' ? 'classic' : settings.theme)
     };
     return send(res, 200, JSON.stringify({ ok: true, settings: publicSettings() }));
+  }
+  if (d.a === 'feedback') {
+    feedback.push({ text: d.text || '', role: d.role || '' });
+    return send(res, 200, JSON.stringify({ ok: true }));
+  }
+  if (d.a === 'cedit') {
+    const ids = d.ids || [];
+    jobs.forEach((j) => {
+      if (!ids.includes(j.id)) return;
+      j.name = d.name || '';
+      j.phone = d.phone || '';
+      j.email = d.email || '';
+      j.address = d.address || '';
+      j.phone2 = d.phone2 || '';
+      j.contact2 = d.contact2 || '';
+    });
+    return send(res, 200, JSON.stringify({ ok: true }));
   }
   if (d.a === 'create') {
     const items = Array.isArray(d.items) ? d.items : [];
@@ -89,6 +124,27 @@ function handleApi(req, res, body) {
     };
     jobs.unshift(job);
     return send(res, 200, JSON.stringify({ ok: true, job, customerHtml: customerHtml(job) }));
+  }
+  if (d.a === 'qedit') {
+    const job = jobs.find((j) => j.id === d.id);
+    if (!job) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
+    job.name = d.name || job.name;
+    job.address = d.address || '';
+    job.email = d.email || '';
+    job.quote = d.quote || '';
+    job.items = Array.isArray(d.items) ? d.items : job.items;
+    job.total = (job.items || []).reduce((a, i) => a + (Number(i.price) || 0), 0);
+    ['phone', 'service', 'species', 'timing', 'access', 'additionalNotes', 'internalNotes'].forEach((k) => { if (k in d) job[k] = d[k] || ''; });
+    if (d.custom) job.custom = d.custom;
+    return send(res, 200, JSON.stringify({ ok: true, job, emailed: false }));
+  }
+  if (d.a === 'iedit') {
+    const job = jobs.find((j) => j.id === d.id);
+    if (!job) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
+    job.invoice = job.invoice || {};
+    job.invoice.amount = d.amount || '';
+    job.invoice.note = d.note || '';
+    return send(res, 200, JSON.stringify({ ok: true, job }));
   }
   send(res, 200, JSON.stringify({ ok: false, err: 'Bad action' }));
 }

@@ -28,6 +28,7 @@ function validEmail(e){return /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(String(e|
 // Quote form settings live in settings.json. Existing jobs.json rows still load if these fields are absent.
 // Redeploy this web app after updating this file. Action "settings" does not send mail.
 var FORM_PIN_='1234';
+function pinOk_(d){var p=String(d&&d.pin||'');return p==='1234'||p==='0123'||p==='6789';}
 // FORMJS_START
 /* Quote form editor model. Tree service wording only.
    The same rules are duplicated in Code.gs (Apps Script cannot load this file).
@@ -361,13 +362,14 @@ var FORM_PIN_='1234';
 // FORMJS_END
 function loadObj_(n){var r=root_(),it=r.getFilesByName(n);if(!it.hasNext())return {};var raw='';try{raw=it.next().getBlob().getDataAsString()||''}catch(e){return {}}if(!raw||raw==='[]')return {};try{var o=JSON.parse(raw);if(!o||typeof o!=='object'||Array.isArray(o))return {};return o}catch(e2){return {}}}
 function saveObj_(o,n){var r=root_(),it=r.getFilesByName(n),f=it.hasNext()?it.next():r.createFile(n,'{}','application/json');f.setContent(JSON.stringify(o))}
-function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||'')}}
+function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic'}}
 function bodyHtml_(body){if(body===FDForm.DEFAULT_BODY)return body;return FDForm.emailText(body)}
 function signHtml_(sign){if(sign===FDForm.DEFAULT_SIGN)return '<p>Sincerely,<br><b>'+CO.name+'</b></p>';return '<p>'+FDForm.emailText(sign)+'</p>'}
 function custBlock_(j){try{var form=settings_().form,face=FDForm.customerJob(j);return FDForm.specHtml(face,form)+FDForm.additionalNotesHtml(face,form)}catch(e){return ''}}
 function clip_(s,n){return String(s==null?'':s).replace(/\u0000/g,'').trim().slice(0,n)}
 function cleanCustom_(o){var out={},n=0,k;if(!o||typeof o!=='object'||Array.isArray(o))return out;for(k in o){if(!Object.prototype.hasOwnProperty.call(o,k))continue;if(n>=40)break;var key=clip_(k,40);if(!key)continue;var v=o[k];if(typeof v==='boolean')out[key]=v;else out[key]=clip_(v,400);n++}return out}
-function formFields_(j,d){j.phone=clip_(d.phone,40);j.service=clip_(d.service,80);j.species=clip_(d.species,80);j.timing=clip_(d.timing,80);j.access=clip_(d.access,80);j.additionalNotes=clip_(d.additionalNotes,4000);j.internalNotes=clip_(d.internalNotes,4000);j.custom=cleanCustom_(d.custom);return j}
+function cleanItems_(items){var out=[];(items||[]).forEach(function(i){if(!i||out.length>=80)return;var title=clip_(i.title,200);if(!title)return;var price=i.price;if(price==null||price==='')price=null;else{price=Number(price);if(isNaN(price))price=null}out.push({title:title,detail:clip_(i.detail,2000),price:price})});return out}
+function formFields_(j,d){if(!d)return j;if('phone' in d)j.phone=clip_(d.phone,40);if('service' in d)j.service=clip_(d.service,80);if('species' in d)j.species=clip_(d.species,80);if('timing' in d)j.timing=clip_(d.timing,80);if('access' in d)j.access=clip_(d.access,80);if('additionalNotes' in d)j.additionalNotes=clip_(d.additionalNotes,4000);if('internalNotes' in d)j.internalNotes=clip_(d.internalNotes,4000);if('custom' in d)j.custom=cleanCustom_(d.custom);if('phone2' in d)j.phone2=clip_(d.phone2,40);if('contact2' in d)j.contact2=clip_(d.contact2,120);return j}
 
 function root_(){var p=PropertiesService.getScriptProperties(),id=p.getProperty('ROOT');
   if(id){try{return DriveApp.getFolderById(id)}catch(e){}}
@@ -451,7 +453,9 @@ function doGet(e){var p=e.parameter||{};
   return out_({ok:true,root:root_().getUrl(),jobs:load_(),blocks:load_('blocks.json'),settings:settings_()});}
 function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScriptLock();L.waitLock(30000);var j,send=null,js;
   try{
-    if(d.a=='settings'){if(String(d.pin||'')!==FORM_PIN_)return out_({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);saveObj_(curS,'settings.json');return out_({ok:true,settings:settings_()})}
+    if(d.a=='settings'){if(String(d.pin||'')!==FORM_PIN_)return out_({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return out_({ok:true,settings:settings_()})}
+    if(d.a=='feedback'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return out_({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return out_({ok:true})}
+    if(d.a=='cedit'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return out_({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return out_({ok:true})}
     js=load_();
     if(d.a=='block'||d.a=='unblock'){var bl=load_('blocks.json');bl=bl.filter(function(b){return b.id!=d.block.id});
       if(d.a=='block'){if(!d.block.id)d.block.id='B'+Date.now().toString(36);bl.push(d.block);}save_(bl,'blocks.json');return out_({ok:true,blocks:bl});}
@@ -466,6 +470,8 @@ function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScript
       else if(d.a=='paid'){j.invoice=j.invoice||{};j.invoice.paid=!!d.paid;j.invoice.paidAt=d.paid?new Date().toISOString():'';}
       else if(d.a=='email'){if(!validEmail(d.email))return out_({ok:false,err:'Invalid email'});j.email=String(d.email).trim();}
       else if(d.a=='respond'){respond_(j,d);}
+      else if(d.a=='qedit'){if(d.email&&!validEmail(d.email))return out_({ok:false,err:'That email does not look right.'});j.name=clip_(d.name,200);j.address=clip_(d.address,300);j.email=clip_(d.email,200);j.quote=clip_(d.quote,8000);j.items=cleanItems_(d.items);j.total=total_(j.items);formFields_(j,d);j.updated=new Date().toISOString();if(d.send)send=sendQuote_;}
+      else if(d.a=='iedit'){j.invoice=j.invoice||{};if('amount' in d)j.invoice.amount=clip_(d.amount,40);if('note' in d)j.invoice.note=clip_(d.note,2000);j.invoice.edited=new Date().toISOString();}
       else return out_({ok:false,err:'Bad action'});}
     if(send){try{send(j)}catch(x){return out_({ok:false,err:String(x.message||x)})}}
     save_(js);

@@ -5,7 +5,13 @@
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--c);background:#f4f6f1}
 header{background:var(--n);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px}
 header img{height:42px;background:#fff;border-radius:8px;padding:3px}header b{font-size:19px}header small{display:block;color:#b9d68a}
-header button{margin-left:auto;background:transparent;border:2px solid #b9d68a;color:#fff;border-radius:10px;padding:8px 12px;font-size:15px}
+#back,#out{background:transparent;border:2px solid #b9d68a;color:#fff;border-radius:10px;padding:8px 12px;font-size:18px}
+#out{margin-left:auto;font-size:15px}#brand{display:flex;align-items:center;gap:12px;background:transparent;border:0;color:#fff;padding:0;text-align:left;min-width:0}
+html[data-theme=dark] body{background:#0c1826;color:#e8eedf}
+html[data-theme=dark] .card{background:#17304a;color:#e8eedf}
+html[data-theme=dark] h2,html[data-theme=dark] label{color:#f4f7ef}
+html[data-theme=dark] input,html[data-theme=dark] textarea,html[data-theme=dark] select{background:#0e1c2e;color:#f4f7ef;border-color:#34506e}
+html[data-theme=dark] .muted{color:#c5d0bc}
 .wrap{max-width:560px;margin:0 auto;padding:16px}
 .card{background:#fff;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 h2{color:var(--n);margin:4px 0 12px}label{display:block;font-weight:700;margin:12px 0 6px}
@@ -22,7 +28,7 @@ input,textarea,select{width:100%;font-size:18px;padding:14px;border:2px solid #c
 .sug{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:2px solid #78a22f;border-radius:12px;box-shadow:0 8px 24px rgba(17,35,55,.18);z-index:30;overflow:hidden}
 .sug button{display:block;width:100%;text-align:left;font:inherit;font-size:17px;min-height:56px;padding:14px 16px;border:0;border-bottom:1px solid #eef0ea;background:#fff;color:#112337}.sug button:last-child{border:0}.sug button:active,.sug button:hover{background:#eef6dc}.sug .h{padding:12px 16px;color:#5b6168;font-size:14px}
 </style></head><body>
-<header><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div><button id="out" hidden onclick="logout()">Sign out</button></header>
+<header><button id="back" type="button" hidden onclick="goBack()" aria-label="Back">←</button><button id="brand" type="button" onclick="navHome()"><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="out" hidden onclick="logout()">Sign out</button></header>
 <div class="wrap" id="app"></div><div id="toast"></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
 <script src="form.js?v=20261027q"></script>
 <script>
@@ -72,17 +78,24 @@ async function fb(im){if(im.dataset.tried||!im.dataset.id)return;im.dataset.trie
 let gi=0;function big(i){gi=i;const im=document.querySelector(`.ph img[onclick="big(${i})"]`);$('#lbi').src=im?im.src:src(GAL[i]);$('#lb').style.display='flex'}
 function nav(d){big((gi+d+GAL.length)%GAL.length)}
 function setupCard(){return API?'':`<div class="card"><h2>Connect backend</h2><p class="muted">Paste the Apps Script web app URL once.</p><input id="apiu" placeholder="https://script.google.com/macros/s/.../exec"><button class="btn n" onclick="localStorage.fdApi=API=$('#apiu').value.trim();render()">Save</button></div>`}
-function render(){GAL=[];if(view==='set'&&role!=='Manager')view='';$('#out').hidden=!role;$('#who').textContent=role?role+' view':'Tree Care & Service';
- if(!role){pin='';view='';A.innerHTML=setupCard()+`<div class="card"><h2>Enter your PIN</h2><div id="dots"></div><div class="pin">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
+function themeName(){return SET&&SET.theme==='dark'?'dark':'classic'}
+function applyTheme(){if(themeName()==='dark')document.documentElement.setAttribute('data-theme','dark');else document.documentElement.removeAttribute('data-theme')}
+let BACKFN=null,editId='';
+function armBack(fn){BACKFN=fn||null;var b=$('#back');if(b)b.hidden=!BACKFN}
+function goBack(){if(BACKFN)BACKFN()}
+function navHome(){view='';cur=null;editId='';armBack(null);render();window.scrollTo(0,0)}
+function render(){GAL=[];applyTheme();if(view==='set'&&role!=='Manager')view='';if(view==='fb'&&!role)view='';$('#out').hidden=!role;$('#who').textContent=role?role+' view':'Tree Care & Service';
+ if(!role){pin='';view='';editId='';armBack(null);A.innerHTML=setupCard()+`<div class="card"><h2>Enter your PIN</h2><div id="dots"></div><div class="pin">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
  <p class="muted">Free estimates · 24 HR emergency · (850) 656-8737</p>`;return}
  if(view==='set')return setScreen();
+ if(view==='fb')return feedbackScreen();
  ({Manager:mgr,Crew:crew,Admin:admin})[role]()}
 function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){if(k!='✓')pin+=k}
  $('#dots').textContent='•'.repeat(pin.length);if(pin.length==4){if(ROLES[pin]){role=sessionStorage.fdRole=ROLES[pin];refresh().then(render);A.innerHTML='<div class="card">Loading…</div>'}else{toast('Wrong PIN');pin='';$('#dots').textContent=''}}}
 function stat(j){if(j.status=='invoiced')return j.invoice&&j.invoice.paid?'paid':'invoiced';if(j.status=='approved')return j.crew&&j.crew.length?'inprogress':'approved';return j.status}
 const SC={sent:'#112337',reply:'#7c3aed',approved:'#78a22f',inprogress:'#d97706',complete:'#34460d',invoiced:'#c2410c',paid:'#15803d',declined:'#8a8f98'};
 const ST={paid:'Paid',inprogress:'In progress',sent:'Quoted',approved:'Approved → crew',declined:'Declined',reply:'Customer replied',complete:'Done → admin',invoiced:'Invoiced'};
-function list(title,arr,go,extra=''){A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${esc(j.address)} <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' · '+esc(j.response.label):''}${av(j)?'<br>🕒 '+esc(av(j)):''} ${role=='Manager'?cfBadge(j):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')}
+function list(title,arr,go,extra=''){armBack(null);A.innerHTML=`${extra}<div class="card"><h2>${title}</h2>${arr.length?'':'<p class="muted">Nothing here right now.</p>'}${arr.map(j=>`<button class="btn n" style="text-align:left" onclick="${go}('${j.id}')">${esc(j.name)}<br><small style="font-weight:400">${esc(j.address)} <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' · '+esc(j.response.label):''}${av(j)?'<br>🕒 '+esc(av(j)):''} ${role=='Manager'?cfBadge(j):''}</small></button>`).join('')}<button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button></div>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')+'<button class="btn n" id="fbhome" type="button" onclick="openFb()">Feedback</button>'}
 function av(j){const r=j.response||{};return [r.avail,r.when].filter(Boolean).join(' - ')}
 // ---- schedule + conflicts ----
 const DAYN=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'],MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
@@ -121,13 +134,13 @@ function sched(){if(!SV.start){const d=new Date();d.setHours(0,0,0,0);d.setDate(
  const title=SV.mode=='week'?'Week of '+fmtD(ymd(SV.start)):new Date(SV.start).toLocaleDateString('en-US',{month:'long',year:'numeric'});
  A.innerHTML=`<div class="card"><h2>Crew Schedule</h2><div class="row"><button class="btn ${SV.mode=='week'?'':'gr'}" onclick="SV.mode='week';sched()">Week</button><button class="btn ${SV.mode=='month'?'':'gr'}" onclick="SV.mode='month';sched()">Month</button></div>
  <button class="btn huge" onclick="blk('')">+ Block time</button><div class="row"><button class="btn n" onclick="mv(-1)">◀</button><button class="btn n" onclick="mv(1)">▶</button></div><h2 style="text-align:center">${title}</h2></div>
- ${SV.mode=='month'?'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px">'+'SMTWTFS'.split('').map(x=>`<b style="text-align:center">${x}</b>`).join('')+cells+'</div>':cells}<button class="btn gr" onclick="render()">← Back to projects</button>`}
+ ${SV.mode=='month'?'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px">'+'SMTWTFS'.split('').map(x=>`<b style="text-align:center">${x}</b>`).join('')+cells+'</div>':cells}<button class="btn gr" onclick="render()">← Back to projects</button>`;armBack(function(){render()})}
 function mv(k){const d=new Date(SV.start);if(SV.mode=='week')d.setDate(d.getDate()+7*k);else{d.setDate(15);d.setMonth(d.getMonth()+k);d.setDate(1)}SV.start=d;sched()}
 function blk(id,day){const b=blocks.find(x=>x.id==id)||{date:day||ymd(new Date()),start:'08:00',end:'17:00',job:'',note:''};
  A.innerHTML=`<div class="card"><h2>${id?'Edit block':'Block time'}</h2><label>Date</label><input type="date" id="bd" value="${b.date}"><div class="row"><div style="flex:1"><label>Start</label><input type="time" id="bs" value="${b.start}"></div><div style="flex:1"><label>End</label><input type="time" id="be" value="${b.end}"></div></div>
  <label>Job (optional)</label><select id="bj" style="width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:10px"><option value="">— none —</option>${jobs.map(j=>`<option value="${j.id}" ${j.id==b.job?'selected':''}>${esc(j.name)} · ${esc(j.address)}</option>`).join('')}</select>
  <label>Note (optional)</label><input id="bn" value="${esc(b.note)}" placeholder="e.g. Crane rental, crew off">
- <button class="btn huge" id="bsv" onclick="saveBlk('${id}')">Save</button>${id?`<button class="btn" style="background:#b91c1c" onclick="delBlk('${id}')">Delete block</button>`:''}<button class="btn gr" onclick="sched()">Cancel</button></div>`}
+ <button class="btn huge" id="bsv" onclick="saveBlk('${id}')">Save</button>${id?`<button class="btn" style="background:#b91c1c" onclick="delBlk('${id}')">Delete block</button>`:''}<button class="btn gr" onclick="sched()">Cancel</button></div>`;armBack(function(){sched()})}
 async function saveBlk(id){const b={id,date:$('#bd').value,start:$('#bs').value,end:$('#be').value,job:$('#bj').value,note:$('#bn').value.trim()};if(!b.date||!b.start||!b.end)return toast('Pick date and times');if(hm(b.end)<=hm(b.start))return toast('End must be after start');
  $('#bsv').disabled=true;try{const r=await api({a:'block',block:b});blocks=r.blocks;toast('Saved');sched()}catch(e){toast(e.message);$('#bsv').disabled=false}}
 async function delBlk(id){if(!confirm('Delete this block?'))return;try{const r=await api({a:'unblock',block:{id}});blocks=r.blocks;toast('Deleted');sched()}catch(e){toast(e.message)}}
@@ -167,7 +180,7 @@ async function sendQ(){if(!$('#nm'))return toast('Show Customer name in Settings
  try{await api(d);toast('Quote + PDF sent to '+d.email);await refresh();render()}catch(e){toast(e.message);$('#sq').disabled=false;$('#sq').textContent='Send quote email + PDF'}}
 function mview(id){GAL=[];const j=jobs.find(x=>x.id==id);A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p>${esc(j.address)}</p><p><b>Status:</b> <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?'<br><b>Answer:</b> '+esc(j.response.label)+' '+esc(j.response.text):''}</p>${j.est?'<p class="muted">'+j.est+(j.pdf?` · <a href="${j.pdf}" target="_blank">PDF</a>`:'')+'</p>':''}<p>📧 ${esc(j.email)||'<b style="color:#b91c1c">No email</b>'} <a href="#" onclick="fixEmail('${id}');return false">edit</a></p>${staffNotes(j)}${av(j)?'<p style="font-size:18px">🕒 <b>Customer prefers:</b> '+esc(av(j))+'</p>':''}${items(j)}${cfDetail(j)}${imgs(j.photos)}${j.crew&&j.crew.length?'<label>Crew Before/After</label>'+imgs(j.crew):''}
 ${j.status=='sent'||j.status=='reply'?`<p class="muted">Customer answered by phone? Mark it:</p><div class="row"><button class="btn" onclick="ans('${id}','A')">A</button><button class="btn d" onclick="ans('${id}','B')">B</button><button class="btn gr" onclick="ans('${id}','C')">C</button></div>`:''}
-${j.folder?`<p><a href="${j.folder}" target="_blank">Project photos in Drive</a></p>`:''}<button class="btn gr" onclick="render()">← Back</button></div>`}
+${j.folder?`<p><a href="${j.folder}" target="_blank">Project photos in Drive</a></p>`:''}<div class="row"><button class="btn n" type="button" onclick="editCustomer('${id}')">Edit customer</button><button class="btn n" type="button" onclick="editQuote('${id}')">${['approved','inprogress','complete','invoiced','paid'].indexOf(stat(j))>=0?'Edit job':'Edit quote'}</button></div><button class="btn gr" onclick="render()">← Back</button></div>`;armBack(function(){render()})}
 async function ans(id,a){try{await api({a:'respond',id,ans:a});await refresh();mview(id)}catch(e){toast(e.message)}}
 // Crew
 function crew(){const a=jobs.filter(j=>j.status=='approved');if(a.length==1)return cview(a[0].id);list('Your jobs',a,'cview')}
@@ -178,7 +191,7 @@ ${av(j)?'<p style="font-size:18px;background:#f1f5ea;padding:10px;border-radius:
 <div class="card"><h2>Before (${b.length})</h2>${imgs(b)}<input type="file" id="bf" accept="image/*" capture="environment" multiple hidden onchange="up(this,'before')"><button class="btn d" onclick="$('#bf').click()">📷 Before photo</button></div>
 <div class="card"><h2>After (${af.length})</h2>${imgs(af)}<input type="file" id="af" accept="image/*" capture="environment" multiple hidden onchange="up(this,'after')"><button class="btn d" onclick="$('#af').click()">📷 After photo</button></div>
 <div class="card"><label>Crew notes</label><textarea id="cn" rows="4">${esc(j.crewNotes)}</textarea><button class="btn mic" id="cm">🎤 Talk</button>
-<button class="btn huge" id="jc" onclick="done('${id}')">✅ JOB COMPLETE</button><button class="btn gr" onclick="cur=null;list('Your jobs',jobs.filter(j=>j.status=='approved'),'cview')">← All jobs</button></div>`;mic('cm','cn')}
+<button class="btn huge" id="jc" onclick="done('${id}')">✅ JOB COMPLETE</button><button class="btn gr" onclick="cur=null;list('Your jobs',jobs.filter(j=>j.status=='approved'),'cview')">← All jobs</button></div>`;mic('cm','cn');armBack(function(){cur=null;list('Your jobs',jobs.filter(function(j){return j.status=='approved'}),'cview')})}
 async function up(inp,kind){photos=[];toast('Uploading…');for(const f of inp.files)photos.push(await shrink(f));inp.value='';
  try{await api({a:'upload',id:cur,kind,photos});await refresh();cview(cur);toast('Saved to Drive')}catch(e){toast(e.message)}}
 async function done(id){if(!confirm('Mark job complete?'))return;$('#jc').disabled=true;$('#jc').textContent='Sending…';
@@ -191,16 +204,18 @@ function aview(id){GAL=[];const j=jobs.find(x=>x.id==id),v=j.invoice||{},paid=v.
  A.innerHTML=`<div class="card"><h2>Invoice ${j.id} ${j.status=='invoiced'?`<span class="badge ${paid?'paid':'open'}">${paid?'PAID':'OPEN'}</span>`:''}</h2>
 <p><b>${esc(j.name)}</b><br>${esc(j.address)}</p><label>Work (from quote)</label>${items(j)}
 ${j.internalNotes?`<p class="muted"><b>Internal notes (not on the invoice):</b> ${esc(j.internalNotes)}</p>`:''}<label>Amount</label><input id="am" value="${esc(v.amount||(j.total!=null?money(j.total):amt(j.quote)))}"><label>Note</label><textarea id="an" rows="2">${esc(v.note||'Payment due within 15 days. Thank you!')}</textarea>
-<button class="btn huge" onclick="inv('${id}')">${j.invoice?'Resend':'Send'} invoice</button>
+<button class="btn n" type="button" onclick="editCustomer('${id}')">Edit customer</button><button class="btn n" type="button" onclick="editQuote('${id}')">Edit job</button><button class="btn n" type="button" onclick="saveInv('${id}')">Save invoice</button><button class="btn huge" onclick="inv('${id}')">${j.invoice?'Resend':'Send'} invoice</button>
 ${j.status=='invoiced'?`<button class="btn ${paid?'gr':'d'}" onclick="paid('${id}',${!paid})">${paid?'Mark OPEN':'Mark PAID'}</button>`:''}
-<label>Before / After</label>${imgs(j.crew)}<button class="btn gr" onclick="render()">← Back</button></div>`}
+<label>Before / After</label>${imgs(j.crew)}<button class="btn gr" onclick="render()">← Back</button></div>`;armBack(function(){render()})}
 async function inv(id){try{await api({a:'invoice',id,amount:$('#am').value,note:$('#an').value});toast('Invoice sent to customer');await refresh();aview(id)}catch(e){toast(e.message)}}
 async function paid(id,p){try{await api({a:'paid',id,paid:p});await refresh();aview(id)}catch(e){toast(e.message)}}
 function formCfg(){return FDForm.normalizeForm(SET&&SET.form)}
 function mailNow(){const s=SET||{};return {subject:s.quoteSubject||FDForm.DEFAULT_SUBJECT,body:s.quoteBody||FDForm.DEFAULT_BODY,sign:s.quoteSign||FDForm.DEFAULT_SIGN}}
 function openSet(){if(role!=='Manager'&&role!=='Owner')return;view='set';FORM=JSON.parse(JSON.stringify(formCfg()));MAIL=mailNow();setScreen();window.scrollTo(0,0)}
 function closeSet(){view='';FORM=null;render()}
-function setScreen(){A.innerHTML='<h2 style="margin-top:0">Settings</h2>'+FDForm.settingsHtml(FORM,MAIL)}
+function themePick(){var r=document.querySelector('input[name="theme"]:checked');return r&&r.value==='dark'?'dark':'classic'}
+function appearanceHtml(){var cur=themeName();return '<div class="card"><h2>Appearance</h2><p class="muted">Modern dark restyles Field Desk. Classic is the original look.</p><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="theme" value="dark"'+(cur==='dark'?' checked':'')+'> Modern dark</label><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="theme" value="classic"'+(cur!=='dark'?' checked':'')+'> Classic</label></div>'}
+function setScreen(){var html=FDForm.settingsHtml(FORM,MAIL);html=html.replace('<button class="btn huge" id="ss"','<div id="look">'+appearanceHtml()+'</div><button class="btn huge" id="ss"');A.innerHTML='<h2 style="margin-top:0">Settings</h2>'+html;armBack(closeSet)}
 function readEditor(){
   if(!FORM)return;
   document.querySelectorAll('[data-svc]').forEach(function(el){var i=+el.dataset.svc;if(!FORM.services[i])return;FORM.services[i][el.dataset.k]=el.value});
@@ -230,8 +245,8 @@ async function saveSet(){
   readEditor();
   var b=$('#ss');if(b){b.disabled=true;b.textContent='Saving…'}
   try{
-    var r=await api({a:'settings',pin:'1234',form:FORM,quoteSubject:MAIL.subject,quoteBody:MAIL.body,quoteSign:MAIL.sign});
-    SET=r.settings||SET;FORM=JSON.parse(JSON.stringify(formCfg()));MAIL=mailNow();
+    var r=await api({a:'settings',pin:'1234',form:FORM,quoteSubject:MAIL.subject,quoteBody:MAIL.body,quoteSign:MAIL.sign,theme:themePick()});
+    SET=r.settings||SET;FORM=JSON.parse(JSON.stringify(formCfg()));MAIL=mailNow();applyTheme();
     toast('Quote form saved');setScreen();
   }catch(e){
     var m=String(e.message||e);
@@ -250,21 +265,33 @@ function customFromDom(){
   return out;
 }
 function quoteExtra(){
-  return {
-    phone:$('#ph')?$('#ph').value.trim():'',
-    service:$('#svc')?$('#svc').value:'',
-    species:$('#species')?$('#species').value:'',
-    timing:$('#timing')?$('#timing').value:'',
-    access:$('#access')?$('#access').value:'',
-    additionalNotes:$('#addl')?$('#addl').value.trim():'',
-    internalNotes:$('#inote')?$('#inote').value.trim():'',
-    custom:customFromDom()
-  };
+  var o={custom:customFromDom()};
+  if($('#ph'))o.phone=$('#ph').value.trim();
+  if($('#svc'))o.service=$('#svc').value;
+  if($('#species'))o.species=$('#species').value;
+  if($('#timing'))o.timing=$('#timing').value;
+  if($('#access'))o.access=$('#access').value;
+  if($('#addl'))o.additionalNotes=$('#addl').value.trim();
+  if($('#inote'))o.internalNotes=$('#inote').value.trim();
+  return o;
 }
 function quoteFace(){var x=quoteExtra();return {service:x.service,species:x.species,timing:x.timing,access:x.access,phone:x.phone,additionalNotes:x.additionalNotes,internalNotes:x.internalNotes,custom:x.custom}}
 function staffNotes(j){return (j.service?'<p><b>Service:</b> '+esc(j.service)+'</p>':'')+(j.species?'<p><b>Tree:</b> '+esc(j.species)+'</p>':'')+(j.timing?'<p><b>Timing:</b> '+esc(j.timing)+'</p>':'')+(j.access?'<p><b>Site access:</b> '+esc(j.access)+'</p>':'')+(j.additionalNotes?'<p><b>Notes for customer:</b> '+esc(j.additionalNotes)+'</p>':'')+(j.internalNotes?'<p><b>Internal notes:</b> '+esc(j.internalNotes)+' <span class="muted">Not on the customer estimate.</span></p>':'')}
-function newq(){photos=[];view='';A.innerHTML='<div class="card"><h2>New quote</h2>'+FDForm.quoteFieldsHtml(formCfg(),{emailNote:window.FD_EMAIL_NOTE||''})+'<button class="btn huge d" type="button" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" type="button" onclick="render()">Cancel</button></div>';if($('#mb')&&$('#qt'))mic('mb','qt');if($('#ad'))addrAC('ad')}
+function newq(pre){photos=[];view='';editId=pre&&pre.id?pre.id:'';var backTo=editId;var from=role;A.innerHTML='<div class="card"><h2>'+(editId?'Edit quote':'New quote')+'</h2>'+FDForm.quoteFieldsHtml(formCfg(),{emailNote:window.FD_EMAIL_NOTE||''})+'<button class="btn huge d" type="button" onclick="prev()">Preview polished quote →</button><div id="pv"></div><button class="btn gr" type="button" onclick="goBack()">Cancel</button></div>';if(pre)fillQuote(pre);if($('#mb')&&$('#qt'))mic('mb','qt');if($('#ad'))addrAC('ad');armBack(function(){editId='';if(backTo&&from==='Admin')aview(backTo);else if(backTo)mview(backTo);else render()})}
+function ensureOption(id,value){var el=document.getElementById(id);if(!el||!value)return;if(![...el.options].some(function(o){return o.value===value||o.textContent===value})){var o=document.createElement('option');o.textContent=value;o.value=value;el.appendChild(o)}el.value=value}
+function fillQuote(pre){if($('#nm'))$('#nm').value=pre.name||'';if($('#ad'))$('#ad').value=pre.address||'';if($('#em'))$('#em').value=pre.email||'';if($('#ph'))$('#ph').value=pre.phone||'';ensureOption('svc',pre.service||'');ensureOption('species',pre.species||'');ensureOption('timing',pre.timing||'');ensureOption('access',pre.access||'');if($('#qt'))$('#qt').value=pre.quote||'';if($('#addl'))$('#addl').value=pre.additionalNotes||'';if($('#inote'))$('#inote').value=pre.internalNotes||'';formCfg().fields.forEach(function(f){if(f.builtin)return;var el=document.getElementById('cx-'+f.id);if(!el||!pre.custom)return;if(el.type==='checkbox')el.checked=!!pre.custom[f.id];else el.value=pre.custom[f.id]||''});IT=(pre.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}});if(IT.length)drawPv()}
+function editQuote(id){var j=jobs.find(function(x){return x.id===id});if(!j)return;newq(j);window.scrollTo(0,0)}
+const ROLEPIN={Manager:'1234',Crew:'0123',Admin:'6789',Owner:'1234'};
+function myPin(){return ROLEPIN[role]||''}
+function customerKey(j){var em=String(j.email||'').trim().toLowerCase();return em||(String(j.name||'').trim().toLowerCase()+'|'+String(j.address||'').trim().toLowerCase())}
+function editCustomer(id){var j=jobs.find(function(x){return x.id===id});if(!j)return;var ids=jobs.filter(function(x){return customerKey(x)===customerKey(j)}).map(function(x){return x.id});var from=role;window.CIDS=ids;A.innerHTML='<div class="card"><h2>Edit customer</h2><p class="muted">This updates every job for this customer. Secondary phone and contact stay off the estimate.</p><label>Name</label><input id="cnm" value="'+esc(j.name||'')+'"><label>Phone</label><input id="cph" type="tel" value="'+esc(j.phone||'')+'"><label>Email</label><input id="cem" type="email" value="'+esc(j.email||'')+'"><label>Address</label><input id="cad" value="'+esc(j.address||'')+'"><button class="btn gr" type="button" onclick="var s=document.getElementById(\'cadv\');s.hidden=!s.hidden">Advanced</button><div id="cadv" hidden><label>Secondary phone</label><input id="cph2" type="tel" value="'+esc(j.phone2||'')+'"><label>Secondary contact name</label><input id="cct2" value="'+esc(j.contact2||'')+'"></div><button class="btn huge" id="csave" type="button" onclick="saveCustomer()">Save customer</button></div>';armBack(function(){if(from==='Admin')aview(id);else mview(id)});window.scrollTo(0,0)}
+async function saveCustomer(){var email=$('#cem').value.trim();if(email&&!validEmail(email))return toast('That email does not look right');if(!email)return toast('Customer email is required');var b=$('#csave');if(b){b.disabled=true;b.textContent='Saving…'}try{await api({a:'cedit',pin:myPin(),ids:window.CIDS||[],name:$('#cnm').value.trim(),phone:$('#cph').value.trim(),email:email,address:$('#cad').value.trim(),phone2:$('#cph2').value.trim(),contact2:$('#cct2').value.trim()});toast('Customer saved');await refresh();var id=(window.CIDS||[])[0];if(id&&role==='Admin')aview(id);else if(id)mview(id);else render()}catch(e){toast(String(e.message||e)==='Bad action'?'Editing needs a Field Desk script redeploy before it can be saved.':e.message);if(b){b.disabled=false;b.textContent='Save customer'}}}
+async function saveEdit(send){var id=editId;if(!id)return;var d=Object.assign({a:'qedit',id:id,send:!!send,name:$('#nm')?$('#nm').value.trim():'',address:$('#ad')?$('#ad').value.trim():'',email:$('#em')?$('#em').value.trim():'',quote:$('#qt')?$('#qt').value:'',items:IT.filter(function(i){return i.title&&String(i.title).trim()})},quoteExtra());if(d.email&&!validEmail(d.email))return toast('That email does not look right');if(!d.email)return toast('Customer email is required');if(!d.items.length)return toast('Add at least one line');var b=send?$('#sq'):$('#sqsave');var other=send?$('#sqsave'):$('#sq');if(b){b.disabled=true;b.textContent=send?'Sending…':'Saving…'}if(other)other.disabled=true;try{await api(d);editId='';toast(send?'Updated estimate sent to '+d.email:'Quote saved');await refresh();if(role==='Admin')aview(id);else mview(id)}catch(e){toast(String(e.message||e)==='Bad action'?'Editing needs a Field Desk script redeploy before it can be saved.':e.message);if(b){b.disabled=false;b.textContent=send?'Send updated estimate':'Save'}if(other)other.disabled=false}}
+async function saveInv(id){try{await api({a:'iedit',id:id,amount:$('#am').value,note:$('#an').value});toast('Invoice saved');await refresh();aview(id)}catch(e){toast(String(e.message||e)==='Bad action'?'Editing needs a Field Desk script redeploy before it can be saved.':e.message)}}
+function openFb(){view='fb';feedbackScreen();window.scrollTo(0,0)}
+function feedbackScreen(){A.innerHTML='<div class="card"><h2>Feedback</h2><p class="muted">Tell us what to change in Field Desk. This note is saved for the office. It is not emailed.</p><textarea id="fbtext" rows="6" placeholder="What should we change?"></textarea><button class="btn huge" id="fbsend" type="button" onclick="sendFeedback()">Send feedback</button></div>';armBack(function(){view='';render()})}
+async function sendFeedback(){var text=$('#fbtext')?$('#fbtext').value.trim():'';if(!text)return toast('Write a note first');var b=$('#fbsend');if(b){b.disabled=true;b.textContent='Sending…'}try{await api({a:'feedback',pin:myPin(),role:role,text:text});if($('#fbtext'))$('#fbtext').value='';toast('Thank you. Your note was saved.')}catch(e){toast(String(e.message||e)==='Bad action'?'Feedback needs a Field Desk script redeploy before it can be saved.':e.message)}if(b){b.disabled=false;b.textContent='Send feedback'}}
 function prev(){var spoken=$('#qt')?$('#qt').value.trim():'';var svc=$('#svc')?$('#svc').value:'';if(!spoken&&!svc)return toast('Say or type the work first');IT=FDForm.buildLines(formCfg(),svc,spoken?rewriteQuote(spoken):[]);drawPv()}
-function drawPv(){var t=IT.reduce(function(a,i){return a+(Number(i.price)||0)},0);var face=FDForm.customerPreviewHtml(quoteFace(),formCfg());$('#pv').innerHTML='<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included. Internal notes are not in this box.</p>'+face+IT.map(function(i,n){return '<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="'+esc(i.title)+'" oninput="IT['+n+'].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT['+n+'].detail=this.value" style="margin-top:6px;font-size:15px">'+esc(i.detail)+'</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="'+(i.price==null?'':i.price)+'" oninput="IT['+n+'].price=this.value===\'\'?null:Number(this.value.replace(/[$,]/g,\'\'));$(\'#tot\').textContent=money(IT.reduce(function(a,i){return a+(Number(i.price)||0)},0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice('+n+',1);drawPv()">Remove</button></div></div>'}).join('')+'<button class="btn gr" onclick="IT.push({title:\'\',detail:\'\',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">'+money(t)+'</span></b></p><button class="btn huge" id="sq" onclick="sendQ()">Send quote email + PDF</button></div>';$('#pv').scrollIntoView({behavior:'smooth'})}
+function drawPv(){var t=IT.reduce(function(a,i){return a+(Number(i.price)||0)},0);var face=FDForm.customerPreviewHtml(quoteFace(),formCfg());var sendBtn=editId?'<button class="btn huge" id="sqsave" type="button" onclick="saveEdit(false)">Save</button><button class="btn huge d" id="sq" type="button" onclick="saveEdit(true)">Send updated estimate</button>':'<button class="btn huge" id="sq" type="button" onclick="sendQ()">Send quote email + PDF</button>';$('#pv').innerHTML='<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included. Internal notes are not in this box.</p>'+face+IT.map(function(i,n){return '<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="'+esc(i.title)+'" oninput="IT['+n+'].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT['+n+'].detail=this.value" style="margin-top:6px;font-size:15px">'+esc(i.detail)+'</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="'+(i.price==null?'':i.price)+'" oninput="IT['+n+'].price=this.value===\'\'?null:Number(this.value.replace(/[$,]/g,\'\'));$(\'#tot\').textContent=money(IT.reduce(function(a,i){return a+(Number(i.price)||0)},0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice('+n+',1);drawPv()">Remove</button></div></div>'}).join('')+'<button class="btn gr" onclick="IT.push({title:\'\',detail:\'\',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">'+money(t)+'</span></b></p>'+sendBtn+'</div>';if(!editId)$('#pv').scrollIntoView({behavior:'smooth'})}
 if(role)refresh().then(render);else render();
 </script></body></html>
