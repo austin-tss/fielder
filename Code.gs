@@ -453,6 +453,7 @@ function doGet(e){var p=e.parameter||{};
   return out_({ok:true,root:root_().getUrl(),jobs:load_(),blocks:load_('blocks.json'),settings:settings_()});}
 function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScriptLock();L.waitLock(30000);var j,send=null,js;
   try{
+    var v5=v5Api_(d);if(v5)return out_(v5);
     if(d.a=='settings'){if(String(d.pin||'')!==FORM_PIN_)return out_({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return out_({ok:true,settings:settings_()})}
     if(d.a=='feedback'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return out_({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return out_({ok:true})}
     if(d.a=='cedit'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return out_({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return out_({ok:true})}
@@ -479,3 +480,72 @@ function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScript
   return out_({ok:true,job:j});}
 // Run once from the editor to grant permissions and create the Drive folder.
 function setup(){Logger.log(root_().getUrl());}
+
+// ===================== v5: Quotes Needed + Text reminders =====================
+// Quotes Needed: scans the admin Gmail for quote/estimate request emails, stores them in quotes_needed.json.
+// Install the time trigger once from the editor: installQuoteTrigger()  (every 15 min).
+var QN_FILE='quotes_needed.json',QN_LABEL='Fielder/QuoteProcessed';
+function qnLoad_(){try{return load_(QN_FILE)}catch(e){return []}}
+function qnParse_(msg){var body=msg.getPlainBody()||'',from=msg.getFrom()||'',subj=msg.getSubject()||'';
+  function grab(re){var m=body.match(re);return m?String(m[1]).trim():''}
+  var name=grab(/^\s*(?:full\s*)?name\s*[:\-]\s*(.+)$/im);
+  var email=grab(/^\s*e-?mail(?:\s*address)?\s*[:\-]\s*([^\s<>]+@[^\s<>]+)/im);
+  var phone=grab(/^\s*(?:phone|cell|mobile|tel(?:ephone)?)(?:\s*(?:number|#))?\s*[:\-]\s*([+()\d][\d()\s.\-]{6,})/im);
+  var address=grab(/^\s*(?:service\s*|property\s*|street\s*)?address\s*[:\-]\s*(.+)$/im);
+  var notes=grab(/^\s*(?:notes?|message|comments?|details|description|work needed)\s*[:\-]\s*([\s\S]{1,1500}?)(?:\n\s*\n|$)/im);
+  var fm=from.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);var fromName=fm?fm[1].trim():'',fromEmail=fm?fm[2].trim():from.trim();
+  if(!email&&!/no-?reply|wordpress|forms?@|notification/i.test(fromEmail))email=fromEmail;
+  if(!email){var em=body.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i);if(em)email=em[0]}
+  if(!phone){var pm=body.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/);if(pm)phone=pm[0].trim()}
+  if(!address){var am=body.match(/\d{2,6}\s+[A-Za-z0-9.\s]{3,40}\b(?:Rd|Road|St|Street|Dr|Drive|Ave|Avenue|Ln|Lane|Blvd|Ct|Court|Cir|Way|Pkwy|Hwy|Trl|Pl)\b[^\n]{0,60}/i);if(am)address=am[0].trim()}
+  if(!name)name=fromName&&!/no-?reply/i.test(fromName)?fromName:'';
+  if(!notes)notes=body.replace(/\s+/g,' ').trim().slice(0,600);
+  return {id:'QN-'+msg.getId(),msgId:msg.getId(),subject:clip_(subj,200),from:clip_(from,200),name:clip_(name,200),email:clip_(email,200),phone:clip_(phone,40),address:clip_(address,300),notes:clip_(notes,1500),received:msg.getDate().toISOString(),status:'open'};}
+function scanQuoteEmails(inLock){var lab=GmailApp.getUserLabelByName(QN_LABEL)||GmailApp.createLabel(QN_LABEL);
+  var threads=GmailApp.search('in:inbox newer_than:14d (subject:quote OR subject:estimate) -label:'+QN_LABEL.replace('/','-')+' -from:me',0,30);
+  if(!threads.length)return 0;var L=inLock===true?null:LockService.getScriptLock();if(L)L.waitLock(30000);var n=0;
+  try{var list=qnLoad_(),seen={};list.forEach(function(q){seen[q.msgId]=1});
+    threads.forEach(function(t){var m=t.getMessages()[0];if(!seen[m.getId()]&&!/^(re|fwd?):/i.test(m.getSubject()||'')){list.unshift(qnParse_(m));n++}t.addLabel(lab)});
+    if(list.length>300)list=list.slice(0,300);save_(list,QN_FILE);}finally{if(L)L.releaseLock()}
+  Logger.log('Quotes Needed: added '+n);return n;}
+function installQuoteTrigger(){ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()=='scanQuoteEmails')ScriptApp.deleteTrigger(t)});
+  ScriptApp.newTrigger('scanQuoteEmails').timeBased().everyMinutes(15).create();Logger.log('scanQuoteEmails trigger installed (every 15 min)');}
+
+// Text reminders (Twilio). Script Properties: TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM (+1XXXXXXXXXX),
+// TEST_SMS_ONLY ('true' = every text goes ONLY to TEST_PHONE), TEST_PHONE. Missing creds = no-op, logs 'not configured'.
+var SMS_TPL={
+  onway:'Hi {first}, this is {co}. We are on the way for your estimate at {addr}. See you soon! Questions: {phone}',
+  install:'Hi {first}, reminder from {co}: you are still on for your tree work tomorrow ({date}) at {addr}. Reply or call {phone} with any questions.',
+  debris:'Hi {first}, {co} here: our crew will be by tomorrow ({date}) for debris removal at {addr}. Call {phone} with any questions.'};
+function smsCfg_(){var p=PropertiesService.getScriptProperties();return {sid:p.getProperty('TWILIO_SID'),tok:p.getProperty('TWILIO_TOKEN'),from:p.getProperty('TWILIO_FROM'),testOnly:String(p.getProperty('TEST_SMS_ONLY')||'true').toLowerCase()!=='false',testPhone:p.getProperty('TEST_PHONE')||''};}
+function e164_(s){var d=String(s||'').replace(/\D/g,'');if(d.length==10)d='1'+d;return d.length==11?'+'+d:'';}
+function smsText_(kind,j,date){var t=SMS_TPL[kind]||'';return t.replace('{first}',String(j.name||'there').split(' ')[0]).replace('{co}',CO.name).replace('{addr}',String(j.address||'your property').split(',')[0]).replace('{phone}',CO.phone).replace('{date}',date||'');}
+function sendSms_(to,body){var c=smsCfg_();if(!c.sid||!c.tok||!c.from){Logger.log('SMS not configured');return {ok:false,skipped:'not configured'};}
+  if(c.testOnly){if(!c.testPhone){Logger.log('SMS TEST_SMS_ONLY on but TEST_PHONE missing; not sent');return {ok:false,skipped:'no TEST_PHONE'};}body='[TEST to '+(to||'?')+'] '+body;to=c.testPhone;}
+  to=e164_(to);if(!to)return {ok:false,skipped:'no valid phone'};
+  var r=UrlFetchApp.fetch('https://api.twilio.com/2010-04-01/Accounts/'+c.sid+'/Messages.json',{method:'post',muteHttpExceptions:true,headers:{Authorization:'Basic '+Utilities.base64Encode(c.sid+':'+c.tok)},payload:{To:to,From:c.from,Body:body}});
+  var ok=r.getResponseCode()<300;Logger.log('SMS '+(ok?'sent':'failed '+r.getResponseCode())+' to '+to);return {ok:ok,code:r.getResponseCode()};}
+function logSms_(j,kind,res){j.sms=j.sms||[];j.sms.push({kind:kind,at:new Date().toISOString(),ok:!!res.ok,skipped:res.skipped||''});if(j.sms.length>30)j.sms=j.sms.slice(-30);}
+function installDate_(j,blocks){if(j.installDate)return j.installDate;var b=(blocks||[]).filter(function(x){return x.job==j.id&&x.date}).map(function(x){return x.date}).sort();return b[0]||'';}
+function tomorrow_(){var d=new Date();d.setDate(d.getDate()+1);return Utilities.formatDate(d,'America/New_York','yyyy-MM-dd');}
+function prettyDate_(k){return Utilities.formatDate(new Date(k+'T12:00:00'),'America/New_York','EEE MMM d');}
+function runDailyReminders(){var c=smsCfg_();if(!c.sid||!c.tok||!c.from){Logger.log('SMS not configured');return;}
+  var L=LockService.getScriptLock();L.waitLock(30000);try{var js=load_(),bl=[];try{bl=load_('blocks.json')}catch(e){}var tm=tomorrow_(),n=0;
+    js.forEach(function(j){if(!j.phone)return;var st=j.status;
+      if((st=='approved')&&installDate_(j,bl)==tm&&!(j.sms||[]).some(function(s){return s.kind=='install-'+tm})){logSms_(j,'install-'+tm,sendSms_(j.phone,smsText_('install',j,prettyDate_(tm))));n++}
+      if(j.debrisDate==tm&&!(j.sms||[]).some(function(s){return s.kind=='debris-'+tm})){logSms_(j,'debris-'+tm,sendSms_(j.phone,smsText_('debris',j,prettyDate_(tm))));n++}});
+    save_(js);Logger.log('Daily reminders: '+n);}finally{L.releaseLock()}}
+function installReminderTrigger(){ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()=='runDailyReminders')ScriptApp.deleteTrigger(t)});
+  ScriptApp.newTrigger('runDailyReminders').timeBased().everyDays(1).atHour(17).inTimezone('America/New_York').create();Logger.log('runDailyReminders trigger installed (daily ~5 PM ET)');}
+
+// API for v5 (called from doPost). Returns a response object, or null if the action is not a v5 action.
+function v5Api_(d){
+  if(d.a=='qnList'){if(!pinOk_(d))return {ok:false,err:'That PIN cannot view quote requests.'};var l=qnLoad_();return {ok:true,items:d.all?l:l.filter(function(q){return q.status=='open'})};}
+  if(d.a=='qnDismiss'||d.a=='qnStart'){if(!pinOk_(d))return {ok:false,err:'That PIN cannot change quote requests.'};var l2=qnLoad_(),q=l2.filter(function(x){return x.id==d.id})[0];if(!q)return {ok:false,err:'Request not found'};
+    q.status=d.a=='qnDismiss'?'dismissed':'started';q.updated=new Date().toISOString();save_(l2,QN_FILE);return {ok:true,item:q};}
+  if(d.a=='qnScan'){if(!pinOk_(d))return {ok:false,err:'That PIN cannot scan email.'};return {ok:true,added:scanQuoteEmails(true)};}
+  if(d.a=='jdates'||d.a=='smsOnWay'){if(!pinOk_(d))return {ok:false,err:'That PIN cannot do that.'};var js=load_(),j=js.filter(function(x){return x.id==d.id})[0];if(!j)return {ok:false,err:'Job not found'};
+    if(d.a=='jdates'){var ok=function(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')?s:''};if('installDate' in d)j.installDate=ok(d.installDate);if('debrisDate' in d)j.debrisDate=ok(d.debrisDate);if('phone' in d)j.phone=clip_(d.phone,40);save_(js);return {ok:true,job:j};}
+    if(!j.phone)return {ok:false,err:'Add the customer phone first.'};var res=sendSms_(j.phone,smsText_('onway',j));logSms_(j,'onway',res);save_(js);
+    return res.skipped=='not configured'?{ok:false,err:'Text messages are not set up yet (Twilio not configured).'}:res.ok?{ok:true,job:j}:{ok:false,err:'Text not sent ('+(res.skipped||res.code)+').'};}
+  return null;}
