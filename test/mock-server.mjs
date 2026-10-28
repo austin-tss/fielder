@@ -68,7 +68,7 @@ function publicSettings() {
 
 function handleApi(req, res, body) {
   if (req.method === 'GET') {
-    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs, blocks: [], settings: publicSettings() }));
+    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks: [], settings: publicSettings() }));
     return;
   }
   const d = JSON.parse(body || '{}');
@@ -97,6 +97,12 @@ function handleApi(req, res, body) {
       return send(res, 200, JSON.stringify({ ok: true, code: e.pin, mailed: true, employee: pub(e), employees: employees.map(pub) }));
     }
     return send(res, 200, JSON.stringify({ ok: true, employees: employees.map(pub) }));
+  }
+  if (d.a === 'archive') {
+    const job = jobs.find((j) => j.id === d.id);
+    if (!job) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
+    job.archived = !d.undo;
+    return send(res, 200, JSON.stringify({ ok: true }));
   }
   if (d.a === 'settings') {
     if (ROLEPINS[String(d.pin || '')] !== 'Manager' && !employees.some((u) => u.pin === String(d.pin || '') && u.role === 'Manager')) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
@@ -201,3 +207,4 @@ export function start(port) {
   });
   return new Promise((resolve) => server.listen(port || 0, '127.0.0.1', () => resolve(server)));
 }
+export function addJob(j) { jobs.push(j); }

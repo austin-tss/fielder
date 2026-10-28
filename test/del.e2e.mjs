@@ -1,0 +1,50 @@
+import puppeteer from 'puppeteer-core';
+import { start, addJob } from './mock-server.mjs';
+const SHOTS = process.env.SHOTS || '';
+function fail(m) { throw new Error(m); }
+for (let i = 1; i <= 3; i++) addJob({ id: 'D' + i, est: 'FT-EST-2026-01' + i, name: 'Delete Me ' + i, address: '1 Oak St, Tallahassee, FL', email: 'd@example.com', status: 'approved', created: '2026-10-1' + i + 'T12:00:00Z', items: [], total: 100 * i, crew: [], photos: [] });
+const server = await start(0);
+const base = 'http://127.0.0.1:' + server.address().port;
+const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const page = await browser.newPage();
+await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+const waitText = (t) => page.waitForFunction((t) => document.body.innerText.includes(t), { timeout: 15000 }, t);
+const gone = (t) => page.waitForFunction((t) => !document.getElementById('jl').innerText.includes(t), { timeout: 15000 }, t);
+const names = () => page.$$eval('#jl .job b', (e) => e.map((x) => x.textContent));
+async function login(pin) { for (const d of pin) await page.evaluate((d) => [...document.querySelectorAll('.pin button')].find((b) => b.textContent === d).click(), d); }
+try {
+  await page.goto(base + '/?api=' + encodeURIComponent(base + '/exec'), { waitUntil: 'networkidle0' });
+  await login('1234');
+  await waitText('Delete Me 3');
+  const trash = (n) => page.evaluate((n) => [...document.querySelectorAll('#jl .job')].find((c) => c.innerText.includes(n)).querySelector('.trash').click(), n);
+  await trash('Delete Me 1');
+  await waitText('Delete this estimate?');
+  if (SHOTS) await page.screenshot({ path: SHOTS + '/delete_confirm.png' });
+  await page.click('#mcancel');
+  if (!(await names()).includes('Delete Me 1')) fail('cancel deleted it');
+  await trash('Delete Me 1');
+  await page.click('#mok');
+  await gone('Delete Me 1');
+  await waitText('Estimate deleted');
+  await page.click('#undob');
+  await waitText('Restored');
+  if (!(await names()).includes('Delete Me 1')) fail('undo did not restore');
+  await page.click('#selbtn');
+  await page.waitForSelector('#selbar:not([hidden])');
+  for (const n of ['Delete Me 2', 'Delete Me 3']) await page.evaluate((n) => [...document.querySelectorAll('#jl .job')].find((c) => c.innerText.includes(n)).click(), n);
+  if ((await page.$eval('#seldel', (e) => e.textContent)) !== 'Delete 2 selected') fail('selected count wrong');
+  if (SHOTS) await page.screenshot({ path: SHOTS + '/delete_multiselect.png' });
+  await page.click('#seldel');
+  await waitText('Delete 2 estimates?');
+  if (SHOTS) await page.screenshot({ path: SHOTS + '/delete_multi_confirm.png' });
+  await page.click('#mok');
+  await gone('Delete Me 3');
+  await waitText('2 estimates deleted');
+  const left = await names();
+  if (left.includes('Delete Me 2') || !left.includes('Delete Me 1')) fail('bulk delete wrong: ' + left);
+  await page.evaluate(() => logout());
+  await login('0123');
+  await page.waitForFunction(() => !document.body.innerText.includes('Enter your PIN'));
+  if (await page.$('.trash') || await page.$('#selbtn')) fail('crew must not delete');
+  console.log('fielder delete e2e ok');
+} finally { await browser.close(); server.close(); }
