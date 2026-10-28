@@ -1,8 +1,8 @@
 import puppeteer from 'puppeteer-core';
-import { start, addJob } from './mock-server.mjs';
+import { start, addJob, archiveMode } from './mock-server.mjs';
 const SHOTS = process.env.SHOTS || '';
 function fail(m) { throw new Error(m); }
-for (let i = 1; i <= 3; i++) addJob({ id: 'D' + i, est: 'FT-EST-2026-01' + i, name: 'Delete Me ' + i, address: '1 Oak St, Tallahassee, FL', email: 'd@example.com', status: 'approved', created: '2026-10-1' + i + 'T12:00:00Z', items: [], total: 100 * i, crew: [], photos: [] });
+for (let i = 1; i <= 4; i++) addJob({ id: 'D' + i, est: 'FT-EST-2026-01' + i, name: 'Delete Me ' + i, address: '1 Oak St, Tallahassee, FL', email: 'd@example.com', status: 'approved', created: '2026-10-1' + i + 'T12:00:00Z', items: [], total: 100 * i, crew: [], photos: [] });
 const server = await start(0);
 const base = 'http://127.0.0.1:' + server.address().port;
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -42,6 +42,24 @@ try {
   await waitText('2 estimates deleted');
   const left = await names();
   if (left.includes('Delete Me 2') || !left.includes('Delete Me 1')) fail('bulk delete wrong: ' + left);
+  // Optimistic: with a slow server the card leaves at once; a failed call puts it back.
+  archiveMode(2000, ['D4']);
+  let t0 = Date.now();
+  await trash('Delete Me 1');
+  await page.click('#mok');
+  await gone('Delete Me 1');
+  if (Date.now() - t0 > 900) fail('delete not instant: ' + (Date.now() - t0));
+  await waitText('Estimate deleted');
+  t0 = Date.now();
+  await page.click('#undob');
+  await page.waitForFunction(() => document.getElementById('jl').innerText.includes('Delete Me 1'));
+  if (Date.now() - t0 > 900) fail('undo not instant');
+  await trash('Delete Me 4');
+  await page.click('#mok');
+  await gone('Delete Me 4');
+  await waitText("Couldn't delete Delete Me 4, try again");
+  await page.waitForFunction(() => document.getElementById('jl').innerText.includes('Delete Me 4'));
+  archiveMode(0);
   await page.evaluate(() => logout());
   await login('0123');
   await page.waitForFunction(() => !document.body.innerText.includes('Enter your PIN'));

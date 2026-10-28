@@ -200,12 +200,16 @@ function selBar(){const b=$('#selbar');if(!b)return;b.hidden=!SEL;if(SEL){$('#se
 function askDel(msg){return new Promise(res=>{const m=$('#modal');m.innerHTML=`<div class="card" role="dialog" aria-modal="true"><h2>${esc(msg)}</h2><p class="muted">It moves out of every list. You can undo right after.</p><div class="row"><button class="btn gr" type="button" id="mcancel">Cancel</button><button class="btn red" type="button" id="mok">Delete</button></div></div>`;m.hidden=false;
  const done=v=>{m.hidden=true;m.innerHTML='';res(v)};$('#mcancel').onclick=()=>done(false);$('#mok').onclick=()=>done(true);m.onclick=e=>{if(e.target===m)done(false)}})}
 let UNDOT=null;function undoBar(text,fn,ms){const u=$('#undo');$('#undot').textContent=text;u.hidden=false;clearTimeout(UNDOT);UNDOT=setTimeout(()=>u.hidden=true,ms||8000);$('#undob').onclick=()=>{u.hidden=true;clearTimeout(UNDOT);fn()}}
-function showUndo(ids){const u=$('#undo');$('#undot').textContent=(ids.length==1?'Estimate':ids.length+' estimates')+' deleted';u.hidden=false;clearTimeout(UNDOT);UNDOT=setTimeout(()=>u.hidden=true,8000);
- $('#undob').onclick=async()=>{u.hidden=true;clearTimeout(UNDOT);let bad=0;for(const id of ids){try{await api({a:'archive',id,undo:true})}catch(e){bad++}}await refresh();render();toast(bad?bad+' could not be restored. Try again.':'Restored')}}
-async function delIds(ids){let ok=[],bad=[];for(const id of ids){try{await api({a:'archive',id});ok.push(id)}catch(e){bad.push(id)}}
- SEL=null;selBar();await refresh();render();if(ok.length)showUndo(ok);if(bad.length)toast(bad.length+' of '+ids.length+' could not be deleted. Try again.')}
-async function delOne(id){if(!canDel())return;if(!(await askDel('Delete this estimate?')))return;await delIds([id])}
-async function delSel(){if(!SEL||!SEL.size)return;const ids=[...SEL];if(!(await askDel(ids.length==1?'Delete this estimate?':'Delete '+ids.length+' estimates?')))return;await delIds(ids)}
+// Optimistic delete: cards leave the list at once, archive calls run in the background (3 at a time, busy retries in api()).
+function relist(){saveCache();if($('#jl')&&(view===''||view==='fq'))render()}
+async function pool(items,n,fn){let k=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(k<items.length){const it=items[k++];await fn(it)}}))}
+function delIds(ids){const gone=jobs.filter(j=>ids.includes(j.id));if(!gone.length)return;const st={undone:false,done:{}};
+ jobs=jobs.filter(j=>!ids.includes(j.id));SEL=null;selBar();relist();
+ const run=pool(gone,3,async j=>{try{await api({a:'archive',id:j.id});st.done[j.id]=true}catch(e){st.done[j.id]=false;if(!st.undone&&!jobs.some(x=>x.id===j.id)){jobs.push(j);relist()}toast("Couldn't delete "+(j.name||'that estimate')+', try again')}});
+ undoBar((gone.length==1?'Estimate':gone.length+' estimates')+' deleted',async()=>{st.undone=true;gone.forEach(j=>{if(!jobs.some(x=>x.id===j.id))jobs.push(j)});relist();toast('Restored');
+  await run;let bad=0;for(const j of gone){if(st.done[j.id]){try{await api({a:'archive',id:j.id,undo:true})}catch(e){bad++}}}if(bad){toast(bad+' could not be restored. Try again.');await refresh();relist()}},8000)}
+async function delOne(id){if(!canDel())return;if(!(await askDel('Delete this estimate?')))return;delIds([id])}
+async function delSel(){if(!SEL||!SEL.size)return;const ids=[...SEL];if(!(await askDel(ids.length==1?'Delete this estimate?':'Delete '+ids.length+' estimates?')))return;delIds(ids)}
 let LIST=null;function drawList(){const el=$('#jl');if(!el||!LIST)return;const a=LIST[1].filter(listMatch),pages=Math.max(1,Math.ceil(a.length/PER));PG=Math.min(Math.max(1,PG),pages);const sh=a.slice((PG-1)*PER,PG*PER);
  el.innerHTML=a.length?sh.map(j=>jobCard(j,LIST[2])).join('')+(pages>1?`<div class="pager" id="pager"><button type="button" id="pgprev" onclick="goPage(-1)"${PG<=1?' disabled':''}>‹ Prev</button><span id="pginfo">Page ${PG} of ${pages}</span><button type="button" id="pgnext" onclick="goPage(1)"${PG>=pages?' disabled':''}>Next ›</button></div>`:''):'<p class="muted" style="text-align:center;padding:20px">'+(LQ.trim()?'No matches.':'Nothing here right now.')+'</p>'}
 function mapU(a,g){const e=encodeURIComponent(a);return g?'https://www.google.com/maps/dir/?api=1&destination='+e:'https://maps.apple.com/?daddr='+e}

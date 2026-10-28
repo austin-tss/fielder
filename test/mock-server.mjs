@@ -48,6 +48,9 @@ let VOICE = false;
 export function setVoice(v) { VOICE = !!v; }
 export const created = [];
 let blocks = [];
+let ARCH_DELAY = 0;
+const ARCH_FAIL = new Set();
+export function archiveMode(delay, failIds) { ARCH_DELAY = delay || 0; ARCH_FAIL.clear(); (failIds || []).forEach((x) => ARCH_FAIL.add(x)); }
 let employees = [{ id: 'E1', name: 'Ada Admin', email: 'ada@example.com', role: 'Admin', pin: '5511' }, { id: 'E2', name: 'Sam Saw', email: 'sam@example.com', role: 'Crew', pin: '5522' }];
 export const outbox = [];
 const ROLEPINS = { '1234': 'Manager', '0123': 'Crew', '6789': 'Admin' };
@@ -119,6 +122,7 @@ function handleApi(req, res, body) {
     } }));
   }
   if (d.a === 'archive') {
+    if (ARCH_DELAY) return setTimeout(() => { if (ARCH_FAIL.has(d.id)) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' })); const jb = jobs.find((j) => j.id === d.id); if (jb) jb.archived = !d.undo; send(res, 200, JSON.stringify({ ok: true })); }, ARCH_DELAY);
     const job = jobs.find((j) => j.id === d.id);
     if (!job) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
     job.archived = !d.undo;
