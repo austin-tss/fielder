@@ -48,7 +48,9 @@ try {
   const backOnPin = await page.$eval('#navbar', (el) => el.hidden);
   if (!backOnPin) fail('back button should be hidden on the PIN screen');
   await pressPin(page, '1234');
-  await waitText(page, 'Feedback');
+  await waitText(page, 'Send feedback');
+  await page.evaluate(() => document.getElementById('row-fq').click());
+  await waitText(page, 'Existing Oak');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Existing Oak')).click());
   await waitText(page, 'SECRET-OLD-INTERNAL');
   const backShown = await page.$eval('#navbar', (el) => !el.hidden);
@@ -100,10 +102,10 @@ try {
   const homeBack = await page.$eval('#navbar', (el) => el.hidden);
   if (!homeBack) fail('logo home should hide the back button');
   await page.evaluate(() => document.getElementById('fbhome').click());
-  await waitText(page, 'Tell us what to change');
+  await waitText(page, 'Tell the development team');
   await page.type('#fbtext', 'Please keep the oak wording.');
   await page.evaluate(() => document.getElementById('fbsend').click());
-  await waitText(page, 'Your note was saved');
+  await waitText(page, 'Sent to the development team');
   await shot(page, 'fielder-10-feedback');
   await page.evaluate(() => document.getElementById('back').click());
   await waitText(page, 'New customer quote');
@@ -117,7 +119,7 @@ try {
   if (dark !== 'dark') fail('modern dark did not apply');
   await shot(page, 'fielder-11-dark-home');
   await page.evaluate(() => document.getElementById('back').click());
-  await waitText(page, 'Feedback');
+  await waitText(page, 'Send feedback');
   const stillDark = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   if (stillDark !== 'dark') fail('dark theme did not stay on home');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.id === 'gear').click());

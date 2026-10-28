@@ -55,7 +55,14 @@ try {
   await shot(page, 'fielder-01-pin');
   await pressPin(page, '1234');
   await waitText(page, 'New customer quote');
+  await waitText(page, 'Finished quotes');
+  if (await page.evaluate(() => document.getElementById('jl').innerText.includes('Existing Oak'))) fail('sent quote should not be on the main list');
+  if (!(await page.evaluate(() => document.getElementById('jl').innerText.includes('Finished Pine')))) fail('completed job should stay on the main list');
+  await page.evaluate(() => document.getElementById('row-fq').click());
   await waitText(page, 'Existing Oak');
+  await shot(page, 'fielder-01b-finished-quotes');
+  await page.evaluate(() => document.getElementById('navhome').click());
+  await waitText(page, 'New customer quote');
   await page.evaluate(() => document.getElementById('gear').click());
   await page.evaluate(() => document.getElementById('row-form').click());
   await waitText(page, 'Services and line prices');
@@ -91,6 +98,7 @@ try {
 
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === '← Back to Settings').click());
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Back').click());
+  await page.evaluate(() => document.getElementById('row-fq').click());
   await waitText(page, 'Existing Oak');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Existing Oak')).click());
   await waitText(page, 'SECRET-OLD-INTERNAL');
@@ -99,6 +107,8 @@ try {
   await shot(page, 'fielder-04-saved-quote-keeps-name');
 
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => /Back/.test(b.textContent)).click());
+  await waitText(page, 'Finished quotes (');
+  await page.evaluate(() => document.getElementById('navhome').click());
   await waitText(page, 'New customer quote');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('New customer quote')).click());
   await waitText(page, 'Work');
