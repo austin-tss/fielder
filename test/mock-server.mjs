@@ -104,6 +104,7 @@ function handleApi(req, res, body) {
     if (d.a === 'block') { if (!d.block.id) d.block.id = 'B' + Date.now() + Math.random().toString(36).slice(2, 5); blocks.push(d.block); }
     return send(res, 200, JSON.stringify({ ok: true, blocks }));
   }
+  if (d.a === 'qnList') return send(res, 200, JSON.stringify({ ok: true, items: [{ id: 'Q1', name: 'Mock Request', subject: 'Quote request', received: '2026-10-27T12:00:00Z' }, { id: 'Q2', name: 'Mock Request 2', subject: 'Estimate', received: '2026-10-27T13:00:00Z' }] }));
   if (d.a === 'archive') {
     const job = jobs.find((j) => j.id === d.id);
     if (!job) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));

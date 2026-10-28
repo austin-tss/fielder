@@ -18,6 +18,8 @@ try {
   page.on('dialog', (d) => { asked.push(d.message()); answer ? d.accept() : d.dismiss(); });
   for (const d of '1234') await page.evaluate((d) => [...document.querySelectorAll('.pin button')].find((b) => b.textContent === d).click(), d);
   await waitText('New customer quote');
+  await page.waitForFunction(() => document.getElementById('qncount').textContent === '2 waiting to be quoted');
+  if (SHOTS) await page.screenshot({ path: SHOTS + '/qn_row_home.png' });
   // Local-only fake jobs (never sent to the server).
   await page.evaluate(() => { for (let i = 1; i <= 30; i++) jobs.push({ id: 'T' + i, name: 'Test Job ' + String(i).padStart(2, '0'), address: '', status: i % 2 ? 'complete' : 'sent', created: '2026-09-' + String(i).padStart(2, '0') + 'T12:00:00Z', items: [], crew: [], photos: [] }); render(); });
   let c = await cards();
