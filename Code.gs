@@ -418,6 +418,8 @@ function trash_(id){try{if(id)DriveApp.getFolderById(id).setTrashed(true)}catch(
 function unlock_(L){try{if(L)L.releaseLock()}catch(e){}}
 function findJob_(js,id){return js.filter(function(x){return x.id==id})[0];}
 function patchJob_(id,fn){var L=lock_(20000);if(!L){Logger.log('patchJob_ busy for '+id);return null;}try{var js=load_(),j=findJob_(js,id);if(!j)return null;fn(j);save_(js);return j;}finally{unlock_(L)}}
+// Must-persist patch (PDF/folder links): retry with backoff so a busy lock never silently drops the link.
+function patchJobRetry_(id,fn,tries){var w=[0,1500,3000,6000,10000,15000,20000,30000];for(var i=0;i<(tries||w.length);i++){if(w[i])Utilities.sleep(w[i]+Math.floor(Math.random()*500));var r=patchJob_(id,fn);if(r)return r;}Logger.log('patchJobRetry_ gave up for '+id);return null;}
 
 function folder_(j){var r=root_();if(j.folderId){try{return DriveApp.getFolderById(j.folderId)}catch(e){}}
   var n=j.id+' - '+(j.name||'')+' - '+(j.address||''),it=r.getFoldersByName(n);
@@ -531,7 +533,7 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
   var j=r.job,was={pdfId:j.pdfId,folderId:j.folderId};
   try{var sr=r.send(j);if(sr&&sr.ok===false){patchJob_(j.id,function(s){logSms_(s,'quote-link',sr)});return {ok:false,saved:true,job:j,err:'Saved, but the text was not sent: '+(sr.err||sr.skipped)};}}catch(x){var msg=String(x&&x.message||x);patchJob_(j.id,function(s){s.emailError=msg;s.emailErrorAt=new Date().toISOString();});
     return {ok:false,saved:true,job:j,err:'Saved, but the email was not sent: '+msg};}
-  if(j.pdfId!==was.pdfId||j.folderId!==was.folderId||j.emailError){var pj=patchJob_(j.id,function(s){s.pdf=j.pdf;s.pdfId=j.pdfId;s.folder=j.folder;s.folderId=j.folderId;delete s.emailError;delete s.emailErrorAt;});if(pj)j=pj;}
+  if(j.pdfId!==was.pdfId||j.folderId!==was.folderId||j.emailError){var pj=patchJobRetry_(j.id,function(s){if(j.pdfId){s.pdf=j.pdf;s.pdfId=j.pdfId;}if(j.folderId&&!s.folderId){s.folder=j.folder;s.folderId=j.folderId;}delete s.emailError;delete s.emailErrorAt;});if(pj)j=pj;}
   return {ok:true,job:j};}
 // Runs while holding the lock: read, change, save. Returns {resp} or {job,send} (send runs after unlock).
 function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}};
@@ -545,7 +547,8 @@ function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}}
       if(d.a=='block'){if(!d.block.id)d.block.id=newId_('B');bl.push(d.block);}save_(bl,'blocks.json');return R({ok:true,blocks:bl});}
     if(d.a=='create'){j=pre.job;j.est=estNo_();if(d.via=='text'){pubTok_(j);send=sendQuoteLink_;}else send=sendQuote_;js.unshift(j);}
     else{j=js.filter(function(x){return x.id==d.id})[0];if(!j)return R({ok:false,err:'Job not found'});
-      if(d.a=='upload'){j.crew=(j.crew||[]).concat(pre.photos);if(pre.folderId&&!j.folderId){j.folder=pre.folder;j.folderId=pre.folderId;}}
+      if(d.a=='upload'){j.crew=(j.crew||[]).concat(pre.photos);if(pre.folderId&&!j.folderId){j.folder=pre.folder;j.folderId=pre.folderId;}
+        else if(pre.newFolder&&j.folderId&&pre.newFolder!==j.folderId){try{var keep=DriveApp.getFolderById(j.folderId);(pre.photos||[]).forEach(function(p){DriveApp.getFileById(p.id).moveTo(keep)});trash_(pre.newFolder);pre.newFolder='';}catch(eMv){Logger.log('upload folder merge failed: '+eMv);}}}
       else if(d.a=='archive'){j.archived=d.undo?false:true;j.archivedAt=j.archived?new Date().toISOString():'';j.archivedBy=String(meName||'');}
       else if(d.a=='finish'){mustEmail_(j);j.crewNotes=d.notes||'';j.status='complete';j.finished=new Date().toISOString();send=sendRecap_;}
       else if(d.a=='invoice'){mustEmail_(j);j.invoice={amount:d.amount,note:d.note||'',at:new Date().toISOString()};j.status='invoiced';send=sendInvoice_;}
