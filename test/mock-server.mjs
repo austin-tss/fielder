@@ -54,6 +54,7 @@ export function archiveMode(delay, failIds) { ARCH_DELAY = delay || 0; ARCH_FAIL
 let employees = [{ id: 'E1', name: 'Ada Admin', email: 'ada@example.com', role: 'Admin', pin: '5511' }, { id: 'E2', name: 'Sam Saw', email: 'sam@example.com', role: 'Crew', pin: '5522' }];
 export const outbox = [];
 export const texts = [];
+export const customers = [];
 let TWILIO = false;
 export function setTwilio(v) { TWILIO = !!v; }
 const tok = () => Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
@@ -85,7 +86,7 @@ function handleApi(req, res, body) {
   if (req.method === 'GET') {
     const q = new URL(req.url, 'http://x').searchParams;
     if (q.get('a') === 'quotePublic') return send(res, 200, JSON.stringify(pubQuote(q.get('t'))));
-    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, settings: publicSettings() }));
+    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, customers, settings: publicSettings() }));
     return;
   }
   const d = JSON.parse(body || '{}');
@@ -148,6 +149,15 @@ function handleApi(req, res, body) {
       theme: d.theme === 'dark' ? 'dark' : (d.theme === 'classic' ? 'classic' : settings.theme)
     };
     return send(res, 200, JSON.stringify({ ok: true, settings: publicSettings() }));
+  }
+  if (d.a === 'importCustomers') {
+    if (!['1234', '6789'].includes(String(d.pin || ''))) return send(res, 200, JSON.stringify({ ok: false, err: 'Your role cannot do that.' }));
+    const rows = d.rows || [];
+    if (rows.length > 2000) return send(res, 200, JSON.stringify({ ok: false, err: 'Too many rows.' }));
+    let added = 0, skipped = 0;
+    const dig = (v) => String(v || '').replace(/\D/g, '');
+    rows.forEach((r) => { if (!r.name || customers.some((c) => (r.email && c.email === r.email) || (dig(r.phone).length >= 7 && dig(c.phone) === dig(r.phone)))) { skipped++; return; } customers.push({ id: 'C' + (customers.length + 1), name: r.name, email: r.email || '', phone: r.phone || '', address: r.address || '', source: 'csv' }); added++; });
+    return send(res, 200, JSON.stringify({ ok: true, added, skipped, customers }));
   }
   if (d.a === 'feedback') {
     feedback.push({ text: d.text || '', role: d.role || '' });

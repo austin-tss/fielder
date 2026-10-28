@@ -42,7 +42,7 @@ function badPin_(){try{var c=CacheService.getScriptCache(),n=Number(c.get('fd_ba
 function roleOf_(d){var p=String(d&&d.pin||'');if(!p)return '';if(locked_out_())return '';var e=empOf_(d);if(e)return e.role;var m=pins_();for(var r in m)if(m[r]===p)return r;badPin_();return '';}
 var FORM_PIN_=null;
 function pinOk_(d){return !!roleOf_(d);}
-var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1,archive:1}};
+var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1,archive:1,importCustomers:1}};
 function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN_[r][a]);}
 // FORMJS_START
 /* Quote form editor model. Tree service wording only.
@@ -495,7 +495,7 @@ function get_(e){var p=(e&&e.parameter)||{};
     return page_('<h2 style="color:'+DG+'">Thank you!</h2><p style="font-size:17px">Your answer was received: <b>'+esc_(j.response.label)+'</b></p>'+(av?'<p>Preferred time: <b>'+esc_(av)+'</b></p>':'')+(j.response.text?'<p>Your note: '+esc_(j.response.text)+'</p>':'')+'<p>We will be in touch shortly to confirm. Questions? Call '+CO.phone+'.</p>');}
   if(p.a=='quotePublic')return out_(quotePublic_(p.t));
   if(!pinOk_(p))return out_({ok:false,err:'PIN required'});
-  return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),settings:settings_()});}
+  return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),customers:load_('customers.json'),settings:settings_()});}
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
@@ -534,6 +534,7 @@ function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}}
     if(d.a=='settings'){if(roleOf_(d)!=='Manager')return R({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return R({ok:true,settings:settings_()})}
     if(d.a=='feedback'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return R({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return R({ok:true})}
     if(d.a=='cedit'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return R({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return R({ok:true})}
+    if(d.a=='importCustomers')return R(importCustomers_(d));
     js=load_();
     if(d.a=='block'||d.a=='unblock'){var bl=load_('blocks.json');bl=bl.filter(function(b){return b.id!=d.block.id});
       if(d.a=='block'){if(!d.block.id)d.block.id=newId_('B');bl.push(d.block);}save_(bl,'blocks.json');return R({ok:true,blocks:bl});}
@@ -724,3 +725,15 @@ function quotePublic_(t){var j=byTok_(load_(),t);if(!j)return {ok:false,err:'Thi
   return {ok:true,co:CO,quote:{est:j.est||'',name:j.name||'',address:j.address||'',date:j.updated||j.created||'',items:(j.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}}),total:total_(j.items),custHtml:custBlock_(j),approved:j.status=='approved'||!!(j.response&&(j.response.ans=='A'||j.response.ans=='B')),status:j.status||''}};}
 function approvePublic_(d){var L=lock_(8000);if(!L)return BUSY_;try{var js=load_(),j=byTok_(js,d.t);if(!j)return {ok:false,err:'This quote link is not valid. Please call '+CO.phone+'.'};
   if(!(j.response&&(j.response.ans=='A'||j.response.ans=='B'))){respond_(j,{ans:'A',text:'Approved on the quote page'});save_(js);}return {ok:true};}finally{unlock_(L)}}
+
+// CSV import: appends to customers.json. Skips rows with no name or a duplicate email/phone (existing jobs, customers, or earlier rows). Never emails or texts.
+function importCustomers_(d){var rows=Array.isArray(d.rows)?d.rows:[];if(!rows.length)return {ok:false,err:'No rows to import.'};if(rows.length>2000)return {ok:false,err:'Too many rows. Import 2000 at a time.'};
+  var cs=load_('customers.json');if(!Array.isArray(cs))cs=[];var seen={},dig=function(v){var x=String(v||'').replace(/\D/g,'');return x.length>10&&x[0]=='1'?x.slice(1):x};
+  load_().concat(cs).forEach(function(x){var e=String(x.email||'').trim().toLowerCase(),ph=dig(x.phone);if(e)seen['e:'+e]=1;if(ph.length>=7)seen['p:'+ph]=1});
+  var added=0,skipped=[],now=new Date().toISOString();
+  rows.forEach(function(r,i){r=r||{};var c={id:newId_('C-'),name:clip_(r.name,200),email:clip_(r.email,200).toLowerCase(),phone:clip_(r.phone,40),address:clip_(r.address,300),source:'csv',created:now},e=c.email,ph=dig(c.phone);
+    if(!c.name){skipped.push({row:i+1,why:'No name'});return}
+    if(e&&!validEmail(e))c.email='';
+    if((c.email&&seen['e:'+c.email])||(ph.length>=7&&seen['p:'+ph])){skipped.push({row:i+1,why:'Duplicate'});return}
+    if(c.email)seen['e:'+c.email]=1;if(ph.length>=7)seen['p:'+ph]=1;cs.push(c);added++});
+  if(added)save_(cs,'customers.json');return {ok:true,added:added,skipped:skipped.length,reasons:skipped.slice(0,50),customers:cs};}
