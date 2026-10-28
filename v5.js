@@ -1,5 +1,5 @@
 // ===== v5: Quotes Needed + text reminders =====
-const REDEPLOY=m=>String(m||'')==='Bad action'||/Unexpected token|Failed to fetch|JSON/i.test(String(m||''));
+const REDEPLOY=m=>String(m||'')==='Bad action'||String(m||'')==='Job not found'||/Unexpected token|Failed to fetch|JSON/i.test(String(m||''));
 let QN=[];
 async function qn(){view='';armBack(function(){render()});A.innerHTML='<div class="card"><h2>📥 Quotes Needed</h2><p class="muted">Loading quote requests…</p></div>';let err='';
  try{const r=await api({a:'qnList',pin:myPin()});QN=r.items||[]}catch(e){err=e.message;QN=[]}
