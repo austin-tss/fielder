@@ -413,10 +413,11 @@ function skipEmail_(){return String(prop_('TEST_SKIP_EMAIL')||'').toLowerCase()=
 function testTo_(){var t=String(prop_('TEST_EMAIL_TO')||'austin@techsourcedsolutions.com').trim();return /howard\.com/i.test(t)?'austin@techsourcedsolutions.com':t;}
 function mail_(m){var orig=String(m.to||'');m.to=testTo_();delete m.cc;delete m.bcc;if(orig.toLowerCase()!==m.to.toLowerCase())m.subject='[TEST to '+orig+'] '+(m.subject||'');if(skipEmail_()){Logger.log('TEST_SKIP_EMAIL: not sent | to='+m.to+' | '+m.subject);return {skipped:true};}MailApp.sendEmail(m);return {sent:true};}
 function newId_(pre){return pre+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,7).toUpperCase();}
-function lock_(ms){var L=LockService.getScriptLock();try{if(L.tryLock(ms||7000))return L}catch(e){}return null;}
+function lock_(ms){var L=LockService.getScriptLock();try{if(L.tryLock(ms||20000))return L}catch(e){}return null;}
+function trash_(id){try{if(id)DriveApp.getFolderById(id).setTrashed(true)}catch(e){}}
 function unlock_(L){try{if(L)L.releaseLock()}catch(e){}}
 function findJob_(js,id){return js.filter(function(x){return x.id==id})[0];}
-function patchJob_(id,fn){var L=lock_(8000);if(!L){Logger.log('patchJob_ busy for '+id);return null;}try{var js=load_(),j=findJob_(js,id);if(!j)return null;fn(j);save_(js);return j;}finally{unlock_(L)}}
+function patchJob_(id,fn){var L=lock_(20000);if(!L){Logger.log('patchJob_ busy for '+id);return null;}try{var js=load_(),j=findJob_(js,id);if(!j)return null;fn(j);save_(js);return j;}finally{unlock_(L)}}
 
 function folder_(j){var r=root_();if(j.folderId){try{return DriveApp.getFolderById(j.folderId)}catch(e){}}
   var n=j.id+' - '+(j.name||'')+' - '+(j.address||''),it=r.getFoldersByName(n);
@@ -489,7 +490,7 @@ function get_(e){var p=(e&&e.parameter)||{};
   if(p.a=='img'){var fi;try{fi=DriveApp.getFileById(p.id)}catch(x){return out_({ok:false,err:'Not found'})}if(!inRoot_(fi))return out_({ok:false,err:'Not found'});var b=fi.getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   if(p.a=='respond'){var js=load_(),j=js.filter(function(x){return x.id==p.id})[0];if(!j)return page_('<h2>Estimate not found</h2><p>Please call '+CO.phone+'.</p>');
     if(p.ans!='C'&&!p.done)return respForm_(j,p.ans);
-    var L=lock_(8000);if(!L)return page_('<h2>We are a little busy</h2><p>Your answer was not saved yet. Please go back and tap your choice again in a few seconds, or call '+CO.phone+'.</p>');
+    var L=lock_(20000);if(!L)return page_('<h2>We are a little busy</h2><p>Your answer was not saved yet. Please go back and tap your choice again in a few seconds, or call '+CO.phone+'.</p>');
     try{js=load_();j=js.filter(function(x){return x.id==p.id})[0];respond_(j,p);save_(js);}finally{unlock_(L);}
     var av=availText_(j.response);
     return page_('<h2 style="color:'+DG+'">Thank you!</h2><p style="font-size:17px">Your answer was received: <b>'+esc_(j.response.label)+'</b></p>'+(av?'<p>Preferred time: <b>'+esc_(av)+'</b></p>':'')+(j.response.text?'<p>Your note: '+esc_(j.response.text)+'</p>':'')+'<p>We will be in touch shortly to confirm. Questions? Call '+CO.phone+'.</p>');}
@@ -499,8 +500,10 @@ function get_(e){var p=(e&&e.parameter)||{};
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
+var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
+  if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
   if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:''};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
   if(d.a=='approvePublic')return approvePublic_(d);
   var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
@@ -518,10 +521,12 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
   if(d.a=='create'){if(d.via!='text'&&!validEmail(d.email))return {ok:false,err:'Enter a valid customer email before sending.'};
     var items=(d.items&&d.items.length)?d.items:rewriteQuote(d.quote);
     var nj={id:newId_('FT-'),est:'',name:d.name,address:d.address,email:String(d.email||'').trim(),quote:d.quote,items:items,total:num_(d.total,total_(items)),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(nj,d);
-    nj.photos=savePhotos_(nj,d.photos,'quote');pre={job:nj};}
-  if(d.a=='upload'){var j0=findJob_(load_(),d.id);if(!j0)return {ok:false,err:'Job not found'};var ph=savePhotos_(j0,d.photos,d.kind);pre={photos:ph,folder:j0.folder,folderId:j0.folderId};}
-  var L=lock_(7000);if(!L)return BUSY_;var r;
-  try{r=locked_(d,pre,meName);}finally{unlock_(L);}
+    nj.photos=(d.photos&&d.photos.length)?savePhotos_(nj,d.photos,'quote'):[];pre={job:nj,newFolder:nj.folderId||''};}
+  if(d.a=='upload'){var j0=findJob_(load_(),d.id);if(!j0)return {ok:false,err:'Job not found'};var had=j0.folderId;var ph=savePhotos_(j0,d.photos,d.kind);pre={photos:ph,folder:j0.folder,folderId:j0.folderId,newFolder:had?'':j0.folderId};}
+  // Lock covers only read-change-write; Drive photo/folder work above and email/PDF/text below run unlocked.
+  var L=lock_(20000);if(!L){trash_(pre.newFolder);return BUSY_;}var r;
+  try{r=locked_(d,pre,meName);}catch(x){unlock_(L);L=null;trash_(pre.newFolder);throw x;}finally{unlock_(L);}
+  if(pre.newFolder&&r.resp&&r.resp.ok===false)trash_(pre.newFolder);
   if(!r.send)return r.resp;
   var j=r.job,was={pdfId:j.pdfId,folderId:j.folderId};
   try{var sr=r.send(j);if(sr&&sr.ok===false){patchJob_(j.id,function(s){logSms_(s,'quote-link',sr)});return {ok:false,saved:true,job:j,err:'Saved, but the text was not sent: '+(sr.err||sr.skipped)};}}catch(x){var msg=String(x&&x.message||x);patchJob_(j.id,function(s){s.emailError=msg;s.emailErrorAt=new Date().toISOString();});

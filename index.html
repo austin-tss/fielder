@@ -115,7 +115,8 @@ async function api(body){if(!API)throw Error('Backend not connected yet');
  for(let n=0;;n++){let j;
   try{const r=body?await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}):await fetch(API+(API.indexOf('?')<0?'?':'&')+'pin='+encodeURIComponent(P));j=await r.json()}
   catch(e){if(!body&&n<2){await sleep(1200*(n+1));continue}throw Error(sends?'No answer from the server. Check the job before sending again so the customer is not emailed twice.':'The server did not answer. Please try again.')}
-  if(j.ok===false&&j.busy&&!sends&&n<2){await sleep(1000*(n+1)+Math.random()*800);continue}
+  // Save retries: a busy/lock answer means nothing was saved or sent, so retry writes up to 3 times with backoff.
+  if(body&&j.ok===false&&(j.busy||/busy|lock/i.test(j.err||''))&&n<3){await sleep(1500*Math.pow(2,n)+Math.random()*1000);continue}
   if(j.ok===false)throw Error(j.busy&&sends?'The app is busy. Nothing was sent. Please try again in a few seconds.':j.err);return j}}
 async function archiveJob(id){if(!confirm('Archive this job? It will be hidden from all lists.'))return;
  try{await api({a:'archive',id});toast('Job archived');await refresh();cur=null;render();window.scrollTo(0,0)}catch(e){toast(e.message)}}
