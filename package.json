@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "test": "node --test test/form.test.mjs",
-    "e2e": "node test/e2e.mjs && node test/edit.e2e.mjs && node test/emp.e2e.mjs && node test/page.e2e.mjs && node test/del.e2e.mjs"
+    "e2e": "node test/e2e.mjs && node test/edit.e2e.mjs && node test/emp.e2e.mjs && node test/page.e2e.mjs && node test/del.e2e.mjs && node test/sched.e2e.mjs"
   },
   "devDependencies": {
     "puppeteer-core": "^24.15.0"

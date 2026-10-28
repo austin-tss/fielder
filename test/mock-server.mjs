@@ -44,6 +44,7 @@ const jobs = [{
 }];
 let settings = { form: null, quoteBody: '', quoteSubject: '', quoteSign: '', theme: 'classic' };
 const feedback = [];
+let blocks = [];
 let employees = [{ id: 'E1', name: 'Ada Admin', email: 'ada@example.com', role: 'Admin', pin: '5511' }, { id: 'E2', name: 'Sam Saw', email: 'sam@example.com', role: 'Crew', pin: '5522' }];
 export const outbox = [];
 const ROLEPINS = { '1234': 'Manager', '0123': 'Crew', '6789': 'Admin' };
@@ -68,7 +69,7 @@ function publicSettings() {
 
 function handleApi(req, res, body) {
   if (req.method === 'GET') {
-    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks: [], settings: publicSettings() }));
+    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, settings: publicSettings() }));
     return;
   }
   const d = JSON.parse(body || '{}');
@@ -97,6 +98,11 @@ function handleApi(req, res, body) {
       return send(res, 200, JSON.stringify({ ok: true, code: e.pin, mailed: true, employee: pub(e), employees: employees.map(pub) }));
     }
     return send(res, 200, JSON.stringify({ ok: true, employees: employees.map(pub) }));
+  }
+  if (d.a === 'block' || d.a === 'unblock') {
+    blocks = blocks.filter((b) => b.id !== d.block.id);
+    if (d.a === 'block') { if (!d.block.id) d.block.id = 'B' + Date.now() + Math.random().toString(36).slice(2, 5); blocks.push(d.block); }
+    return send(res, 200, JSON.stringify({ ok: true, blocks }));
   }
   if (d.a === 'archive') {
     const job = jobs.find((j) => j.id === d.id);
