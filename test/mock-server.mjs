@@ -44,6 +44,10 @@ const jobs = [{
 }];
 let settings = { form: null, quoteBody: '', quoteSubject: '', quoteSign: '', theme: 'classic' };
 const feedback = [];
+let employees = [{ id: 'E1', name: 'Ada Admin', email: 'ada@example.com', role: 'Admin', pin: '5511' }, { id: 'E2', name: 'Sam Saw', email: 'sam@example.com', role: 'Crew', pin: '5522' }];
+export const outbox = [];
+const ROLEPINS = { '1234': 'Manager', '0123': 'Crew', '6789': 'Admin' };
+const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role });
 const hits = [];
 
 function send(res, code, body, type) {
@@ -69,8 +73,33 @@ function handleApi(req, res, body) {
   }
   const d = JSON.parse(body || '{}');
   hits.push({ a: d.a || '', to: d.email || '', send: !!d.send, keys: Object.keys(d) });
+  if (d.a === 'login') {
+    const e = employees.find((u) => u.pin === String(d.pin || ''));
+    const r = e ? e.role : ROLEPINS[String(d.pin || '')];
+    return send(res, 200, JSON.stringify(r ? { ok: true, role: r, name: e ? e.name : '' } : { ok: false, err: 'Wrong PIN' }));
+  }
+  if (d.a === 'empList' || d.a === 'empAdd' || d.a === 'empDel') {
+    const me = employees.find((u) => u.pin === String(d.pin || ''));
+    const role = me ? me.role : ROLEPINS[String(d.pin || '')];
+    if (role !== 'Admin') return send(res, 200, JSON.stringify({ ok: false, err: 'Only Admin can manage employees.' }));
+    if (d.a === 'empDel') {
+      const t = employees.find((u) => u.id === d.id);
+      if (!t) return send(res, 200, JSON.stringify({ ok: false, err: 'Employee not found' }));
+      if (me && me.id === t.id) return send(res, 200, JSON.stringify({ ok: false, err: 'You cannot delete yourself.' }));
+      if (t.role === 'Admin' && employees.filter((u) => u.role === 'Admin').length <= 1) return send(res, 200, JSON.stringify({ ok: false, err: 'You cannot delete the last Admin.' }));
+      employees = employees.filter((u) => u.id !== t.id);
+    }
+    if (d.a === 'empAdd') {
+      if (!d.name || !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(d.email || '')) return send(res, 200, JSON.stringify({ ok: false, err: 'That email does not look right' }));
+      const e = { id: 'E' + (employees.length + 10), name: d.name, email: d.email, role: d.role, pin: String(7000 + employees.length) };
+      employees.push(e);
+      outbox.push({ to: e.email, code: e.pin });
+      return send(res, 200, JSON.stringify({ ok: true, code: e.pin, mailed: true, employee: pub(e), employees: employees.map(pub) }));
+    }
+    return send(res, 200, JSON.stringify({ ok: true, employees: employees.map(pub) }));
+  }
   if (d.a === 'settings') {
-    if (String(d.pin || '') !== '1234') return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
+    if (ROLEPINS[String(d.pin || '')] !== 'Manager' && !employees.some((u) => u.pin === String(d.pin || '') && u.role === 'Manager')) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
     settings = {
       form: FD.normalizeForm(d.form),
       quoteBody: String(d.quoteBody || ''),

@@ -121,6 +121,7 @@ function render(){GAL=[];applyTheme();if(/^(set|setform|conn)$/.test(view)&&role
  if(view==='set')return setScreen();
  if(view==='setform')return formScreen();
  if(view==='conn')return connScreen();
+ if(view==='emp'&&role==='Admin')return empScreen();
  if(view==='fq'&&role==='Manager')return fqScreen();
  if(view==='fb')return feedbackScreen();
  ({Manager:mgr,Crew:crew,Admin:admin})[role]()}
@@ -128,7 +129,7 @@ function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){
  $('#dots').textContent='•'.repeat(pin.length);if(pin.length==4)login(pin)}
 // The server checks the PIN (role PINs live in Script Properties). Old backends without 'login' fall back to the built-in PINs.
 async function login(p){pin='';$('#dots').textContent='';let r=null,old=false;
- try{r=await api({a:'login',pin:p})}catch(e){old=!/Wrong PIN/.test(e.message)}
+ try{r=await api({a:'login',pin:p})}catch(e){if(/Too many/.test(e.message)){toast(e.message);render();return}old=!/Wrong PIN/.test(e.message)}
  const rl=r&&r.role?r.role:(old?ROLES[p]:'');
  if(!rl){toast('Wrong PIN');render();return}
  sessionStorage.fdPin=p;role=sessionStorage.fdRole=rl;A.innerHTML='<div class="card">Loading…</div>';refresh().then(render)}
@@ -138,7 +139,7 @@ const ST={paid:'Paid',inprogress:'In progress',sent:'Quoted',approved:'Approved 
 let LQ='';
 function jobCard(j,go){return `<button class="job" type="button" onclick="${go}('${j.id}')"><span class="t">${j.total!=null?money(j.total):''}</span><b>${esc(j.name)}</b><div class="a">${listAddr(j.address)}${j.est?' · '+esc(j.est):''}</div><span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?' <span class="muted">'+esc(j.response.label)+'</span>':''}${av(j)?'<div class="a" style="margin:6px 0 0">🕒 '+esc(av(j))+'</div>':''} ${role=='Manager'?cfBadge(j):''}</button>`}
 function listMatch(j){const q=LQ.trim().toLowerCase();return !q||[j.name,j.address,j.est,j.email].join(' ').toLowerCase().includes(q)}
-function list(title,arr,go,extra=''){armBack(null);LIST=[title,arr,go];A.innerHTML=`${extra}<h2 style="margin:18px 0 10px">${title}</h2>${arr.length>4?`<input id="find" type="search" placeholder="Search name, address or estimate #" value="${esc(LQ)}" autocomplete="off" oninput="LQ=this.value;drawList()" style="margin:0 0 12px;font-size:16px">`:''}<div id="jl"></div><button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button>`+(root?`<p class="muted"><a href="${root}" target="_blank">Drive folder</a></p>`:'')+'<button class="btn gr" id="fbhome" type="button" onclick="openFb()">Send feedback to the development team</button>';drawList()}
+function list(title,arr,go,extra=''){armBack(null);LIST=[title,arr,go];A.innerHTML=`${extra}<h2 style="margin:18px 0 10px">${title}</h2>${arr.length>4?`<input id="find" type="search" placeholder="Search name, address or estimate #" value="${esc(LQ)}" autocomplete="off" oninput="LQ=this.value;drawList()" style="margin:0 0 12px;font-size:16px">`:''}<div id="jl"></div><button class="btn gr" onclick="refresh().then(render)">↻ Refresh</button>`+'<button class="btn gr" id="fbhome" type="button" onclick="openFb()">Send feedback to the development team</button>';drawList()}
 let LIST=null;function drawList(){const el=$('#jl');if(!el||!LIST)return;const a=LIST[1].filter(listMatch);el.innerHTML=a.length?a.map(j=>jobCard(j,LIST[2])).join(''):'<p class="muted" style="text-align:center;padding:20px">'+(LQ.trim()?'No matches.':'Nothing here right now.')+'</p>'}
 function mapU(a,g){const e=encodeURIComponent(a);return g?'https://www.google.com/maps/dir/?api=1&destination='+e:'https://maps.apple.com/?daddr='+e}
 function listAddr(a){a=String(a||'').trim();if(!a)return '';const q=esc(JSON.stringify(a));return `${esc(a)} <span class="gmap" role="link" onclick="event.stopPropagation();event.preventDefault();openMap(${q})">📍 Apple Maps</span> <span class="gmap" role="link" onclick="event.stopPropagation();event.preventDefault();openMap(${q},1)">Google Maps</span>`}
@@ -250,7 +251,16 @@ async function up(inp,kind){photos=[];toast('Uploading…');for(const f of inp.f
 async function done(id){if(!confirm('Mark job complete?'))return;$('#jc').disabled=true;$('#jc').textContent='Sending…';
  try{await api({a:'finish',id,notes:$('#cn').value});toast('Done! Recap emailed, sent to admin');await refresh();render()}catch(e){toast(e.message);$('#jc').disabled=false}}
 // Admin
-function admin(){list('Invoices',jobs.filter(j=>j.status=='complete'||j.status=='invoiced'),'aview')}
+function admin(){list('Invoices',jobs.filter(j=>j.status=='complete'||j.status=='invoiced'),'aview','<button class="srow" id="row-emp" type="button" onclick="openEmp()"><span><b>Employees</b><small>Add people, send login codes, remove access</small></span><i>›</i></button>')}
+// ---- Employees (Admin) ----
+let EMPS=[],NEWCODE=null;const RL={Manager:'Estimator',Crew:'Crew',Admin:'Admin'};
+async function openEmp(){view='emp';NEWCODE=null;A.innerHTML='<div class="card"><h2>Employees</h2><p class="muted">Loading…</p></div>';armBack(navHome);window.scrollTo(0,0);try{EMPS=(await api({a:'empList',pin:myPin()})).employees||[]}catch(e){toast(REDEPLOY(e.message)||/role cannot do that/.test(e.message)?'Employees need a Field Desk script redeploy first.':e.message);EMPS=[]}empScreen()}
+function empScreen(){view='emp';A.innerHTML=`<h2 style="margin-top:0">Employees</h2>${NEWCODE?`<div class="card" id="newcode" style="border:3px solid var(--g)"><h2>Code for ${esc(NEWCODE.name)}</h2><p style="font-size:34px;font-weight:800;letter-spacing:6px;text-align:center;margin:8px 0;color:var(--n)">${esc(NEWCODE.code)}</p><p class="muted">${NEWCODE.mailed?'Emailed to '+esc(NEWCODE.email)+'.':'Not emailed'+(NEWCODE.err?' ('+esc(NEWCODE.err)+')':'')+'. Give them this code yourself.'} This code is only shown once.</p><button class="btn gr" type="button" onclick="NEWCODE=null;empScreen()">Done</button></div>`:''}
+<div id="emplist">${EMPS.length?EMPS.map(u=>`<div class="job" style="cursor:default"><span class="t"><button class="btn gr" type="button" style="margin:0;padding:10px 14px;font-size:15px;width:auto;color:#b91c1c" onclick="empDel('${esc(u.id)}')">Delete</button></span><b>${esc(u.name)}</b><div class="a">${esc(u.email)}</div><span class="badge" style="background:var(--n)">${RL[u.role]||esc(u.role)}</span></div>`).join(''):'<p class="muted" style="text-align:center;padding:12px">No employees added yet.</p>'}</div>
+<div class="card"><h2>Add employee</h2><label>Name</label><input id="enm" autocomplete="off"><label>Email</label><input id="eem" type="email" autocomplete="off"><label>Role</label><select id="erl"><option value="Manager">Estimator</option><option value="Crew" selected>Crew</option><option value="Admin">Admin</option></select><button class="btn huge" id="eadd" type="button" onclick="empAdd()">Add and email code</button></div>`;armBack(navHome)}
+async function empAdd(){const name=$('#enm').value.trim(),email=$('#eem').value.trim(),role=$('#erl').value;if(!name)return toast('Add the name');if(!validEmail(email))return toast('That email does not look right');const b=$('#eadd');b.disabled=true;b.textContent='Adding…';
+ try{const r=await api({a:'empAdd',pin:myPin(),name,email,role});EMPS=r.employees||EMPS;NEWCODE={name,email,code:r.code,mailed:r.mailed,err:r.mailErr};empScreen();window.scrollTo(0,0)}catch(e){toast(REDEPLOY(e.message)||/role cannot do that/.test(e.message)?'Employees need a Field Desk script redeploy first.':e.message);b.disabled=false;b.textContent='Add and email code'}}
+async function empDel(id){const u=EMPS.find(x=>x.id==id);if(!u||!confirm('Delete '+u.name+'? Their code stops working right away.'))return;try{const r=await api({a:'empDel',pin:myPin(),id});EMPS=r.employees||[];toast(u.name+' deleted');empScreen()}catch(e){toast(e.message)}}
 function items(j){if(!j.items)return `<p style="white-space:pre-wrap">${esc(j.quote)}</p>`;return j.items.map(i=>`<p style="margin:6px 0;font-size:17px"><b>${esc(i.title)}</b>${i.price!=null&&i.price!==''?' — '+money(Number(i.price)):''}<br><span class="muted">${esc(i.detail)}</span></p>`).join('')+`<p style="font-size:19px"><b>Total: ${money(j.total)}</b></p>`}
 function amt(q){const m=String(q).match(/\$\s?[\d,]+(\.\d\d)?/g);return m?m[m.length-1]:''}
 function aview(id){GAL=[];const j=jobs.find(x=>x.id==id),v=j.invoice||{},paid=v.paid;

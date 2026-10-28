@@ -29,7 +29,17 @@ function validEmail(e){return /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(String(e|
 // Redeploy this web app after updating this file. Action "settings" does not send mail.
 // Role PINs come from Script Properties PIN_MANAGER / PIN_CREW / PIN_ADMIN, falling back to the original values.
 function pins_(){var p=PropertiesService.getScriptProperties();return {Manager:String(p.getProperty('PIN_MANAGER')||'1234'),Crew:String(p.getProperty('PIN_CREW')||'0123'),Admin:String(p.getProperty('PIN_ADMIN')||'6789')};}
-function roleOf_(d){var p=String(d&&d.pin||''),m=pins_();if(!p)return '';for(var r in m)if(m[r]===p)return r;return '';}
+// ---- Employees: Script Property EMPLOYEES_JSON = [{"id","name","email","role","pin","created"}] (same design as AIO's USERS_JSON).
+// role is the internal key (Manager = Estimator on screen, Crew, Admin). Role PINs above keep working so nobody is locked out.
+var EMP_ROLES={Manager:1,Crew:1,Admin:1};
+function emps_(){var raw=prop_('EMPLOYEES_JSON');if(!raw)return [];try{var u=JSON.parse(raw);return Array.isArray(u)?u.filter(function(x){return x&&x.pin&&EMP_ROLES[x.role]}):[]}catch(e){return []}}
+function saveEmps_(l){PropertiesService.getScriptProperties().setProperty('EMPLOYEES_JSON',JSON.stringify(l));}
+function empOf_(d){var p=String(d&&d.pin||'');if(!p)return null;return emps_().filter(function(u){return String(u.pin)===p})[0]||null;}
+// Wrong-code lockout: 20 wrong codes in 15 minutes pauses every code check for 15 minutes.
+var LOGIN_MAX=20,LOGIN_WIN=900;
+function locked_out_(){try{return CacheService.getScriptCache().get('fd_lock')==='1'}catch(e){return false}}
+function badPin_(){try{var c=CacheService.getScriptCache(),n=Number(c.get('fd_bad')||0)+1;c.put('fd_bad',String(n),LOGIN_WIN);if(n>=LOGIN_MAX){c.put('fd_lock','1',LOGIN_WIN);c.remove('fd_bad');}}catch(e){}}
+function roleOf_(d){var p=String(d&&d.pin||'');if(!p)return '';if(locked_out_())return '';var e=empOf_(d);if(e)return e.role;var m=pins_();for(var r in m)if(m[r]===p)return r;badPin_();return '';}
 var FORM_PIN_=null;
 function pinOk_(d){return !!roleOf_(d);}
 var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1,archive:1}};
@@ -478,8 +488,9 @@ function get_(e){var p=(e&&e.parameter)||{};
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
-  if(d.a=='login'){var lr=roleOf_(d);return lr?{ok:true,role:lr}:{ok:false,err:'Wrong PIN'};}
-  var me=roleOf_(d);if(!me)return {ok:false,err:'PIN required'};if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
+  if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:''};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
+  var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
+  if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'){if(me!=='Admin')return {ok:false,err:'Only Admin can manage employees.'};return empApi_(d);}if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
   if(d.a=='qboconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
   if(d.a=='qbodisconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};saveObj_({},'qbo.json');return {ok:true,settings:settings_()};}
   if(d.a=='qnList')return v5Api_(d);
@@ -617,3 +628,24 @@ function qboFinish_(p){var expect=qboProp_('QBO_STATE');if(!p.code||!p.state||p.
   try{PropertiesService.getScriptProperties().deleteProperty('QBO_STATE')}catch(e){}
   try{qboApplyTok_({},qboExchange_('grant_type=authorization_code&code='+encodeURIComponent(p.code)+'&redirect_uri='+encodeURIComponent(qboRedirect_())),p.realmId)}catch(e2){return page_('<h2>QuickBooks</h2><p>Could not finish connecting. Check the Intuit keys and try again.</p>')}
   return page_('<h2>QuickBooks connected</h2><p>You can close this tab and return to the app.</p><p><a href="https://austin-tss.github.io/fielder/">Back to Fielder Field Desk</a></p>')}
+
+// ===== Employees (Admin only). Codes are 4 digits, unique, never returned by empList. =====
+function empPublic_(u){return {id:u.id,name:u.name,email:u.email,role:u.role,created:u.created}}
+function empApi_(d){
+  if(d.a=='empList')return {ok:true,employees:emps_().map(empPublic_)};
+  var L=lock_(7000);if(!L)return BUSY_;var add=null,list;
+  try{list=emps_();
+    if(d.a=='empDel'){var me=empOf_(d),t=list.filter(function(u){return u.id==d.id})[0];if(!t)return {ok:false,err:'Employee not found'};
+      if(me&&me.id==t.id)return {ok:false,err:'You cannot delete yourself.'};
+      if(t.role=='Admin'&&list.filter(function(u){return u.role=='Admin'}).length<=1)return {ok:false,err:'You cannot delete the last Admin.'};
+      list=list.filter(function(u){return u.id!=t.id});saveEmps_(list);return {ok:true,employees:list.map(empPublic_)};}
+    var name=clip_(d.name,80),email=String(d.email||'').trim().slice(0,200),role=String(d.role||'');
+    if(!name)return {ok:false,err:'Add the employee name'};if(!validEmail(email))return {ok:false,err:'That email does not look right'};if(!EMP_ROLES[role])return {ok:false,err:'Pick a role'};
+    if(list.some(function(u){return String(u.email).toLowerCase()==email.toLowerCase()}))return {ok:false,err:'That email already has a code. Delete them first to make a new one.'};
+    var used={},pm=pins_();list.forEach(function(u){used[u.pin]=1});for(var r in pm)used[pm[r]]=1;var pin='';
+    for(var i=0;i<50&&(!pin||used[pin]);i++)pin=String(1000+Math.floor(Math.random()*9000));
+    add={id:newId_('E'),name:name,email:email,role:role,pin:pin,created:new Date().toISOString()};list.push(add);saveEmps_(list);
+  }finally{unlock_(L)}
+  var label={Manager:'Estimator',Crew:'Crew',Admin:'Admin'}[add.role],mailed=false,mailErr='';
+  try{var mr=mail_({to:add.email,replyTo:CO.email,name:CO.name,subject:'Your Fielder Field Desk login code',htmlBody:'<p>Hi '+esc_(add.name)+',</p><p>You have been added to Fielder Field Desk as <b>'+label+'</b>.</p><p>Your login code is <b style="font-size:22px;letter-spacing:3px">'+add.pin+'</b></p><p>Open <a href="https://austin-tss.github.io/fielder/">austin-tss.github.io/fielder</a> and enter the code. Keep it private.</p>'});mailed=!!(mr&&mr.sent);}catch(x){mailErr=String(x&&x.message||x)}
+  return {ok:true,code:add.pin,mailed:mailed,mailErr:mailErr,employee:empPublic_(add),employees:emps_().map(empPublic_)};}
