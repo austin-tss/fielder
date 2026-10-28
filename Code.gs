@@ -27,8 +27,13 @@ function validEmail(e){return /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(String(e|
 
 // Quote form settings live in settings.json. Existing jobs.json rows still load if these fields are absent.
 // Redeploy this web app after updating this file. Action "settings" does not send mail.
-var FORM_PIN_='1234';
-function pinOk_(d){var p=String(d&&d.pin||'');return p==='1234'||p==='0123'||p==='6789';}
+// Role PINs come from Script Properties PIN_MANAGER / PIN_CREW / PIN_ADMIN, falling back to the original values.
+function pins_(){var p=PropertiesService.getScriptProperties();return {Manager:String(p.getProperty('PIN_MANAGER')||'1234'),Crew:String(p.getProperty('PIN_CREW')||'0123'),Admin:String(p.getProperty('PIN_ADMIN')||'6789')};}
+function roleOf_(d){var p=String(d&&d.pin||''),m=pins_();if(!p)return '';for(var r in m)if(m[r]===p)return r;return '';}
+var FORM_PIN_=null;
+function pinOk_(d){return !!roleOf_(d);}
+var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1}};
+function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN_[r][a]);}
 // FORMJS_START
 /* Quote form editor model. Tree service wording only.
    The same rules are duplicated in Code.gs (Apps Script cannot load this file).
@@ -387,9 +392,11 @@ function savePhotos_(j,list,kind){var f=folder_(j);
     var x=f.createFile(b);x.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW);
     return {id:x.getId(),url:'https://drive.google.com/thumbnail?id='+x.getId()+'&sz=w1200',kind:kind};});}
 function esc_(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]});}
-function estNo_(){var p=PropertiesService.getScriptProperties(),y=new Date().getFullYear(),k='EST'+y,n=Number(p.getProperty(k)||0)+1;p.setProperty(k,String(n));return 'FT-EST-'+y+'-'+('000'+n).slice(-4);}
+function estNo_(){var p=PropertiesService.getScriptProperties(),y=new Date().getFullYear(),k='EST'+y,n=Number(p.getProperty(k)||0)+1;p.setProperty(k,String(n));return 'FT-EST-'+y+'-'+(n<1000?('000'+n).slice(-4):String(n));}
 function today_(){return Utilities.formatDate(new Date(),'America/New_York','MMMM d, yyyy');}
-function total_(items){return (items||[]).reduce(function(a,i){return a+(Number(i.price)||0)},0);}
+function num_(v,dflt){if(v==null||v==='')return dflt;var n=Number(String(v).replace(/[$,\s]/g,''));return isFinite(n)?n:dflt;}
+function total_(items){return (items||[]).reduce(function(a,i){return a+num_(i.price,0)},0);}
+function inRoot_(f){var rid=root_().getId(),seen=0,q=[f];while(q.length&&seen<40){var x=q.shift();seen++;if(!x.getParents)return false;var it=x.getParents();while(it.hasNext()){var par=it.next();if(par.getId()==rid)return true;q.push(par);}}return false;}
 function availText_(r){if(!r||!(r.avail||r.when))return '';return [r.avail,r.when].filter(Boolean).join(' - ');}
 // ---- shared branded pieces ----
 function head_(title,sub,logoSrc){return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#231f20">'+
@@ -443,18 +450,21 @@ function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=
    '<p><b>When works best for the work?</b> Tap one:</p>'+slots+'<p><b>Preferred date or time (optional)</b></p><input type=text name=when placeholder="e.g. Tuesday Nov 3 morning">'+
    '<button class=go>Send my answer</button></form>');}
 function doGet(e){var p=e.parameter||{};
-  if(p.a=='img'){var b=DriveApp.getFileById(p.id).getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
+  if(p.a=='img'){var fi;try{fi=DriveApp.getFileById(p.id)}catch(x){return out_({ok:false,err:'Not found'})}if(!inRoot_(fi))return out_({ok:false,err:'Not found'});var b=fi.getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   if(p.a=='respond'){var js=load_(),j=js.filter(function(x){return x.id==p.id})[0];if(!j)return page_('<h2>Estimate not found</h2><p>Please call '+CO.phone+'.</p>');
     if(p.ans!='C'&&!p.done)return respForm_(j,p.ans);
     var L=LockService.getScriptLock();L.waitLock(20000);
     try{js=load_();j=js.filter(function(x){return x.id==p.id})[0];respond_(j,p);save_(js);}finally{L.releaseLock();}
     var av=availText_(j.response);
     return page_('<h2 style="color:'+DG+'">Thank you!</h2><p style="font-size:17px">Your answer was received: <b>'+esc_(j.response.label)+'</b></p>'+(av?'<p>Preferred time: <b>'+esc_(av)+'</b></p>':'')+(j.response.text?'<p>Your note: '+esc_(j.response.text)+'</p>':'')+'<p>We will be in touch shortly to confirm. Questions? Call '+CO.phone+'.</p>');}
+  if(!pinOk_(p))return out_({ok:false,err:'PIN required'});
   return out_({ok:true,root:root_().getUrl(),jobs:load_(),blocks:load_('blocks.json'),settings:settings_()});}
 function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScriptLock();L.waitLock(30000);var j,send=null,js;
   try{
+    if(d.a=='login'){var lr=roleOf_(d);return out_(lr?{ok:true,role:lr}:{ok:false,err:'Wrong PIN'});}
+    var me=roleOf_(d);if(!me)return out_({ok:false,err:'PIN required'});if(!can_(me,d.a))return out_({ok:false,err:'Your role cannot do that.'});
     var v5=v5Api_(d);if(v5)return out_(v5);
-    if(d.a=='settings'){if(String(d.pin||'')!==FORM_PIN_)return out_({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return out_({ok:true,settings:settings_()})}
+    if(d.a=='settings'){if(roleOf_(d)!=='Manager')return out_({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return out_({ok:true,settings:settings_()})}
     if(d.a=='feedback'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return out_({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return out_({ok:true})}
     if(d.a=='cedit'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return out_({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return out_({ok:true})}
     js=load_();
@@ -462,7 +472,7 @@ function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScript
       if(d.a=='block'){if(!d.block.id)d.block.id='B'+Date.now().toString(36);bl.push(d.block);}save_(bl,'blocks.json');return out_({ok:true,blocks:bl});}
     if(d.a=='create'){if(!validEmail(d.email))return out_({ok:false,err:'Enter a valid customer email before sending.'});
       var items=(d.items&&d.items.length)?d.items:rewriteQuote(d.quote);
-      j={id:'FT-'+Date.now().toString(36).toUpperCase(),est:estNo_(),name:d.name,address:d.address,email:String(d.email).trim(),quote:d.quote,items:items,total:d.total!=null&&d.total!==''?Number(d.total):total_(items),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(j,d);
+      j={id:'FT-'+Date.now().toString(36).toUpperCase(),est:estNo_(),name:d.name,address:d.address,email:String(d.email).trim(),quote:d.quote,items:items,total:num_(d.total,total_(items)),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(j,d);
       j.photos=savePhotos_(j,d.photos,'quote');js.unshift(j);send=sendQuote_;}
     else{j=js.filter(function(x){return x.id==d.id})[0];if(!j)return out_({ok:false,err:'Job not found'});
       if(d.a=='upload'){j.crew=j.crew.concat(savePhotos_(j,d.photos,d.kind));}
