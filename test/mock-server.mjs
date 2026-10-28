@@ -68,7 +68,7 @@ function publicSettings() {
 
 function handleApi(req, res, body) {
   if (req.method === 'GET') {
-    send(res, 200, JSON.stringify({ ok: true, root: '', jobs, blocks: [], settings: publicSettings() }));
+    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs, blocks: [], settings: publicSettings() }));
     return;
   }
   const d = JSON.parse(body || '{}');

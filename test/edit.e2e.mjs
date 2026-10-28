@@ -49,6 +49,12 @@ try {
   if (!backOnPin) fail('back button should be hidden on the PIN screen');
   await pressPin(page, '1234');
   await waitText(page, 'Send feedback');
+  if ((await page.evaluate(() => document.body.innerText)).includes('Drive folder')) fail('drive link should not be on the home list');
+  await page.evaluate(() => { openSet(); openConn(); });
+  await waitText(page, 'Open Drive folder');
+  if (!(await page.$eval('#conn-drive a', (a) => a.href)).includes('MOCK-ROOT')) fail('drive link wrong');
+  await page.evaluate(() => navHome());
+  await waitText(page, 'Send feedback');
   await page.evaluate(() => document.getElementById('row-fq').click());
   await waitText(page, 'Existing Oak');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Existing Oak')).click());
