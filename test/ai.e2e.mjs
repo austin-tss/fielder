@@ -26,6 +26,7 @@ try {
   await page.evaluate(() => newq());
   await page.waitForSelector('#aibtn:not([disabled])');
   if (!(await page.$eval('#aibtn', (b) => b.textContent)).includes('Have AI fill this quote out')) fail('label wrong');
+  await page.evaluate(() => { AINOSR = true; }); // headless Chrome has no speech service; exercise the audio path
   await page.click('#aibtn');
   await waitText('Stop and fill the quote');
   await new Promise((r) => setTimeout(r, 1500));

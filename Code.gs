@@ -664,7 +664,7 @@ function empApi_(d){
 // ===== Voice quotes: Gemini sorts a spoken walk-through into customer, estimate, and crew-only parts. =====
 // Needs Script Property GEMINI_API_KEY. Nothing is saved or sent here; the app pre-fills the form for review.
 // Crew-only details are returned separately and the app puts them only in Internal notes (never on the estimate or email).
-var VOICE_MODEL='gemini-2.5-flash';
+var VOICE_MODEL='gemini-3.8-flash'; // gemini-2.5-flash now returns 404 for new keys
 function voiceSchema_(){var S={type:'STRING'},N={type:'NUMBER'};
   return {type:'OBJECT',properties:{
     transcript:S,
@@ -680,14 +680,14 @@ function voicePrompt_(){var svc=[];try{svc=(settings_().form.services||[]).map(f
   'Never put gate codes, hazards, equipment, opinions about the customer, or internal pricing talk in the estimate. Leave a field empty if it was not said. Do not invent prices or contact details. '+
   'Also return the plain transcript. Common services: '+svc.join(', ')+'.';}
 function voiceQuote_(d){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Voice quotes need setup: add GEMINI_API_KEY in Script Properties.'};
-  var parts=[{text:voicePrompt_()}],text=clip_(d.text,8000),audio=String(d.audio||''),mime=String(d.mime||'audio/webm').split(';')[0];
+  var parts=[{text:voicePrompt_()}],text=clip_(d.text,8000),audio=String(d.audio||''),mime=String(d.mime||'audio/webm').split(';')[0].trim().toLowerCase();if(mime==='audio/x-m4a'||mime==='audio/m4a')mime='audio/mp4';
   if(audio){if(audio.length>14000000)return {ok:false,err:'That recording is too long. Keep it under about 5 minutes.'};parts.push({inline_data:{mime_type:mime,data:audio}});}
   if(text)parts.push({text:'Estimator notes:\n'+text});
   if(!audio&&!text)return {ok:false,err:'Say or type the quote first.'};
   var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+VOICE_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
     payload:JSON.stringify({contents:[{role:'user',parts:parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseSchema:voiceSchema_()}})});
   var code=res.getResponseCode(),body={};try{body=JSON.parse(res.getContentText()||'{}')}catch(e){}
-  if(code<200||code>=300){Logger.log('Gemini '+code+' '+res.getContentText().slice(0,500));return {ok:false,err:'Gemini could not read that ('+code+'). Try again or type the notes.'};}
+  if(code<200||code>=300){Logger.log('Gemini '+code+' '+res.getContentText().slice(0,500));var gm='';try{gm=String((body.error||{}).message||'').slice(0,200)}catch(e3){}return {ok:false,err:'Gemini could not read that ('+code+(gm?': '+gm:'')+'). Try again or type the notes.'};}
   var out={};try{out=JSON.parse(body.candidates[0].content.parts.map(function(x){return x.text||''}).join(''))}catch(e2){return {ok:false,err:'Gemini answer was not readable. Try again.'};}
   return {ok:true,result:voiceClean_(out)};}
 function voiceClean_(o){o=o||{};var c=o.customer||{},e=o.estimate||{},k=o.crew||{},S=function(v,n){return clip_(v,n||1000)};

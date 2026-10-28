@@ -459,13 +459,26 @@ let AIREC=null,AICH=[],AIT=null,AIS=0;
 function aiReady(){return !!(SET&&SET.voice)}
 function aiInit(){const b=$('#aibtn');if(!b)return;if(!aiReady()){b.classList.add('gr');b.disabled=true;b.textContent='🎙 Voice quotes need setup';$('#aistat').textContent='Ask the office to add the Gemini key.'}}
 function aiStat(t){const e=$('#aistat');if(e)e.textContent=t}
+let AISR=null,AITX='',AINOSR=false;
 async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');const b=$('#aibtn');
+ if(AISR){AISR.stop();return}
  if(AIREC){AIREC.stop();return}
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(SR&&!AINOSR){let r;try{r=new SR()}catch(e){r=null}
+  if(r){AISR=r;AITX='';let interim='';r.lang='en-US';r.continuous=true;r.interimResults=true;
+   r.onresult=ev=>{interim='';for(let i=ev.resultIndex;i<ev.results.length;i++){const t=ev.results[i][0].transcript;if(ev.results[i].isFinal)AITX+=t+' ';else interim+=t}aiStat('Heard: '+(AITX+interim).slice(-160))};
+   r.onerror=ev=>{r._err=ev.error;if(ev.error==='not-allowed')toast('Speech blocked. Allow the microphone, or type the quote in the box.')};
+   r.onend=()=>{AISR=null;clearInterval(AIT);b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
+    const typed=$('#qt')?$('#qt').value.trim():'',said=(AITX+' '+interim).trim();const t=[said,typed].filter(Boolean).join('\n');
+    if(!t){if(r._err&&r._err!=='no-speech'&&r._err!=='aborted'&&r._err!=='not-allowed'){AINOSR=true;aiStat('Speech recognition unavailable ('+r._err+'). Tap again to record audio instead.');return}return aiStat('Nothing heard. Try again or type the quote in the box.')}aiSend({text:t})};
+   try{r.start()}catch(e){AISR=null}
+   if(AISR){AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
+    AIT=setInterval(()=>{if(Date.now()-AIS>300000&&AISR)AISR.stop()},1000);return}}}
  if(!navigator.mediaDevices||!window.MediaRecorder){const t=$('#qt')?$('#qt').value.trim():'';if(!t)return toast('Recording is not supported here. Type or dictate the quote in the box, then tap the button again.');return aiSend({text:t})}
  let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){return toast('Microphone blocked. Allow it, or type the quote in the box.')}
- const mt=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm'].find(m=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))||'';
+ const mt=['audio/mp4','audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/webm'].find(m=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))||'';
  AICH=[];AIREC=new MediaRecorder(st,mt?{mimeType:mt}:undefined);AIREC.ondataavailable=e=>{if(e.data&&e.data.size)AICH.push(e.data)};
- AIREC.onstop=async()=>{st.getTracks().forEach(t=>t.stop());clearInterval(AIT);const mime=(AIREC.mimeType||mt||'audio/webm');AIREC=null;b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
+ AIREC.onstop=async()=>{st.getTracks().forEach(t=>t.stop());clearInterval(AIT);const mime=String(AIREC.mimeType||mt||'audio/webm').split(';')[0].trim();AIREC=null;b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
   const blob=new Blob(AICH,{type:mime});if(blob.size<800)return aiStat('Nothing recorded. Try again.');
   const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]||'');fr.readAsDataURL(blob)});
   aiSend({audio:b64,mime,text:$('#qt')?$('#qt').value.trim():''})};
