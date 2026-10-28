@@ -1,7 +1,7 @@
 // Fielder Field Desk service worker: caches the app shell only.
 // Never touches API calls (Apps Script /exec, ?a=, pin=), other sites, or anything that is not a GET.
 // Bump VERSION on each release; old caches are deleted when the new worker activates.
-const VERSION = 'fd-shell-2026-10-28c';
+const VERSION = 'fd-shell-2026-10-28d';
 const SHELL = ['./', 'index.html', 'form.js', 'v5.js', 'logo.png', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', (e) => {
@@ -23,7 +23,9 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  const nav = req.mode === 'navigate' && url.origin === self.location.origin && !/\/exec\b/.test(url.pathname);
+  const base = new URL('./', self.location).pathname;
+  // Only app-shell navigations use the cached index; other pages (quote.html) always go to the network.
+  const nav = req.mode === 'navigate' && url.origin === self.location.origin && (url.pathname === base || url.pathname === base + 'index.html');
   if (!nav && !isShell(url)) return;
   const key = nav ? new URL('index.html', self.location).href : req;
   e.respondWith(caches.open(VERSION).then(async (c) => {

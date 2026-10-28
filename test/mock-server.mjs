@@ -53,6 +53,14 @@ const ARCH_FAIL = new Set();
 export function archiveMode(delay, failIds) { ARCH_DELAY = delay || 0; ARCH_FAIL.clear(); (failIds || []).forEach((x) => ARCH_FAIL.add(x)); }
 let employees = [{ id: 'E1', name: 'Ada Admin', email: 'ada@example.com', role: 'Admin', pin: '5511' }, { id: 'E2', name: 'Sam Saw', email: 'sam@example.com', role: 'Crew', pin: '5522' }];
 export const outbox = [];
+export const texts = [];
+let TWILIO = false;
+export function setTwilio(v) { TWILIO = !!v; }
+const tok = () => Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+const phoneOk = (p) => { const d = String(p || '').replace(/\D/g, ''); return d.length === 10 || (d.length === 11 && d[0] === '1'); };
+function textLink(j) { if (!j.pt) j.pt = tok(); texts.push({ to: 'TEST_PHONE', customer: j.phone, link: 'quote.html?id=' + j.pt }); }
+function pubQuote(t) { const j = jobs.find((x) => x.pt && x.pt === t && !x.archived); if (!j) return { ok: false, err: 'This quote link is not valid. Please call (850) 656-8737.' };
+  return { ok: true, quote: { est: j.est, name: j.name, address: j.address, date: j.created, items: (j.items || []).map((i) => ({ title: i.title, detail: i.detail || '', price: i.price == null || i.price === '' ? null : Number(i.price) })), total: j.total, custHtml: '', approved: j.status === 'approved', status: j.status } }; }
 const ROLEPINS = { '1234': 'Manager', '0123': 'Crew', '6789': 'Admin' };
 const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role });
 const hits = [];
@@ -75,6 +83,8 @@ function publicSettings() {
 
 function handleApi(req, res, body) {
   if (req.method === 'GET') {
+    const q = new URL(req.url, 'http://x').searchParams;
+    if (q.get('a') === 'quotePublic') return send(res, 200, JSON.stringify(pubQuote(q.get('t'))));
     send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, settings: publicSettings() }));
     return;
   }
@@ -156,6 +166,24 @@ function handleApi(req, res, body) {
     });
     return send(res, 200, JSON.stringify({ ok: true }));
   }
+  if (d.a === 'approvePublic') {
+    const j = jobs.find((x) => x.pt && x.pt === d.t);
+    if (!j) return send(res, 200, JSON.stringify({ ok: false, err: 'This quote link is not valid.' }));
+    j.status = 'approved'; j.response = { ans: 'A', label: 'Approved', text: 'Approved on the quote page' };
+    return send(res, 200, JSON.stringify({ ok: true }));
+  }
+  if (d.a === 'sendQuoteText') {
+    if (!TWILIO) return send(res, 200, JSON.stringify({ ok: false, err: "Texting isn't set up yet. Use Email for now." }));
+    const j = jobs.find((x) => x.id === d.id);
+    if (!j) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
+    if (!phoneOk(j.phone)) return send(res, 200, JSON.stringify({ ok: false, err: 'Add the customer phone number first.' }));
+    textLink(j);
+    return send(res, 200, JSON.stringify({ ok: true, job: j, link: 'quote.html?id=' + j.pt }));
+  }
+  if (d.a === 'create' && d.via === 'text') {
+    if (!TWILIO) return send(res, 200, JSON.stringify({ ok: false, err: "Texting isn't set up yet. Use Email for now." }));
+    if (!phoneOk(d.phone)) return send(res, 200, JSON.stringify({ ok: false, err: 'Add the customer phone number to text the quote.' }));
+  }
   if (d.a === 'create') {
     const items = Array.isArray(d.items) ? d.items : [];
     const job = {
@@ -181,6 +209,7 @@ function handleApi(req, res, body) {
       photos: [],
       crew: []
     };
+    if (d.via === 'text') textLink(job);
     jobs.unshift(job);
     created.push({ body: d, html: customerHtml(job) });
     return send(res, 200, JSON.stringify({ ok: true, job, customerHtml: customerHtml(job) }));

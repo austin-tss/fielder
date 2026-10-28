@@ -409,7 +409,9 @@ var BUSY_={ok:false,busy:true,err:'Busy, please retry'};
 function prop_(k){try{return PropertiesService.getScriptProperties().getProperty(k)}catch(e){return null}}
 // Script Property TEST_SKIP_EMAIL='true' logs emails instead of sending them (default off).
 function skipEmail_(){return String(prop_('TEST_SKIP_EMAIL')||'').toLowerCase()==='true';}
-function mail_(m){if(skipEmail_()){Logger.log('TEST_SKIP_EMAIL: not sent | to='+m.to+' | '+m.subject);return {skipped:true};}MailApp.sendEmail(m);return {sent:true};}
+// TEST RUN: every customer-facing email goes ONLY to TEST_EMAIL_TO (default austin@techsourcedsolutions.com). Never howard.com.
+function testTo_(){var t=String(prop_('TEST_EMAIL_TO')||'austin@techsourcedsolutions.com').trim();return /howard\.com/i.test(t)?'austin@techsourcedsolutions.com':t;}
+function mail_(m){var orig=String(m.to||'');m.to=testTo_();delete m.cc;delete m.bcc;if(orig.toLowerCase()!==m.to.toLowerCase())m.subject='[TEST to '+orig+'] '+(m.subject||'');if(skipEmail_()){Logger.log('TEST_SKIP_EMAIL: not sent | to='+m.to+' | '+m.subject);return {skipped:true};}MailApp.sendEmail(m);return {sent:true};}
 function newId_(pre){return pre+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,7).toUpperCase();}
 function lock_(ms){var L=LockService.getScriptLock();try{if(L.tryLock(ms||7000))return L}catch(e){}return null;}
 function unlock_(L){try{if(L)L.releaseLock()}catch(e){}}
@@ -491,6 +493,7 @@ function get_(e){var p=(e&&e.parameter)||{};
     try{js=load_();j=js.filter(function(x){return x.id==p.id})[0];respond_(j,p);save_(js);}finally{unlock_(L);}
     var av=availText_(j.response);
     return page_('<h2 style="color:'+DG+'">Thank you!</h2><p style="font-size:17px">Your answer was received: <b>'+esc_(j.response.label)+'</b></p>'+(av?'<p>Preferred time: <b>'+esc_(av)+'</b></p>':'')+(j.response.text?'<p>Your note: '+esc_(j.response.text)+'</p>':'')+'<p>We will be in touch shortly to confirm. Questions? Call '+CO.phone+'.</p>');}
+  if(p.a=='quotePublic')return out_(quotePublic_(p.t));
   if(!pinOk_(p))return out_({ok:false,err:'PIN required'});
   return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),settings:settings_()});}
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
@@ -499,6 +502,7 @@ function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:''};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
+  if(d.a=='approvePublic')return approvePublic_(d);
   var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
   if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'){if(me!=='Admin')return {ok:false,err:'Only Admin can manage employees.'};return empApi_(d);}if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
   if(d.a=='qboconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
@@ -507,18 +511,20 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
   if(d.a=='qnList')return v5Api_(d);
   if(d.a=='qnScan'){var added=scanQuoteEmails();return added<0?BUSY_:{ok:true,added:added};}
   if(d.a=='smsOnWay')return smsOnWay_(d);
+  if(d.a=='sendQuoteText')return quoteText_(d);
   // Slow Drive work (photos) happens before the lock.
   var pre={};
-  if(d.a=='create'){if(!validEmail(d.email))return {ok:false,err:'Enter a valid customer email before sending.'};
+  if(d.a=='create'&&d.via=='text'){var tr=textReady_();if(tr)return {ok:false,err:tr};if(!e164_(d.phone))return {ok:false,err:'Add the customer phone number to text the quote.'};if(d.email&&!validEmail(d.email))return {ok:false,err:'That email does not look right.'};}
+  if(d.a=='create'){if(d.via!='text'&&!validEmail(d.email))return {ok:false,err:'Enter a valid customer email before sending.'};
     var items=(d.items&&d.items.length)?d.items:rewriteQuote(d.quote);
-    var nj={id:newId_('FT-'),est:'',name:d.name,address:d.address,email:String(d.email).trim(),quote:d.quote,items:items,total:num_(d.total,total_(items)),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(nj,d);
+    var nj={id:newId_('FT-'),est:'',name:d.name,address:d.address,email:String(d.email||'').trim(),quote:d.quote,items:items,total:num_(d.total,total_(items)),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(nj,d);
     nj.photos=savePhotos_(nj,d.photos,'quote');pre={job:nj};}
   if(d.a=='upload'){var j0=findJob_(load_(),d.id);if(!j0)return {ok:false,err:'Job not found'};var ph=savePhotos_(j0,d.photos,d.kind);pre={photos:ph,folder:j0.folder,folderId:j0.folderId};}
   var L=lock_(7000);if(!L)return BUSY_;var r;
   try{r=locked_(d,pre,meName);}finally{unlock_(L);}
   if(!r.send)return r.resp;
   var j=r.job,was={pdfId:j.pdfId,folderId:j.folderId};
-  try{r.send(j);}catch(x){var msg=String(x&&x.message||x);patchJob_(j.id,function(s){s.emailError=msg;s.emailErrorAt=new Date().toISOString();});
+  try{var sr=r.send(j);if(sr&&sr.ok===false){patchJob_(j.id,function(s){logSms_(s,'quote-link',sr)});return {ok:false,saved:true,job:j,err:'Saved, but the text was not sent: '+(sr.err||sr.skipped)};}}catch(x){var msg=String(x&&x.message||x);patchJob_(j.id,function(s){s.emailError=msg;s.emailErrorAt=new Date().toISOString();});
     return {ok:false,saved:true,job:j,err:'Saved, but the email was not sent: '+msg};}
   if(j.pdfId!==was.pdfId||j.folderId!==was.folderId||j.emailError){var pj=patchJob_(j.id,function(s){s.pdf=j.pdf;s.pdfId=j.pdfId;s.folder=j.folder;s.folderId=j.folderId;delete s.emailError;delete s.emailErrorAt;});if(pj)j=pj;}
   return {ok:true,job:j};}
@@ -531,7 +537,7 @@ function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}}
     js=load_();
     if(d.a=='block'||d.a=='unblock'){var bl=load_('blocks.json');bl=bl.filter(function(b){return b.id!=d.block.id});
       if(d.a=='block'){if(!d.block.id)d.block.id=newId_('B');bl.push(d.block);}save_(bl,'blocks.json');return R({ok:true,blocks:bl});}
-    if(d.a=='create'){j=pre.job;j.est=estNo_();js.unshift(j);send=sendQuote_;}
+    if(d.a=='create'){j=pre.job;j.est=estNo_();if(d.via=='text'){pubTok_(j);send=sendQuoteLink_;}else send=sendQuote_;js.unshift(j);}
     else{j=js.filter(function(x){return x.id==d.id})[0];if(!j)return R({ok:false,err:'Job not found'});
       if(d.a=='upload'){j.crew=(j.crew||[]).concat(pre.photos);if(pre.folderId&&!j.folderId){j.folder=pre.folder;j.folderId=pre.folderId;}}
       else if(d.a=='archive'){j.archived=d.undo?false:true;j.archivedAt=j.archived?new Date().toISOString():'';j.archivedBy=String(meName||'');}
@@ -695,3 +701,26 @@ function voiceClean_(o){o=o||{};var c=o.customer||{},e=o.estimate||{},k=o.crew||
   return {transcript:S(o.transcript,8000),customer:{name:S(c.name,120),phone:S(c.phone,40),email:S(c.email,200),address:S(c.address,300)},
     estimate:{items:items,total:items.reduce(function(a,i){return a+i.qty*i.price},0),customerNotes:S(e.customerNotes,1500)},
     crew:{access:S(k.access),hazards:S(k.hazards),equipment:S(k.equipment),cleanup:S(k.cleanup),trees:S(k.trees),internalNotes:S(k.internalNotes,2000)}};}
+
+// ===================== Text-a-link quotes (hosted page quote.html?id=<token>) =====================
+// Script Properties: TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, TEST_PHONE (required during the test run), QUOTE_PAGE_URL (optional).
+// TEST RUN: quote links are texted ONLY to TEST_PHONE; with no TEST_PHONE nothing is sent.
+function quotePageBase_(){return String(prop_('QUOTE_PAGE_URL')||'https://austin-tss.github.io/fielder/quote.html');}
+function pubTok_(j){if(!j.pt)j.pt=(Utilities.getUuid()+Utilities.getUuid()).replace(/-/g,'');return j.pt;}
+function quoteLink_(j){return quotePageBase_()+'?id='+encodeURIComponent(j.pt);}
+function textReady_(){var c=smsCfg_();if(!c.sid||!c.tok||!c.from)return "Texting isn't set up yet. Use Email for now.";if(!c.testPhone)return "Texting is in test mode and TEST_PHONE isn't set yet, so nothing was sent.";return '';}
+function quoteSmsBody_(j){return 'Hi '+String(j.name||'there').split(' ')[0]+', your estimate from '+CO.name+' is ready: '+quoteLink_(j)+' Tap to view and approve. Questions: '+CO.phone;}
+// Always test-routed: the real customer number is only shown inside the text.
+function sendQuoteLink_(j){var tr=textReady_();if(tr)return {ok:false,err:tr};var c=smsCfg_(),to=e164_(j.phone);if(!to)return {ok:false,err:'No valid customer phone.'};
+  var r=UrlFetchApp.fetch('https://api.twilio.com/2010-04-01/Accounts/'+c.sid+'/Messages.json',{method:'post',muteHttpExceptions:true,headers:{Authorization:'Basic '+Utilities.base64Encode(c.sid+':'+c.tok)},payload:{To:e164_(c.testPhone),From:c.from,Body:'[TEST to '+to+'] '+quoteSmsBody_(j)}});
+  var ok=r.getResponseCode()<300;Logger.log('Quote link SMS '+(ok?'sent':'failed '+r.getResponseCode()));return ok?{ok:true}:{ok:false,err:'Twilio said '+r.getResponseCode()};}
+function quoteText_(d){var tr=textReady_();if(tr)return {ok:false,err:tr};
+  var j=patchJob_(d.id,function(s){pubTok_(s);if(!s.status||s.status=='new')s.status='sent';});if(!j)return findJob_(load_(),d.id)?BUSY_:{ok:false,err:'Job not found'};
+  if(!e164_(j.phone))return {ok:false,err:'Add the customer phone number first.'};
+  var res=sendQuoteLink_(j),pj=patchJob_(j.id,function(s){logSms_(s,'quote-link',res);if(res.ok)s.textedAt=new Date().toISOString();});if(pj)j=pj;
+  return res.ok?{ok:true,job:j,link:quoteLink_(j)}:{ok:false,err:'Text not sent: '+res.err};}
+function byTok_(js,t){t=String(t||'');if(!/^[a-f0-9]{48,}$/i.test(t))return null;return js.filter(function(x){return x.pt===t&&!x.archived})[0]||null;}
+function quotePublic_(t){var j=byTok_(load_(),t);if(!j)return {ok:false,err:'This quote link is not valid. Please call '+CO.phone+'.'};
+  return {ok:true,co:CO,quote:{est:j.est||'',name:j.name||'',address:j.address||'',date:j.updated||j.created||'',items:(j.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}}),total:total_(j.items),custHtml:custBlock_(j),approved:j.status=='approved'||!!(j.response&&(j.response.ans=='A'||j.response.ans=='B')),status:j.status||''}};}
+function approvePublic_(d){var L=lock_(8000);if(!L)return BUSY_;try{var js=load_(),j=byTok_(js,d.t);if(!j)return {ok:false,err:'This quote link is not valid. Please call '+CO.phone+'.'};
+  if(!(j.response&&(j.response.ans=='A'||j.response.ans=='B'))){respond_(j,{ans:'A',text:'Approved on the quote page'});save_(js);}return {ok:true};}finally{unlock_(L)}}

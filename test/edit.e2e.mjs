@@ -3,7 +3,7 @@ import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { start } from './mock-server.mjs';
 
-const shots = '/opt/cursor/artifacts/screenshots';
+const shots = process.env.SHOTS_DIR || '/opt/cursor/artifacts/screenshots';
 fs.mkdirSync(shots, { recursive: true });
 const banned = [];
 function fail(msg) { throw new Error(msg); }

@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Your estimate - Fielder Tree Service</title>
+<style>
+:root{--n:#112337;--g:#78a22f;--dg:#34460d}*{box-sizing:border-box}body{margin:0;background:#eef1ea;font:16px/1.5 Arial,Helvetica,sans-serif;color:#231f20}
+.pg{max-width:760px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 2px 18px rgba(0,0,0,.08)}
+.hd{background:var(--n);color:#fff;padding:18px 20px;display:flex;align-items:center;gap:14px}.hd img{height:54px;background:#fff;border-radius:8px;padding:4px}.hd b{font-size:19px;display:block}.hd small{opacity:.8}
+.bar{height:6px;background:var(--g)}.in{padding:20px}h1{color:var(--n);font-size:24px;margin:0 0 4px}.mu{color:#5b6168;font-size:14px}
+.box{border:1px solid #e3e7dc;border-radius:10px;padding:12px 14px;margin:16px 0;background:#fafbf8}
+table{width:100%;border-collapse:collapse;margin-top:8px}th{text-align:left;font-size:12px;text-transform:uppercase;color:#fff;background:var(--n);padding:8px}td{padding:10px 8px;border-bottom:1px solid #eef0ea;vertical-align:top}td.p{text-align:right;white-space:nowrap}td small{color:#5b6168}
+.tot{text-align:right;font-size:22px;margin:14px 0}.tot b{color:var(--dg)}
+.ap{display:block;width:100%;padding:20px;font-size:22px;font-weight:bold;background:var(--g);color:#fff;border:0;border-radius:14px;cursor:pointer;margin:10px 0}.ap:disabled{opacity:.6}
+.ok{background:#eaf3dc;border:2px solid var(--g);color:var(--dg);border-radius:14px;padding:18px;text-align:center;font-size:19px;font-weight:bold}
+.ft{padding:16px 20px;color:#5b6168;font-size:13px;border-top:1px solid #eee}a{color:var(--n)}.sk{color:#8a8f98;padding:40px 20px;text-align:center}
+@media print{body{background:#fff}.pg{box-shadow:none;max-width:none}.ap,.np{display:none}.hd,th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body><div class="pg"><div class="hd"><img src="logo.png" alt="Fielder"><div><b>Fielder Tree Care &amp; Service</b><small>Estimate</small></div></div><div class="bar"></div><div id="m" class="sk">Loading your estimate…</div>
+<div class="ft">Fielder Tree Service, LLC · 1382 Timberlane Rd Suite C, Tallahassee, FL 32312 · <a href="tel:8506568737">(850) 656-8737</a> · office@fieldertree.com</div></div>
+<script>
+var Q=new URLSearchParams(location.search),T=Q.get('id')||'',API=Q.get('api')||'https://script.google.com/macros/s/AKfycbwQDIAb7fwXFVL6g9AjA-tKGoUcwal0-tozzbwJ4EOcNnaHE4AcqUOxdXuNMvRpKYJAlw/exec',M=document.getElementById('m');
+function e(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function $m(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function err(t){M.className='in';M.innerHTML='<h1>Sorry</h1><p>'+e(t)+'</p><p><a href="tel:8506568737">Call (850) 656-8737</a></p>'}
+function done(){return '<div class="ok" id="okm">✓ Approved. Thank you!<br><span style="font-weight:normal;font-size:15px">We will call you shortly to schedule the work.</span></div>'}
+function show(q){var d=q.date?new Date(q.date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'';
+ M.className='in';M.innerHTML='<h1>Estimate '+e(q.est)+'</h1><div class="mu">'+e(d)+'</div><div class="box"><b>'+e(q.name)+'</b><br>'+e(q.address)+'</div>'+(q.custHtml||'')+
+ '<table><tr><th>#</th><th>Work</th><th style="text-align:right">Price</th></tr>'+q.items.map(function(i,n){return '<tr><td>'+(n+1)+'</td><td><b>'+e(i.title)+'</b>'+(i.detail?'<br><small>'+e(i.detail)+'</small>':'')+'</td><td class="p">'+(i.price==null?'Included':$m(i.price))+'</td></tr>'}).join('')+'</table>'+
+ '<div class="tot">Total: <b>'+$m(q.total)+'</b></div><div id="act">'+(q.approved?done():'<button class="ap" id="ap">✓ Approve this estimate</button><p class="mu np" style="text-align:center">Questions or changes? <a href="tel:8506568737">Call (850) 656-8737</a></p>')+'</div>';
+ var b=document.getElementById('ap');if(b)b.onclick=approve}
+function approve(){var b=document.getElementById('ap');b.disabled=true;b.textContent='Approving…';
+ fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({a:'approvePublic',t:T})}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw Error(j.err||'Please try again');document.getElementById('act').innerHTML=done()}).catch(function(x){b.disabled=false;b.textContent='✓ Approve this estimate';alert('Not approved yet: '+x.message)})}
+if(!T)err('This link is missing its estimate code.');else fetch(API+(API.indexOf('?')<0?'?':'&')+'a=quotePublic&t='+encodeURIComponent(T)).then(function(r){return r.json()}).then(function(j){j.ok?show(j.quote):err(j.err)}).catch(function(){err('We could not load your estimate. Check your signal and try again.')});
+</script></body></html>
