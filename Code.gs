@@ -32,7 +32,7 @@ function pins_(){var p=PropertiesService.getScriptProperties();return {Manager:S
 function roleOf_(d){var p=String(d&&d.pin||''),m=pins_();if(!p)return '';for(var r in m)if(m[r]===p)return r;return '';}
 var FORM_PIN_=null;
 function pinOk_(d){return !!roleOf_(d);}
-var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1}};
+var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1,archive:1}};
 function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN_[r][a]);}
 // FORMJS_START
 /* Quote form editor model. Tree service wording only.
@@ -384,6 +384,18 @@ function file_(n){var r=root_(),it=r.getFilesByName(n);return it.hasNext()?it.ne
 function load_(n){return JSON.parse(file_(n||'jobs.json').getBlob().getDataAsString()||'[]');}
 function save_(j,n){file_(n||'jobs.json').setContent(JSON.stringify(j));}
 function out_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);}
+// ---- Load safety: short tryLock, never send email / build PDFs / text while holding the lock. ----
+var BUSY_={ok:false,busy:true,err:'Busy, please retry'};
+function prop_(k){try{return PropertiesService.getScriptProperties().getProperty(k)}catch(e){return null}}
+// Script Property TEST_SKIP_EMAIL='true' logs emails instead of sending them (default off).
+function skipEmail_(){return String(prop_('TEST_SKIP_EMAIL')||'').toLowerCase()==='true';}
+function mail_(m){if(skipEmail_()){Logger.log('TEST_SKIP_EMAIL: not sent | to='+m.to+' | '+m.subject);return {skipped:true};}MailApp.sendEmail(m);return {sent:true};}
+function newId_(pre){return pre+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,7).toUpperCase();}
+function lock_(ms){var L=LockService.getScriptLock();try{if(L.tryLock(ms||7000))return L}catch(e){}return null;}
+function unlock_(L){try{if(L)L.releaseLock()}catch(e){}}
+function findJob_(js,id){return js.filter(function(x){return x.id==id})[0];}
+function patchJob_(id,fn){var L=lock_(8000);if(!L){Logger.log('patchJob_ busy for '+id);return null;}try{var js=load_(),j=findJob_(js,id);if(!j)return null;fn(j);save_(js);return j;}finally{unlock_(L)}}
+
 function folder_(j){var r=root_();if(j.folderId){try{return DriveApp.getFolderById(j.folderId)}catch(e){}}
   var n=j.id+' - '+(j.name||'')+' - '+(j.address||''),it=r.getFoldersByName(n);
   var f=it.hasNext()?it.next():r.createFolder(n);j.folder=f.getUrl();j.folderId=f.getId();return f;}
@@ -425,7 +437,7 @@ function makePdf_(j){var b=Utilities.newBlob(pdfHtml_(j),'text/html','e.html').g
   var f=folder_(j).createFile(b);j.pdf=f.getUrl();j.pdfId=f.getId();return b;}
 function mustEmail_(j){if(!validEmail(j.email))throw new Error('Customer email is missing or invalid: "'+(j.email||'')+'". Fix it on the job before sending.');}
 function sendQuote_(j){mustEmail_(j);var im=imgs_(j.photos,'q');im.inl.logo=logoBlob_();var pdf=makePdf_(j);
-  MailApp.sendEmail({to:j.email,replyTo:CO.email,name:CO.name,subject:FDForm.quoteCopy(settings_(),j).subject,htmlBody:quoteHtml_(j,im.h,'cid:logo',function(k){return respUrl_(j,k)}),inlineImages:im.inl,attachments:[pdf]});}
+  mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:FDForm.quoteCopy(settings_(),j).subject,htmlBody:quoteHtml_(j,im.h,'cid:logo',function(k){return respUrl_(j,k)}),inlineImages:im.inl,attachments:[pdf]});}
 function recapHtml_(j,bh,ah,logoSrc){var r=j.response||{},av=availText_(r);
   var REFER='<a href="mailto:?subject='+encodeURIComponent('Tree service I recommend: Fielder Tree Service')+'&body='+encodeURIComponent('I used Fielder Tree Service in Tallahassee and was really happy with the work. Free estimates: https://fieldertree.com/contact-us/ or (850) 656-8737')+'" style="display:block;padding:15px;background:'+GREEN+';color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;text-align:center;font-size:16px">Refer a neighbor</a>';
   return head_("Here's what we did",j.est,logoSrc)+'<p style="font-size:16px">Hi '+esc_(j.name)+',</p><p style="line-height:1.6">Your job at '+esc_(j.address)+' is complete. Here is a quick look at the work.</p>'+itemsTable_(j)+custBlock_(j)+
@@ -434,11 +446,11 @@ function recapHtml_(j,bh,ah,logoSrc){var r=j.response||{},av=availText_(r);
   '<p style="line-height:1.6">Thank you for choosing Fielder Tree Service. If you were happy with our work, we would be grateful if you passed our name along.</p>'+REFER+foot_();}
 function sendRecap_(j){mustEmail_(j);var ib=imgs_(j.crew.filter(function(p){return p.kind=='before'}),'b'),ia=imgs_(j.crew.filter(function(p){return p.kind=='after'}),'a'),inl={logo:logoBlob_()},k;
   for(k in ib.inl)inl[k]=ib.inl[k];for(k in ia.inl)inl[k]=ia.inl[k];
-  MailApp.sendEmail({to:j.email,replyTo:CO.email,name:CO.name,subject:"Here's what we did - Fielder Tree Service",htmlBody:recapHtml_(j,ib.h,ia.h,'cid:logo'),inlineImages:inl});}
+  mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:"Here's what we did - Fielder Tree Service",htmlBody:recapHtml_(j,ib.h,ia.h,'cid:logo'),inlineImages:inl});}
 function invoiceHtml_(j,logoSrc){var v=j.invoice,inv=String(j.est||j.id).replace('EST','INV');
   return head_('Invoice',inv,logoSrc)+'<p style="font-size:16px">Dear '+esc_(j.name)+',</p><p>Thank you for your business. Here is your invoice for the completed work.</p>'+meta_(j,'Invoice #',inv)+custBlock_(j)+itemsTable_(j)+
   '<p style="font-size:18px;text-align:right"><b>Amount due: <span style="color:'+DG+'">'+esc_(v.amount)+'</span></b></p>'+(v.note?'<p>'+esc_(v.note)+'</p>':'')+'<p>Questions? Call '+CO.phone+' or email '+CO.email+'.</p>'+foot_();}
-function sendInvoice_(j){mustEmail_(j);MailApp.sendEmail({to:j.email,replyTo:CO.email,name:CO.name,subject:'Invoice from Fielder Tree Service - '+j.invoice.amount,htmlBody:invoiceHtml_(j,'cid:logo'),inlineImages:{logo:logoBlob_()}});}
+function sendInvoice_(j){mustEmail_(j);mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:'Invoice from Fielder Tree Service - '+j.invoice.amount,htmlBody:invoiceHtml_(j,'cid:logo'),inlineImages:{logo:logoBlob_()}});}
 var LABELS={A:'Approved',B:'Approved with changes',C:'Declined',O:'Question / other'};
 var SLOTS=['Weekdays 8-12','Weekdays 12-5','Weekends','Anytime'];
 function respond_(j,p){j.response={ans:p.ans,label:LABELS[p.ans]||p.ans,text:p.text||'',avail:p.avail||'',when:p.when||'',at:new Date().toISOString()};
@@ -449,45 +461,69 @@ function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=
    (ans=='B'||ans=='O'?'<p><b>'+(ans=='B'?'What would you like changed?':'Your question or message:')+'</b></p><textarea name=text rows=4></textarea>':'')+
    '<p><b>When works best for the work?</b> Tap one:</p>'+slots+'<p><b>Preferred date or time (optional)</b></p><input type=text name=when placeholder="e.g. Tuesday Nov 3 morning">'+
    '<button class=go>Send my answer</button></form>');}
-function doGet(e){var p=e.parameter||{};
+function doGet(e){try{return get_(e)}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
+function get_(e){var p=(e&&e.parameter)||{};
   if(p.a=='img'){var fi;try{fi=DriveApp.getFileById(p.id)}catch(x){return out_({ok:false,err:'Not found'})}if(!inRoot_(fi))return out_({ok:false,err:'Not found'});var b=fi.getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   if(p.a=='respond'){var js=load_(),j=js.filter(function(x){return x.id==p.id})[0];if(!j)return page_('<h2>Estimate not found</h2><p>Please call '+CO.phone+'.</p>');
     if(p.ans!='C'&&!p.done)return respForm_(j,p.ans);
-    var L=LockService.getScriptLock();L.waitLock(20000);
-    try{js=load_();j=js.filter(function(x){return x.id==p.id})[0];respond_(j,p);save_(js);}finally{L.releaseLock();}
+    var L=lock_(8000);if(!L)return page_('<h2>We are a little busy</h2><p>Your answer was not saved yet. Please go back and tap your choice again in a few seconds, or call '+CO.phone+'.</p>');
+    try{js=load_();j=js.filter(function(x){return x.id==p.id})[0];respond_(j,p);save_(js);}finally{unlock_(L);}
     var av=availText_(j.response);
     return page_('<h2 style="color:'+DG+'">Thank you!</h2><p style="font-size:17px">Your answer was received: <b>'+esc_(j.response.label)+'</b></p>'+(av?'<p>Preferred time: <b>'+esc_(av)+'</b></p>':'')+(j.response.text?'<p>Your note: '+esc_(j.response.text)+'</p>':'')+'<p>We will be in touch shortly to confirm. Questions? Call '+CO.phone+'.</p>');}
   if(!pinOk_(p))return out_({ok:false,err:'PIN required'});
-  return out_({ok:true,root:root_().getUrl(),jobs:load_(),blocks:load_('blocks.json'),settings:settings_()});}
-function doPost(e){var d=JSON.parse(e.postData.contents),L=LockService.getScriptLock();L.waitLock(30000);var j,send=null,js;
-  try{
-    if(d.a=='login'){var lr=roleOf_(d);return out_(lr?{ok:true,role:lr}:{ok:false,err:'Wrong PIN'});}
-    var me=roleOf_(d);if(!me)return out_({ok:false,err:'PIN required'});if(!can_(me,d.a))return out_({ok:false,err:'Your role cannot do that.'});
-    var v5=v5Api_(d);if(v5)return out_(v5);
-    if(d.a=='settings'){if(roleOf_(d)!=='Manager')return out_({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return out_({ok:true,settings:settings_()})}
-    if(d.a=='feedback'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return out_({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return out_({ok:true})}
-    if(d.a=='cedit'){if(!pinOk_(d))return out_({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return out_({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return out_({ok:true})}
+  return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),settings:settings_()});}
+// Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
+// and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
+function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
+function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
+  if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
+  if(d.a=='login'){var lr=roleOf_(d);return lr?{ok:true,role:lr}:{ok:false,err:'Wrong PIN'};}
+  var me=roleOf_(d);if(!me)return {ok:false,err:'PIN required'};if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
+  if(d.a=='qnList')return v5Api_(d);
+  if(d.a=='qnScan'){var added=scanQuoteEmails();return added<0?BUSY_:{ok:true,added:added};}
+  if(d.a=='smsOnWay')return smsOnWay_(d);
+  // Slow Drive work (photos) happens before the lock.
+  var pre={};
+  if(d.a=='create'){if(!validEmail(d.email))return {ok:false,err:'Enter a valid customer email before sending.'};
+    var items=(d.items&&d.items.length)?d.items:rewriteQuote(d.quote);
+    var nj={id:newId_('FT-'),est:'',name:d.name,address:d.address,email:String(d.email).trim(),quote:d.quote,items:items,total:num_(d.total,total_(items)),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(nj,d);
+    nj.photos=savePhotos_(nj,d.photos,'quote');pre={job:nj};}
+  if(d.a=='upload'){var j0=findJob_(load_(),d.id);if(!j0)return {ok:false,err:'Job not found'};var ph=savePhotos_(j0,d.photos,d.kind);pre={photos:ph,folder:j0.folder,folderId:j0.folderId};}
+  var L=lock_(7000);if(!L)return BUSY_;var r;
+  try{r=locked_(d,pre,meName);}finally{unlock_(L);}
+  if(!r.send)return r.resp;
+  var j=r.job,was={pdfId:j.pdfId,folderId:j.folderId};
+  try{r.send(j);}catch(x){var msg=String(x&&x.message||x);patchJob_(j.id,function(s){s.emailError=msg;s.emailErrorAt=new Date().toISOString();});
+    return {ok:false,saved:true,job:j,err:'Saved, but the email was not sent: '+msg};}
+  if(j.pdfId!==was.pdfId||j.folderId!==was.folderId||j.emailError){var pj=patchJob_(j.id,function(s){s.pdf=j.pdf;s.pdfId=j.pdfId;s.folder=j.folder;s.folderId=j.folderId;delete s.emailError;delete s.emailErrorAt;});if(pj)j=pj;}
+  return {ok:true,job:j};}
+// Runs while holding the lock: read, change, save. Returns {resp} or {job,send} (send runs after unlock).
+function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}};
+    var v5=v5Api_(d);if(v5)return R(v5);
+    if(d.a=='settings'){if(roleOf_(d)!=='Manager')return R({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return R({ok:true,settings:settings_()})}
+    if(d.a=='feedback'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return R({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return R({ok:true})}
+    if(d.a=='cedit'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return R({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return R({ok:true})}
     js=load_();
     if(d.a=='block'||d.a=='unblock'){var bl=load_('blocks.json');bl=bl.filter(function(b){return b.id!=d.block.id});
-      if(d.a=='block'){if(!d.block.id)d.block.id='B'+Date.now().toString(36);bl.push(d.block);}save_(bl,'blocks.json');return out_({ok:true,blocks:bl});}
-    if(d.a=='create'){if(!validEmail(d.email))return out_({ok:false,err:'Enter a valid customer email before sending.'});
-      var items=(d.items&&d.items.length)?d.items:rewriteQuote(d.quote);
-      j={id:'FT-'+Date.now().toString(36).toUpperCase(),est:estNo_(),name:d.name,address:d.address,email:String(d.email).trim(),quote:d.quote,items:items,total:num_(d.total,total_(items)),notes:d.notes||'',status:'sent',created:new Date().toISOString(),crew:[]};formFields_(j,d);
-      j.photos=savePhotos_(j,d.photos,'quote');js.unshift(j);send=sendQuote_;}
-    else{j=js.filter(function(x){return x.id==d.id})[0];if(!j)return out_({ok:false,err:'Job not found'});
-      if(d.a=='upload'){j.crew=j.crew.concat(savePhotos_(j,d.photos,d.kind));}
+      if(d.a=='block'){if(!d.block.id)d.block.id=newId_('B');bl.push(d.block);}save_(bl,'blocks.json');return R({ok:true,blocks:bl});}
+    if(d.a=='create'){j=pre.job;j.est=estNo_();js.unshift(j);send=sendQuote_;}
+    else{j=js.filter(function(x){return x.id==d.id})[0];if(!j)return R({ok:false,err:'Job not found'});
+      if(d.a=='upload'){j.crew=(j.crew||[]).concat(pre.photos);if(pre.folderId&&!j.folderId){j.folder=pre.folder;j.folderId=pre.folderId;}}
+      else if(d.a=='archive'){j.archived=d.undo?false:true;j.archivedAt=j.archived?new Date().toISOString():'';j.archivedBy=String(meName||'');}
       else if(d.a=='finish'){mustEmail_(j);j.crewNotes=d.notes||'';j.status='complete';j.finished=new Date().toISOString();send=sendRecap_;}
       else if(d.a=='invoice'){mustEmail_(j);j.invoice={amount:d.amount,note:d.note||'',at:new Date().toISOString()};j.status='invoiced';send=sendInvoice_;}
       else if(d.a=='paid'){j.invoice=j.invoice||{};j.invoice.paid=!!d.paid;j.invoice.paidAt=d.paid?new Date().toISOString():'';}
-      else if(d.a=='email'){if(!validEmail(d.email))return out_({ok:false,err:'Invalid email'});j.email=String(d.email).trim();}
+      else if(d.a=='email'){if(!validEmail(d.email))return R({ok:false,err:'Invalid email'});j.email=String(d.email).trim();}
       else if(d.a=='respond'){respond_(j,d);}
-      else if(d.a=='qedit'){if(d.email&&!validEmail(d.email))return out_({ok:false,err:'That email does not look right.'});j.name=clip_(d.name,200);j.address=clip_(d.address,300);j.email=clip_(d.email,200);j.quote=clip_(d.quote,8000);j.items=cleanItems_(d.items);j.total=total_(j.items);formFields_(j,d);j.updated=new Date().toISOString();if(d.send)send=sendQuote_;}
+      else if(d.a=='qedit'){if(d.email&&!validEmail(d.email))return R({ok:false,err:'That email does not look right.'});j.name=clip_(d.name,200);j.address=clip_(d.address,300);j.email=clip_(d.email,200);j.quote=clip_(d.quote,8000);j.items=cleanItems_(d.items);j.total=total_(j.items);formFields_(j,d);j.updated=new Date().toISOString();if(d.send)send=sendQuote_;}
       else if(d.a=='iedit'){j.invoice=j.invoice||{};if('amount' in d)j.invoice.amount=clip_(d.amount,40);if('note' in d)j.invoice.note=clip_(d.note,2000);j.invoice.edited=new Date().toISOString();}
-      else return out_({ok:false,err:'Bad action'});}
-    if(send){try{send(j)}catch(x){return out_({ok:false,err:String(x.message||x)})}}
+      else return R({ok:false,err:'Bad action'});}
     save_(js);
-  }finally{L.releaseLock();}
-  return out_({ok:true,job:j});}
+    return send?{job:j,send:send}:R({ok:true,job:j});}
+function smsOnWay_(d){var j=findJob_(load_(),d.id);if(!j)return {ok:false,err:'Job not found'};
+  if(!j.phone)return {ok:false,err:'Add the customer phone first.'};var res=sendSms_(j.phone,smsText_('onway',j));
+  var pj=patchJob_(j.id,function(s){logSms_(s,'onway',res)});if(pj)j=pj;
+  return res.skipped=='not configured'?{ok:false,err:'Text messages are not set up yet (Twilio not configured).'}:res.ok?{ok:true,job:j}:{ok:false,err:'Text not sent ('+(res.skipped||res.code)+').'};}
 // Run once from the editor to grant permissions and create the Drive folder.
 function setup(){Logger.log(root_().getUrl());}
 
@@ -513,10 +549,11 @@ function qnParse_(msg){var body=msg.getPlainBody()||'',from=msg.getFrom()||'',su
   return {id:'QN-'+msg.getId(),msgId:msg.getId(),subject:clip_(subj,200),from:clip_(from,200),name:clip_(name,200),email:clip_(email,200),phone:clip_(phone,40),address:clip_(address,300),notes:clip_(notes,1500),received:msg.getDate().toISOString(),status:'open'};}
 function scanQuoteEmails(inLock){var lab=GmailApp.getUserLabelByName(QN_LABEL)||GmailApp.createLabel(QN_LABEL);
   var threads=GmailApp.search('in:inbox newer_than:14d (subject:quote OR subject:estimate) -label:'+QN_LABEL.replace('/','-')+' -from:me',0,30);
-  if(!threads.length)return 0;var L=inLock===true?null:LockService.getScriptLock();if(L)L.waitLock(30000);var n=0;
+  if(!threads.length)return 0;var L=null;if(inLock!==true){L=lock_(8000);if(!L){Logger.log('Quotes Needed: busy, will retry');return -1;}}var n=0;
   try{var list=qnLoad_(),seen={};list.forEach(function(q){seen[q.msgId]=1});
-    threads.forEach(function(t){var m=t.getMessages()[0];if(!seen[m.getId()]&&!/^(re|fwd?):/i.test(m.getSubject()||'')){list.unshift(qnParse_(m));n++}t.addLabel(lab)});
-    if(list.length>300)list=list.slice(0,300);save_(list,QN_FILE);}finally{if(L)L.releaseLock()}
+    threads.forEach(function(t){var m=t.getMessages()[0];if(!seen[m.getId()]&&!/^(re|fwd?):/i.test(m.getSubject()||'')){list.unshift(qnParse_(m));n++}});
+    if(list.length>300)list=list.slice(0,300);save_(list,QN_FILE);}finally{unlock_(L)}
+  threads.forEach(function(t){try{t.addLabel(lab)}catch(e){}});
   Logger.log('Quotes Needed: added '+n);return n;}
 function installQuoteTrigger(){ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()=='scanQuoteEmails')ScriptApp.deleteTrigger(t)});
   ScriptApp.newTrigger('scanQuoteEmails').timeBased().everyMinutes(15).create();Logger.log('scanQuoteEmails trigger installed (every 15 min)');}
@@ -540,11 +577,14 @@ function installDate_(j,blocks){if(j.installDate)return j.installDate;var b=(blo
 function tomorrow_(){var d=new Date();d.setDate(d.getDate()+1);return Utilities.formatDate(d,'America/New_York','yyyy-MM-dd');}
 function prettyDate_(k){return Utilities.formatDate(new Date(k+'T12:00:00'),'America/New_York','EEE MMM d');}
 function runDailyReminders(){var c=smsCfg_();if(!c.sid||!c.tok||!c.from){Logger.log('SMS not configured');return;}
-  var L=LockService.getScriptLock();L.waitLock(30000);try{var js=load_(),bl=[];try{bl=load_('blocks.json')}catch(e){}var tm=tomorrow_(),n=0;
-    js.forEach(function(j){if(!j.phone)return;var st=j.status;
-      if((st=='approved')&&installDate_(j,bl)==tm&&!(j.sms||[]).some(function(s){return s.kind=='install-'+tm})){logSms_(j,'install-'+tm,sendSms_(j.phone,smsText_('install',j,prettyDate_(tm))));n++}
-      if(j.debrisDate==tm&&!(j.sms||[]).some(function(s){return s.kind=='debris-'+tm})){logSms_(j,'debris-'+tm,sendSms_(j.phone,smsText_('debris',j,prettyDate_(tm))));n++}});
-    save_(js);Logger.log('Daily reminders: '+n);}finally{L.releaseLock()}}
+  var js=load_(),bl=[];try{bl=load_('blocks.json')}catch(e){}var tm=tomorrow_(),todo=[];
+  js.forEach(function(j){if(!j.phone||j.archived)return;var st=j.status;
+    if((st=='approved')&&installDate_(j,bl)==tm&&!(j.sms||[]).some(function(s){return s.kind=='install-'+tm}))todo.push({id:j.id,kind:'install-'+tm,phone:j.phone,text:smsText_('install',j,prettyDate_(tm))});
+    if(j.debrisDate==tm&&!(j.sms||[]).some(function(s){return s.kind=='debris-'+tm}))todo.push({id:j.id,kind:'debris-'+tm,phone:j.phone,text:smsText_('debris',j,prettyDate_(tm))});});
+  var done=todo.map(function(t){return {t:t,r:sendSms_(t.phone,t.text)}});
+  if(done.length){var L=LockService.getScriptLock();if(!L.tryLock(30000)){Logger.log('Daily reminders: sent '+done.length+' but could not log (busy)');return;}
+    try{var js2=load_();done.forEach(function(x){var j=findJob_(js2,x.t.id);if(j)logSms_(j,x.t.kind,x.r)});save_(js2);}finally{unlock_(L)}}
+  Logger.log('Daily reminders: '+done.length);}
 function installReminderTrigger(){ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()=='runDailyReminders')ScriptApp.deleteTrigger(t)});
   ScriptApp.newTrigger('runDailyReminders').timeBased().everyDays(1).atHour(17).inTimezone('America/New_York').create();Logger.log('runDailyReminders trigger installed (daily ~5 PM ET)');}
 

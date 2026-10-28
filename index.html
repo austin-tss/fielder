@@ -62,11 +62,20 @@ let blocks=[],role=sessionStorage.fdRole||'',jobs=[],root='',cur=null,pin='',pho
 const $=s=>document.querySelector(s),A=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(e.t);e.t=setTimeout(()=>e.style.display='none',3500)}
+// Busy saves are retried up to 2 times with backoff. Actions that send email or texts are NEVER auto-retried.
+const SENDS={create:1,finish:1,invoice:1,resend:1,smsOnWay:1};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function api(body){if(!API)throw Error('Backend not connected yet');
  const P=myPin();if(body&&body.pin==null)body=Object.assign({pin:P},body);
- const r=body?await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}):await fetch(API+(API.indexOf('?')<0?'?':'&')+'pin='+encodeURIComponent(P));
- const j=await r.json();if(j.ok===false)throw Error(j.err);return j}
-async function refresh(){try{const d=await api();jobs=d.jobs;root=d.root;blocks=d.blocks||[];if(d.settings)SET=d.settings}catch(e){toast(e.message)}}
+ const sends=!!(body&&(SENDS[body.a]||body.send));
+ for(let n=0;;n++){let j;
+  try{const r=body?await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}):await fetch(API+(API.indexOf('?')<0?'?':'&')+'pin='+encodeURIComponent(P));j=await r.json()}
+  catch(e){if(!body&&n<2){await sleep(1200*(n+1));continue}throw Error(sends?'No answer from the server. Check the job before sending again so the customer is not emailed twice.':'The server did not answer. Please try again.')}
+  if(j.ok===false&&j.busy&&!sends&&n<2){await sleep(1000*(n+1)+Math.random()*800);continue}
+  if(j.ok===false)throw Error(j.busy&&sends?'The app is busy. Nothing was sent. Please try again in a few seconds.':j.err);return j}}
+async function archiveJob(id){if(!confirm('Archive this job? It will be hidden from all lists.'))return;
+ try{await api({a:'archive',id});toast('Job archived');await refresh();cur=null;render();window.scrollTo(0,0)}catch(e){toast(e.message)}}
+async function refresh(){try{const d=await api();jobs=(d.jobs||[]).filter(j=>!j.archived);root=d.root;blocks=d.blocks||[];if(d.settings)SET=d.settings}catch(e){toast(e.message)}}
 function logout(){sessionStorage.fdRole='';sessionStorage.fdPin='';role='';cur=null;view='';render()}
 function shrink(f){return new Promise(res=>{const i=new Image();i.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))};i.src=URL.createObjectURL(f)})}
 async function pick(inp,cb){for(const f of inp.files)photos.push(await shrink(f));inp.value='';cb()}
@@ -193,7 +202,7 @@ async function sendQ(){if(!$('#nm'))return toast('Show Customer name in Settings
  try{await api(d);toast('Quote + PDF sent to '+d.email);await refresh();render()}catch(e){toast(e.message);$('#sq').disabled=false;$('#sq').textContent='Send quote email + PDF'}}
 function mview(id){GAL=[];const j=jobs.find(x=>x.id==id);A.innerHTML=`<div class="card"><h2>${esc(j.name)}</h2><p style="font-size:18px">${maplink(j.address)}</p><p><b>Status:</b> <span class="badge" style="background:${SC[stat(j)]}">${ST[stat(j)]}</span>${j.response?'<br><b>Answer:</b> '+esc(j.response.label)+' '+esc(j.response.text):''}</p>${j.est?'<p class="muted">'+j.est+(j.pdf?` · <a href="${j.pdf}" target="_blank">PDF</a>`:'')+'</p>':''}<p>📧 ${esc(j.email)||'<b style="color:#b91c1c">No email</b>'} <a href="#" onclick="fixEmail('${id}');return false">edit</a></p>${staffNotes(j)}${av(j)?'<p style="font-size:18px">🕒 <b>Customer prefers:</b> '+esc(av(j))+'</p>':''}${items(j)}${cfDetail(j)}${imgs(j.photos)}${j.crew&&j.crew.length?'<label>Crew Before/After</label>'+imgs(j.crew):''}
 ${j.status=='sent'||j.status=='reply'?`<p class="muted">Customer answered by phone? Mark it:</p><div class="row"><button class="btn" onclick="ans('${id}','A')">A</button><button class="btn d" onclick="ans('${id}','B')">B</button><button class="btn gr" onclick="ans('${id}','C')">C</button></div>`:''}
-${j.folder?`<p><a href="${j.folder}" target="_blank">Project photos in Drive</a></p>`:''}<div class="row"><button class="btn n" type="button" onclick="editCustomer('${id}')">Edit customer</button><button class="btn n" type="button" onclick="editQuote('${id}')">${['approved','inprogress','complete','invoiced','paid'].indexOf(stat(j))>=0?'Edit job':'Edit quote'}</button></div><button class="btn gr" onclick="render()">← Back</button></div>${remCard(j)}`;armBack(function(){render()})}
+${j.folder?`<p><a href="${j.folder}" target="_blank">Project photos in Drive</a></p>`:''}<div class="row"><button class="btn n" type="button" onclick="editCustomer('${id}')">Edit customer</button><button class="btn n" type="button" onclick="editQuote('${id}')">${['approved','inprogress','complete','invoiced','paid'].indexOf(stat(j))>=0?'Edit job':'Edit quote'}</button></div><button class="btn gr" onclick="render()">← Back</button><button class="btn gr" type="button" style="font-size:14px;padding:8px 12px;width:auto" onclick="archiveJob('${id}')">🗄 Archive</button></div>${remCard(j)}`;armBack(function(){render()})}
 async function ans(id,a){try{await api({a:'respond',id,ans:a});await refresh();mview(id)}catch(e){toast(e.message)}}
 // Crew
 function crew(){const a=jobs.filter(j=>j.status=='approved');if(a.length==1)return cview(a[0].id);list('Your jobs',a,'cview')}
@@ -219,7 +228,7 @@ function aview(id){GAL=[];const j=jobs.find(x=>x.id==id),v=j.invoice||{},paid=v.
 ${j.internalNotes?`<p class="muted"><b>Internal notes (not on the invoice):</b> ${esc(j.internalNotes)}</p>`:''}<label>Amount</label><input id="am" value="${esc(v.amount||(j.total!=null?money(j.total):amt(j.quote)))}"><label>Note</label><textarea id="an" rows="2">${esc(v.note||'Payment due within 15 days. Thank you!')}</textarea>
 <button class="btn n" type="button" onclick="editCustomer('${id}')">Edit customer</button><button class="btn n" type="button" onclick="editQuote('${id}')">Edit job</button><button class="btn n" type="button" onclick="saveInv('${id}')">Save invoice</button><button class="btn huge" onclick="inv('${id}')">${j.invoice?'Resend':'Send'} invoice</button>
 ${j.status=='invoiced'?`<button class="btn ${paid?'gr':'d'}" onclick="paid('${id}',${!paid})">${paid?'Mark OPEN':'Mark PAID'}</button>`:''}
-<label>Before / After</label>${imgs(j.crew)}<button class="btn gr" onclick="render()">← Back</button></div>`;armBack(function(){render()})}
+<label>Before / After</label>${imgs(j.crew)}<button class="btn gr" onclick="render()">← Back</button><button class="btn gr" type="button" style="font-size:14px;padding:8px 12px;width:auto" onclick="archiveJob('${id}')">🗄 Archive</button></div>`;armBack(function(){render()})}
 async function inv(id){try{await api({a:'invoice',id,amount:$('#am').value,note:$('#an').value});toast('Invoice sent to customer');await refresh();aview(id)}catch(e){toast(e.message)}}
 async function paid(id,p){try{await api({a:'paid',id,paid:p});await refresh();aview(id)}catch(e){toast(e.message)}}
 function formCfg(){return FDForm.normalizeForm(SET&&SET.form)}

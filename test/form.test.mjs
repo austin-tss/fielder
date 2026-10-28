@@ -103,7 +103,7 @@ test('Code.gs stays live, embeds the form, and strips internal notes before cust
   const end = gs.indexOf('// FORMJS_END');
   assert.equal(gs.slice(start + '// FORMJS_START\n'.length, end), fs.readFileSync(path.join(root, 'form.js'), 'utf8'));
   assert.equal(gs.includes('TEST_TO'), false);
-  assert.ok(gs.includes('MailApp.sendEmail({to:j.email'));
+  assert.ok(gs.includes('mail_({to:j.email'));
   const quote = gs.slice(gs.indexOf('function quoteHtml_'), gs.indexOf('function pdfHtml_'));
   assert.equal(quote.includes('internalNotes'), false);
   assert.ok(quote.includes('custBlock_'));
@@ -112,7 +112,8 @@ test('Code.gs stays live, embeds the form, and strips internal notes before cust
   assert.equal(/concrete|coating|epoxy|flake/i.test(html + fs.readFileSync(path.join(root, 'form.js'), 'utf8')), false);
   assert.ok(html.includes('form.js?v=20261027q'));
   assert.ok(html.includes('openSet()'));
-  assert.equal(gs.split('MailApp.sendEmail({to:j.email').length - 1, 3);
+  assert.equal(gs.split('mail_({to:j.email').length - 1, 3);
+  assert.equal(gs.split('MailApp.sendEmail(').length - 1, 1);
   assert.ok(gs.includes("d.a=='qedit'"));
   assert.ok(gs.includes("d.a=='cedit'"));
   assert.ok(gs.includes("d.a=='iedit'"));
