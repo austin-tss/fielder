@@ -1,11 +1,17 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fielder Field Desk</title><meta name="color-scheme" content="light">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fielder Field Desk</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#112337">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Fielder">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="icons/splash-750x1334.png">
+<meta name="color-scheme" content="light">
 <style>
 .maddr{color:#112337;font-weight:700;text-decoration:underline;cursor:pointer;white-space:normal;overflow-wrap:anywhere}.addrline{display:block;white-space:normal;overflow-wrap:anywhere}.job .a{white-space:normal;overflow-wrap:anywhere}.gmap{display:inline-block;font-size:13px;font-weight:700;color:#fff;background:#78a22f;border-radius:999px;padding:3px 9px;margin-left:4px;text-decoration:none;cursor:pointer;white-space:nowrap}.btn .maddr{color:inherit}[data-theme=dark] .maddr{color:#cfe3a8}
 
 :root{--n:#112337;--g:#78a22f;--dg:#34460d;--c:#231f20;--bg:#f4f5f2;--line:#d6dccd}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--c);background:var(--bg)}
-#topstick{position:sticky;top:0;z-index:8}
+#topstick{position:sticky;top:0;z-index:8;background:var(--n);padding-top:env(safe-area-inset-top)}
 header{background:var(--n);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
 header img{height:46px;width:auto;background:#fff;border-radius:8px;padding:2px;flex:0 0 auto}header b{font-size:18px;line-height:1.15;display:block}header small{display:block;color:#b9d68a;font-size:13px;margin-top:2px}
 #brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;min-height:52px;background:transparent;border:0;color:#fff;padding:0;text-align:left;font:inherit;cursor:pointer}
@@ -106,9 +112,13 @@ async function api(body){if(!API)throw Error('Backend not connected yet');
   if(j.ok===false)throw Error(j.busy&&sends?'The app is busy. Nothing was sent. Please try again in a few seconds.':j.err);return j}}
 async function archiveJob(id){if(!confirm('Archive this job? It will be hidden from all lists.'))return;
  try{await api({a:'archive',id});toast('Job archived');await refresh();cur=null;render();window.scrollTo(0,0)}catch(e){toast(e.message)}}
-async function refresh(){try{const d=await api();jobs=(d.jobs||[]).filter(j=>!j.archived);root=d.root;blocks=d.blocks||[];if(d.settings)SET=d.settings}catch(e){toast(e.message)}}
+async function refresh(){try{const d=await api();jobs=(d.jobs||[]).filter(j=>!j.archived);root=d.root;blocks=d.blocks||[];if(d.settings)SET=d.settings;saveCache()}catch(e){toast(e.message)}}
+// Last job list on this device (cleared on sign out) so the home screen shows instantly, then refreshes in the background.
+function saveCache(){try{localStorage.fdCache=JSON.stringify({role,jobs,blocks,root,settings:SET,at:Date.now()})}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.fdCache||'null');if(!c||c.role!==role)return false;jobs=c.jobs||[];blocks=c.blocks||[];root=c.root||'';SET=c.settings||SET;return true}catch(e){return false}}
+function onListScreen(){return !!$('#jl')&&(view===''||view==='fq')&&!SEL&&!DIRTY&&!(document.activeElement&&document.activeElement.id==='find')}
 function roleLabel(r){return r==='Manager'?'Estimator':r}
-function logout(){SEL=null;selBar();sessionStorage.fdRole='';sessionStorage.fdPin='';role='';cur=null;view='';render()}
+function logout(){try{localStorage.removeItem('fdCache')}catch(e){}SEL=null;selBar();sessionStorage.fdRole='';sessionStorage.fdPin='';role='';cur=null;view='';render()}
 function shrink(f){return new Promise(res=>{const i=new Image();i.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))};i.src=URL.createObjectURL(f)})}
 async function pick(inp,cb){for(const f of inp.files)photos.push(await shrink(f));inp.value='';cb()}
 function mic(btnId,fieldId){const SR=window.SpeechRecognition||window.webkitSpeechRecognition,b=$('#'+btnId),q=$('#'+fieldId);
@@ -413,5 +423,6 @@ function feedbackScreen(){A.innerHTML='<div class="card"><h2>Feedback for the de
 async function sendFeedback(){var text=$('#fbtext')?$('#fbtext').value.trim():'';if(!text)return toast('Write a note first');var b=$('#fbsend');if(b){b.disabled=true;b.textContent='Sending…'}try{await api({a:'feedback',pin:myPin(),role:role,text:text});if($('#fbtext'))$('#fbtext').value='';toast('Sent to the development team. Thank you!')}catch(e){toast(String(e.message||e)==='Bad action'?'Feedback needs a Field Desk script redeploy before it can be saved.':e.message)}if(b){b.disabled=false;b.textContent='Send to the development team'}}
 function prev(){var spoken=$('#qt')?$('#qt').value.trim():'';var svc=$('#svc')?$('#svc').value:'';if(!spoken&&!svc)return toast('Say or type the work first');IT=FDForm.buildLines(formCfg(),svc,spoken?rewriteQuote(spoken):[]);drawPv()}
 function drawPv(){var t=IT.reduce(function(a,i){return a+(Number(i.price)||0)},0);var face=FDForm.customerPreviewHtml(quoteFace(),formCfg());var sendBtn=editId?'<button class="btn huge" id="sqsave" type="button" onclick="saveEdit(false)">Save</button><button class="btn huge d" id="sq" type="button" onclick="saveEdit(true)">Send updated estimate</button>':'<button class="btn huge" id="sq" type="button" onclick="sendQ()">Send quote email + PDF</button>';$('#pv').innerHTML='<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included. Internal notes are not in this box.</p>'+face+IT.map(function(i,n){return '<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="'+esc(i.title)+'" oninput="IT['+n+'].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT['+n+'].detail=this.value" style="margin-top:6px;font-size:15px">'+esc(i.detail)+'</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="'+(i.price==null?'':i.price)+'" oninput="IT['+n+'].price=this.value===\'\'?null:Number(this.value.replace(/[$,]/g,\'\'));$(\'#tot\').textContent=money(IT.reduce(function(a,i){return a+(Number(i.price)||0)},0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice('+n+',1);drawPv()">Remove</button></div></div>'}).join('')+'<button class="btn gr" onclick="IT.push({title:\'\',detail:\'\',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">'+money(t)+'</span></b></p>'+sendBtn+'</div>';if(!editId)$('#pv').scrollIntoView({behavior:'smooth'})}
-if(role)refresh().then(render);else render();
+if(role){if(loadCache()){render();refresh().then(()=>{if(onListScreen())render()})}else refresh().then(render)}else render();
+if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script><script src="v5.js?v=20261027c"></script></body></html>
