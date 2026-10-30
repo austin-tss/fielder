@@ -46,7 +46,7 @@ input,textarea,select{font-family:inherit;width:100%;font-size:18px;padding:14px
 .job.sel{outline:3px solid #b42318}.job.sel .ck{background:#b42318;border-color:#b42318}
 #selbar{position:fixed;left:0;right:0;bottom:0;z-index:12;background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(17,35,55,.12);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px}
 #selbar .btn{margin:0}#selbar[hidden]{display:none}.btn.red{background:#b42318;color:#fff}
-#vmute{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:60;width:auto;margin:0;font-size:22px;padding:20px;border-radius:16px;box-shadow:0 6px 20px rgba(17,35,55,.3);background:var(--g);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px}#vmute[hidden]{display:none}#vmute.m{background:#112337}#vmute svg{width:28px;height:28px;flex:none}
+#vmute{position:fixed;left:auto;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));z-index:60;width:56px;height:56px;min-height:0;margin:0;padding:0;border-radius:50%;box-shadow:0 4px 14px rgba(17,35,55,.3);background:#fff;color:#78a22f;border:3px solid #78a22f;display:flex;align-items:center;justify-content:center}#vmute[hidden]{display:none}#vmute.m{background:#fff;color:#112337;border-color:#112337}#vmute svg{width:28px;height:28px;flex:none}#vmute .vl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}#vmute .vb{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#112337;color:#fff;font-size:10px;font-weight:700;line-height:1;padding:3px 6px;border-radius:8px}body.vmon{padding-bottom:84px}
 #modal{position:fixed;inset:0;z-index:50;background:rgba(17,35,55,.45);display:flex;align-items:center;justify-content:center;padding:20px}#modal[hidden]{display:none}
 #modal .card{width:100%;max-width:420px;margin:0}
 #undo{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:13;background:var(--n);color:#fff;border-radius:12px;padding:10px 12px 10px 18px;display:flex;align-items:center;gap:12px;font-size:17px;max-width:92vw}#undo[hidden]{display:none}#undo button{font:inherit;font-weight:800;border:0;border-radius:10px;padding:10px 14px;background:var(--g);color:#fff;cursor:pointer}
@@ -475,7 +475,7 @@ let AISR=null,AITX='',AINOSR=false,AICONF=null;
 let VMUTED=false,VMCTL=null;
 const VMIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',VMOFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 9.3V6a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 5.1 2.1M5 11a7 7 0 0 0 11.8 5.1M19 11a7 7 0 0 1-.6 2.8M12 18v3M3 3l18 18"/></svg>';
 function vmPaint(){let b=$('#vmute');if(!b){b=document.createElement('button');b.id='vmute';b.type='button';b.className='btn';b.onclick=vmToggle;document.body.appendChild(b)}
- b.hidden=!VMCTL;b.classList.toggle('m',VMUTED);b.setAttribute('aria-pressed',VMUTED?'true':'false');b.innerHTML=(VMUTED?VMOFF+'<span>Muted - tap to resume</span>':VMIC+'<span>Listening - tap to mute</span>')}
+ b.hidden=!VMCTL;b.classList.toggle('m',VMUTED);b.setAttribute('aria-pressed',VMUTED?'true':'false');const L=VMUTED?'Muted - tap to resume':'Listening - tap to mute';b.setAttribute('aria-label',L);b.title=L;document.body.classList.toggle('vmon',!!VMCTL);b.innerHTML=(VMUTED?VMOFF+'<span class="vb" aria-hidden="true">Muted</span>':VMIC)+'<span class="vl">'+L+'</span>'}
 function vmOn(ctl){VMCTL=ctl;VMUTED=false;vmPaint()}
 function vmOff(ctl){if(ctl&&VMCTL!==ctl&&!(ctl._ctl&&VMCTL===ctl._ctl))return;VMCTL=null;VMUTED=false;vmPaint()}
 function vmToggle(){if(!VMCTL)return;if(VMUTED){VMUTED=false;VMCTL.resume()}else{VMUTED=true;VMCTL.mute()}vmPaint()}
@@ -493,7 +493,7 @@ async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');c
     x.onerror=ev=>{x._err=ev.error;if(ev.error==='not-allowed')toast('Speech blocked. Allow the microphone, or type the quote in the box.')};
     x.onend=()=>{if(x._muted)return;if(x._fin||AISR===x)fin()}};
    // stop while muted: fill from what was heard before muting
-   const ctl={mute(){r._muted=true;interim='';try{r.abort()}catch(e){}aiStat('Muted. Nothing is being heard. Tap the big button to resume.')},
+   const ctl={mute(){r._muted=true;interim='';try{r.abort()}catch(e){}aiStat('Muted. Nothing is being heard. Tap the mic button to resume.')},
     resume(){let x;try{x=new SR()}catch(e){return}wire(x);try{x.start()}catch(e){}aiStat('Listening… '+AITX.slice(-120))},
     stop(){if(VMUTED){fin()}else r.stop()}};
    wire(r);try{r.start()}catch(e){AISR=null}
@@ -507,7 +507,7 @@ async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');c
   const blob=new Blob(AICH,{type:mime});if(blob.size<800)return aiStat('Nothing recorded. Try again.');
   const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]||'');fr.readAsDataURL(blob)});
   aiSend({audio:b64,mime,text:$('#qt')?$('#qt').value.trim():''})};
- const rec=AIREC,rctl={mute(){try{rec.pause()}catch(e){}aiStat('Muted. Nothing is being recorded. Tap the big button to resume.')},resume(){try{rec.resume()}catch(e){}}};
+ const rec=AIREC,rctl={mute(){try{rec.pause()}catch(e){}aiStat('Muted. Nothing is being recorded. Tap the mic button to resume.')},resume(){try{rec.resume()}catch(e){}}};
  AIREC.start();vmOn(rctl);AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
  AIT=setInterval(()=>{if(VMUTED)return;const s=Math.round((Date.now()-AIS)/1000);aiStat('Recording '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+(s>240?' (keep it under 5 minutes)':''));if(s>=300&&AIREC)AIREC.stop()},1000)}
 async function aiSend(body){const b=$('#aibtn');b.disabled=true;aiStat('AI is filling the quote…');
