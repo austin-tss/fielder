@@ -468,14 +468,14 @@ let AIREC=null,AICH=[],AIT=null,AIS=0;
 function aiReady(){return !!(SET&&SET.voice)}
 function aiInit(){const b=$('#aibtn');if(!b)return;if(!aiReady()){b.classList.add('gr');b.disabled=true;b.textContent='🎙 Voice quotes need setup';$('#aistat').textContent='Ask the office to add the Gemini key.'}}
 function aiStat(t){const e=$('#aistat');if(e)e.textContent=t}
-let AISR=null,AITX='',AINOSR=false;
+let AISR=null,AITX='',AINOSR=false,AICONF=null;
 async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');const b=$('#aibtn');
  if(AISR){AISR.stop();return}
  if(AIREC){AIREC.stop();return}
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(SR&&!AINOSR){let r;try{r=new SR()}catch(e){r=null}
-  if(r){AISR=r;AITX='';let interim='';r.lang='en-US';r.continuous=true;r.interimResults=true;
-   r.onresult=ev=>{interim='';for(let i=ev.resultIndex;i<ev.results.length;i++){const t=ev.results[i][0].transcript;if(ev.results[i].isFinal)AITX+=t+' ';else interim+=t}aiStat('Heard: '+(AITX+interim).slice(-160))};
+  if(r){AISR=r;AITX='';let interim='';r.lang='en-US';r.continuous=true;r.interimResults=true;AICONF=null;
+   r.onresult=ev=>{interim='';for(let i=ev.resultIndex;i<ev.results.length;i++){const t=ev.results[i][0].transcript;if(ev.results[i].isFinal){AITX+=t+' ';const cf=ev.results[i][0].confidence;if(cf>0)AICONF=AICONF==null?cf:Math.min(AICONF,cf)}else interim+=t}aiStat('Heard: '+(AITX+interim).slice(-160))};
    r.onerror=ev=>{r._err=ev.error;if(ev.error==='not-allowed')toast('Speech blocked. Allow the microphone, or type the quote in the box.')};
    r.onend=()=>{AISR=null;clearInterval(AIT);b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
     const typed=$('#qt')?$('#qt').value.trim():'',said=(AITX+' '+interim).trim();const t=[said,typed].filter(Boolean).join('\n');
@@ -494,7 +494,7 @@ async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');c
  AIREC.start();AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
  AIT=setInterval(()=>{const s=Math.round((Date.now()-AIS)/1000);aiStat('Recording '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+(s>240?' (keep it under 5 minutes)':''));if(s>=300&&AIREC)AIREC.stop()},1000)}
 async function aiSend(body){const b=$('#aibtn');b.disabled=true;aiStat('AI is filling the quote…');
- try{const r=await api(Object.assign({a:'voiceQuote',pin:myPin()},body));aiFill(r.result||{});aiStat('Filled in. Check everything before you send.')}
+ try{const r=await api(Object.assign({a:'voiceQuote',pin:myPin()},body));aiFill(r.result||{});if(window.FDFlags)FDFlags.applyFlags(r.result||{},AICONF);aiStat('Filled in. Check anything marked in amber before you send.')}
  catch(e){aiStat('');toast(REDEPLOY(e.message)||/role cannot do that/.test(e.message)?'Voice quotes need a Field Desk script update first.':e.message)}
  b.disabled=false}
 // Customer and estimate parts go to customer-facing fields. Crew parts go ONLY to Internal notes.
@@ -523,4 +523,4 @@ function prev(){var spoken=$('#qt')?$('#qt').value.trim():'';var svc=$('#svc')?$
 function drawPv(){var t=IT.reduce(function(a,i){return a+(Number(i.price)||0)},0);var face=FDForm.customerPreviewHtml(quoteFace(),formCfg());var sendBtn=editId?'<button class="btn huge" id="sqsave" type="button" onclick="saveEdit(false)">Save</button><button class="btn huge d" id="sq" type="button" onclick="saveEdit(true)">Send updated estimate</button>':'<p style="font-weight:700;margin:14px 0 4px">How should the customer get it?</p><button class="btn huge" id="sq" type="button" onclick="sendQ()">📧 Email quote + PDF</button><button class="btn huge n" id="sqt" type="button" onclick="sendQT()">💬 Text a link</button><p class="muted" id="sqtnote"></p>';$('#pv').innerHTML='<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included. Internal notes are not in this box.</p>'+face+IT.map(function(i,n){return '<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="'+esc(i.title)+'" oninput="IT['+n+'].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT['+n+'].detail=this.value" style="margin-top:6px;font-size:15px">'+esc(i.detail)+'</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="'+(i.price==null?'':i.price)+'" oninput="IT['+n+'].price=this.value===\'\'?null:Number(this.value.replace(/[$,]/g,\'\'));$(\'#tot\').textContent=money(IT.reduce(function(a,i){return a+(Number(i.price)||0)},0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice('+n+',1);drawPv()">Remove</button></div></div>'}).join('')+'<button class="btn gr" onclick="IT.push({title:\'\',detail:\'\',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">'+money(t)+'</span></b></p>'+sendBtn+'</div>';if(!editId){txtState();if($('#ph'))$('#ph').oninput=txtState;$('#pv').scrollIntoView({behavior:'smooth'})}}
 if(role){if(loadCache()){render();refresh().then(()=>{if(onListScreen())render()})}else refresh().then(render)}else render();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)))navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script><script src="v5.js?v=20261027c"></script><script src="csv.js?v=20261028a"></script></body></html>
+</script><script src="v5.js?v=20261027c"></script><script src="csv.js?v=20261028a"></script><script src="flags.js?v=20261029a"></script></body></html>

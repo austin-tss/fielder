@@ -31,7 +31,7 @@ try {
   await waitText('Stop and fill the quote');
   await new Promise((r) => setTimeout(r, 1500));
   await page.click('#aibtn');
-  await waitText('Filled in. Check everything');
+  await waitText('Filled in. Check anything marked');
   const v = await page.evaluate(() => ({ nm: $('#nm').value, em: $('#em').value, ad: $('#ad').value, addl: $('#addl').value, inote: $('#inote').value, qt: $('#qt').value, items: IT }));
   if (v.nm !== 'Pat Voice' || v.em !== 'pat.voice@example.com' || !v.ad.includes('Tallahassee')) fail('customer not filled');
   if (v.items.length !== 2 || v.items[1].price !== 300) fail('items wrong ' + JSON.stringify(v.items));
