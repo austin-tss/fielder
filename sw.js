@@ -1,7 +1,7 @@
 // Fielder Field Desk service worker: caches the app shell only.
 // Never touches API calls (Apps Script /exec, ?a=, pin=), other sites, or anything that is not a GET.
 // Bump VERSION on each release; old caches are deleted when the new worker activates.
-const VERSION = 'fd-shell-2026-10-30b';
+const VERSION = 'fd-shell-2026-10-30c';
 const SHELL = ['./', 'index.html', 'form.js', 'v5.js', 'csv.js', 'flags.js', 'logo.png', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', (e) => {

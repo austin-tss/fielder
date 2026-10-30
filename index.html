@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="preconnect" href="https://script.google.com" crossorigin><link rel="preconnect" href="https://script.googleusercontent.com" crossorigin><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fielder Field Desk</title><link rel="preconnect" href="https://places.googleapis.com" crossorigin><link rel="preconnect" href="https://photon.komoot.io" crossorigin><link rel="dns-prefetch" href="https://nominatim.openstreetmap.org"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#112337">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Fielder">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -68,6 +68,7 @@ html[data-theme=dark] .muted{color:#c5d0bc}
 input[type=radio]{width:22px;height:22px;padding:0;margin:0;flex:0 0 22px}
 .sug{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:2px solid #78a22f;border-radius:12px;box-shadow:0 8px 24px rgba(17,35,55,.18);z-index:30;overflow:hidden}
 .sug button{display:block;width:100%;text-align:left;font:inherit;font-size:17px;min-height:56px;padding:14px 16px;border:0;border-bottom:1px solid #eef0ea;background:#fff;color:#112337}.sug button:last-child{border:0}.sug button:active,.sug button:hover{background:#eef6dc}.sug .h{padding:12px 16px;color:#5b6168;font-size:14px}
+#fdload{position:fixed;inset:0;z-index:9999;background:#f7f9fb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;color:#112337;font-size:20px;font-weight:600}#fdload img{width:180px;max-width:60vw}#fdload .spin{width:56px;height:56px;border:6px solid #dfe7d0;border-top-color:#78a22f;border-radius:50%;animation:fdspin .9s linear infinite}@keyframes fdspin{to{transform:rotate(360deg)}}#fdload .le{color:#b91c1c;font-weight:600;max-width:340px}#fdload .btn{min-width:220px}
 </style></head><body>
 <div id="topstick"><header><button id="brand" type="button" onclick="logoHome()" aria-label="Fielder Field Desk, Home"><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="gear" type="button" hidden onclick="openSet()" aria-label="Settings" title="Settings">⚙<span class="sr">Settings</span></button><button id="out" type="button" hidden onclick="logout()">Sign out</button></header>
 <div id="navbar" hidden><button id="back" type="button" onclick="goBack()">← Back</button><button id="navhome" type="button" onclick="navHome()">Home</button></div></div>
@@ -178,11 +179,27 @@ function render(){GAL=[];applyTheme();if(/^(set|setform|conn)$/.test(view)&&role
 function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){if(k!='✓')pin+=k}
  $('#dots').textContent='•'.repeat(pin.length);if(pin.length==4)login(pin)}
 // The server checks the PIN (role PINs live in Script Properties). Old backends without 'login' fall back to the built-in PINs.
-async function login(p){pin='';$('#dots').textContent='';let r=null,old=false;
- try{r=await api({a:'login',pin:p})}catch(e){if(/Too many/.test(e.message)){toast(e.message);render();return}old=!/Wrong PIN/.test(e.message)}
+// Full-screen loading state shown from PIN entry until the job list arrives.
+function loadScreen(msg,retry){let o=$('#fdload');if(!o){o=document.createElement('div');o.id='fdload';document.body.appendChild(o)}
+ o.innerHTML='<img src="logo.png" alt="Fielder">'+(retry?'<p class="le">'+esc(msg)+'</p><button class="btn g" id="fdretry">Retry</button><button class="btn" id="fdback" style="background:#fff;color:var(--n);border:2px solid var(--n)">Back to PIN</button>':'<div class="spin" role="status" aria-label="Loading"></div><p>'+esc(msg||'Loading…')+'</p>');
+ if(retry){$('#fdretry').onclick=retry;$('#fdback').onclick=()=>{hideLoad();logout()}}}
+function hideLoad(){const o=$('#fdload');if(o)o.remove()}
+// PINs that signed in before on this device (hashed). Only those get the login + job list fetched in parallel,
+// so a mistyped PIN never costs two strikes against the server's wrong-PIN lockout.
+async function pinHash(p){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('fd:'+p));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return ''}}
+function okPins(){try{return JSON.parse(localStorage.fdOkPins||'[]')}catch(e){return []}}
+async function fetchData(p){const r=await fetch(API+(API.indexOf('?')<0?'?':'&')+'pin='+encodeURIComponent(p));const j=await r.json();if(j.ok===false)throw Error(j.err);return j}
+function useData(d){jobs=(d.jobs||[]).filter(j=>!j.archived);root=d.root;blocks=d.blocks||[];if(d.customers)window.CUSTS=d.customers;if(d.settings)SET=d.settings;saveCache()}
+async function login(p){pin='';$('#dots').textContent='';let r=null,old=false;loadScreen('Checking PIN…');
+ const h=await pinHash(p),known=h&&okPins().includes(h);let pre=known&&API?fetchData(p):null;if(pre)pre.catch(()=>{});
+ try{r=await api({a:'login',pin:p})}catch(e){if(/Too many/.test(e.message)){hideLoad();toast(e.message);render();return}old=!/Wrong PIN/.test(e.message)}
  const rl=r&&r.role?r.role:(old?ROLES[p]:'');
- if(!rl){toast('Wrong PIN');render();return}
- sessionStorage.fdPin=p;role=sessionStorage.fdRole=rl;A.innerHTML='<div class="card">Loading…</div>';refresh().then(render)}
+ if(!rl){hideLoad();toast('Wrong PIN');render();return}
+ if(h&&!known)try{localStorage.fdOkPins=JSON.stringify(okPins().concat(h).slice(-5))}catch(e){}
+ sessionStorage.fdPin=p;role=sessionStorage.fdRole=rl;
+ const go=async()=>{loadScreen('Loading…');try{let d=null;if(pre){try{d=await pre}catch(e){}pre=null}if(!d)d=await api();useData(d);hideLoad();render()}
+  catch(e){loadScreen("Couldn't load your jobs. "+(e.message||''),go)}};
+ go()}
 function stat(j){if(j.status=='invoiced')return j.invoice&&j.invoice.paid?'paid':'invoiced';if(j.status=='approved')return j.crew&&j.crew.length?'inprogress':'approved';return j.status}
 const SC={sent:'#112337',reply:'#7c3aed',approved:'#78a22f',inprogress:'#d97706',complete:'#34460d',invoiced:'#c2410c',paid:'#15803d',declined:'#8a8f98'};
 const ST={paid:'Paid',inprogress:'In progress',sent:'Quoted',approved:'Approved → crew',declined:'Declined',reply:'Customer replied',complete:'Done → admin',invoiced:'Invoiced'};
@@ -538,6 +555,6 @@ function openRep(){view='rep';repScreen();window.scrollTo(0,0)}
 function repScreen(){const tel=REP_PHONE.replace(/[^\d+]/g,'');A.innerHTML=`<div class="card" id="repcard"><h2>Your account rep</h2><p style="font-size:24px;font-weight:800;color:var(--n);margin:4px 0">${esc(REP_NAME)}</p><p style="font-size:20px;margin:0 0 6px">${esc(REP_PHONE)}</p><a class="btn huge" id="repcall" href="tel:${tel}" style="text-decoration:none;text-align:center">📞 Call</a><a class="btn huge n" id="reptext" href="sms:${tel}" style="text-decoration:none;text-align:center">💬 Text</a></div>`;armBack(function(){view='';render()})}
 function prev(){var spoken=$('#qt')?$('#qt').value.trim():'';var svc=$('#svc')?$('#svc').value:'';if(!spoken&&!svc)return toast('Say or type the work first');IT=FDForm.buildLines(formCfg(),svc,spoken?rewriteQuote(spoken):[]);drawPv()}
 function drawPv(){var t=IT.reduce(function(a,i){return a+(Number(i.price)||0)},0);var face=FDForm.customerPreviewHtml(quoteFace(),formCfg());var sendBtn=editId?'<button class="btn huge" id="sqsave" type="button" onclick="saveEdit(false)">Save</button><button class="btn huge d" id="sq" type="button" onclick="saveEdit(true)">Send updated estimate</button>':'<p style="font-weight:700;margin:14px 0 4px">How should the customer get it?</p><button class="btn huge" id="sq" type="button" onclick="sendQ()">📧 Email quote + PDF</button><button class="btn huge n" id="sqt" type="button" onclick="sendQT()">💬 Text a link</button><p class="muted" id="sqtnote"></p>';$('#pv').innerHTML='<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included. Internal notes are not in this box.</p>'+face+IT.map(function(i,n){return '<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="'+esc(i.title)+'" oninput="IT['+n+'].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT['+n+'].detail=this.value" style="margin-top:6px;font-size:15px">'+esc(i.detail)+'</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="'+(i.price==null?'':i.price)+'" oninput="IT['+n+'].price=this.value===\'\'?null:Number(this.value.replace(/[$,]/g,\'\'));$(\'#tot\').textContent=money(IT.reduce(function(a,i){return a+(Number(i.price)||0)},0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice('+n+',1);drawPv()">Remove</button></div></div>'}).join('')+'<button class="btn gr" onclick="IT.push({title:\'\',detail:\'\',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">'+money(t)+'</span></b></p>'+sendBtn+'</div>';if(!editId){txtState();if($('#ph'))$('#ph').oninput=txtState;$('#pv').scrollIntoView({behavior:'smooth'})}}
-if(role){if(loadCache()){render();refresh().then(()=>{if(onListScreen())render()})}else refresh().then(render)}else render();
+if(role){if(loadCache()){render();refresh().then(()=>{if(onListScreen())render()})}else{const go=async()=>{loadScreen('Loading…');try{useData(await api());hideLoad();render()}catch(e){loadScreen("Couldn't load your jobs. "+(e.message||''),go)}};go()}}else render();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script><script src="v5.js?v=20261027c"></script><script src="csv.js?v=20261028a"></script><script src="flags.js?v=20261029a"></script></body></html>
