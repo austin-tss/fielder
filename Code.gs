@@ -502,14 +502,14 @@ function get_(e){var p=(e&&e.parameter)||{};
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
-var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1};
+var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
   if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:''};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
   if(d.a=='approvePublic')return approvePublic_(d);
   var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
-  if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'){if(me!=='Admin')return {ok:false,err:'Only Admin can manage employees.'};return empApi_(d);}if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
+  if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'){if(me!=='Admin')return {ok:false,err:'Only Admin can manage employees.'};return empApi_(d);}var ck=clockApi_(d,me);if(ck)return ck;if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
   if(d.a=='qboconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
   if(d.a=='qbodisconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};saveObj_({},'qbo.json');return {ok:true,settings:settings_()};}
   if(d.a=='voiceQuote'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};return voiceQuote_(d);}
@@ -655,6 +655,37 @@ function qboFinish_(p){var expect=qboProp_('QBO_STATE');if(!p.code||!p.state||p.
   try{qboApplyTok_({},qboExchange_('grant_type=authorization_code&code='+encodeURIComponent(p.code)+'&redirect_uri='+encodeURIComponent(qboRedirect_())),p.realmId)}catch(e2){return page_('<h2>QuickBooks</h2><p>Could not finish connecting. Check the Intuit keys and try again.</p>')}
   return page_('<h2>QuickBooks connected</h2><p>You can close this tab and return to the app.</p><p><a href="https://austin-tss.github.io/fielder/">Back to Fielder Field Desk</a></p>')}
 
+// ===== Crew clock in/out (modeled on TSShourtracker). Punches live in punches.json: [{id,who,in,out,cid,by,src,edited}] =====
+// Lock covers only read-change-write of punches.json (separate file from jobs.json, so clocking never waits on job saves for long).
+var CLOCK_TZ='America/New_York',CLOCK_ACTS_={clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1};
+function clockWho_(d,me){var e=empOf_(d);if(e&&e.name)return clip_(e.name,60);return clip_(String(d.who||'').replace(/[\u0000-\u001f<>]/g,'').replace(/\s+/g,' '),60);}
+function clockKey_(s){return String(s||'').trim().toLowerCase();}
+function clockAt_(v){var now=Date.now(),t=v?new Date(v).getTime():now;if(!isFinite(t))t=now;if(t>now+5*60000)t=now;if(t<now-14*86400000)t=now-14*86400000;return new Date(t).toISOString();}
+function clockDayStart_(ms,back){var s=Utilities.formatDate(new Date(ms),CLOCK_TZ,'yyyy-MM-dd'),p=s.split('-').map(Number),u=new Date(Date.UTC(p[0],p[1]-1,p[2]-(back||0)));return Utilities.parseDate(Utilities.formatDate(u,'UTC','yyyy-MM-dd')+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime();}
+function clockWeekStart_(ms){var dow=Number(Utilities.formatDate(new Date(ms),CLOCK_TZ,'u'))%7;return clockDayStart_(ms,dow);}// Sunday start, like TSShourtracker
+function clockHrs_(ps,who,a,b,now){var k=clockKey_(who),ms=0;ps.forEach(function(p){if(who&&clockKey_(p.who)!==k)return;var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():now;s=Math.max(s,a);e=Math.min(e,b);if(e>s)ms+=e-s;});return Math.round(ms/36000)/100;}
+function clockOpen_(ps,who){var k=clockKey_(who);return ps.filter(function(p){return !p.out&&clockKey_(p.who)===k})[0]||null;}
+function clockSum_(ps,who){var now=Date.now(),d0=clockDayStart_(now),w0=clockWeekStart_(now);return {who:who,open:clockOpen_(ps,who),today:clockHrs_(ps,who,d0,now,now),week:clockHrs_(ps,who,w0,now,now)};}
+function clockApi_(d,me){if(!CLOCK_ACTS_[d.a])return null;var boss=me==='Admin'||me==='Manager';
+  if(d.a=='clockList'){if(!boss)return {ok:false,err:'Only Admin can see everyone\'s hours.'};var ps=load_('punches.json'),f=d.from?Utilities.parseDate(d.from+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime():0,t=d.to?Utilities.parseDate(d.to+' 23:59',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime()+60000:Date.now()+86400000;
+    var sel=ps.filter(function(p){var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():Date.now();return e>=f&&s<t&&(!d.who||clockKey_(p.who)===clockKey_(d.who))});
+    return {ok:true,punches:sel,now:ps.filter(function(p){return !p.out})};}
+  if(d.a=='clockFix'){if(!boss)return {ok:false,err:'Only Admin can fix punches.'};var ni=d.in?clockAt_(d.in):'',no=d.out?new Date(d.out).toISOString():'';
+    if(!d.del){if(!ni)return {ok:false,err:'Enter the clock-in time.'};if(no&&new Date(no)<=new Date(ni))return {ok:false,err:'Clock-out must be after clock-in.'};if(no&&new Date(no)-new Date(ni)>24*3600000)return {ok:false,err:'A shift cannot be longer than 24 hours.'};}
+    var L=lock_(10000);if(!L)return BUSY_;var r;try{var ps2=load_('punches.json'),p;
+      if(d.id){p=ps2.filter(function(x){return x.id===d.id})[0];if(!p)r={ok:false,err:'Punch not found'};else if(d.del){ps2=ps2.filter(function(x){return x.id!==d.id});save_(ps2,'punches.json');r={ok:true,deleted:d.id};}
+        else{if(!no&&clockOpen_(ps2,p.who)&&clockOpen_(ps2,p.who).id!==p.id)r={ok:false,err:p.who+' already has an open punch.'};else{p.in=ni;p.out=no||null;p.edited={by:me,at:new Date().toISOString()};save_(ps2,'punches.json');r={ok:true,punch:p};}}}
+      else{var w=clip_(d.who,60);if(!w)r={ok:false,err:'Pick the person.'};else if(!no&&clockOpen_(ps2,w))r={ok:false,err:w+' is already clocked in.'};else{p={id:newId_('P-'),who:w,in:ni,out:no||null,by:me,src:'fix',edited:{by:me,at:new Date().toISOString()}};ps2.push(p);save_(ps2,'punches.json');r={ok:true,punch:p};}}
+    }finally{unlock_(L);}return r;}
+  var who=clockWho_(d,me);if(!who)return {ok:false,err:'Pick your name first.',needName:true};
+  if(d.a=='clockStatus')return Object.assign({ok:true},clockSum_(load_('punches.json'),who));
+  var at=clockAt_(d.at),cid=clip_(d.cid,40),L2=lock_(10000);if(!L2)return BUSY_;var res,ps3;
+  try{ps3=load_('punches.json');var dup=cid&&ps3.filter(function(x){return x.cid===cid||x.ocid===cid})[0],op=clockOpen_(ps3,who);
+    if(dup)res={ok:true,dup:true};
+    else if(d.a=='clockIn'){if(op)res={ok:false,already:true,err:who+' is already clocked in.'};else{ps3.push({id:newId_('P-'),who:who,in:at,out:null,cid:cid,by:me,src:d.offline?'offline':'app'});save_(ps3,'punches.json');res={ok:true};}}
+    else{if(!op)res={ok:false,notIn:true,err:who+' is not clocked in.'};else{if(new Date(at)<new Date(op.in))at=op.in;op.out=at;op.ocid=cid;save_(ps3,'punches.json');res={ok:true};}}
+  }finally{unlock_(L2);}
+  return Object.assign(res,clockSum_(ps3,who));}
 // ===== Employees (Admin only). Codes are 4 digits, unique, never returned by empList. =====
 function empPublic_(u){return {id:u.id,name:u.name,email:u.email,role:u.role,created:u.created}}
 function empApi_(d){

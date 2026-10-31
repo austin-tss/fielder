@@ -96,6 +96,11 @@ function handleApi(req, res, body) {
     const r = e ? e.role : ROLEPINS[String(d.pin || '')];
     return send(res, 200, JSON.stringify(r ? { ok: true, role: r, name: e ? e.name : '' } : { ok: false, err: 'Wrong PIN' }));
   }
+  if (/^clock(Status|In|Out|List|Fix)$/.test(d.a || '')) {
+    const e = employees.find((u) => u.pin === String(d.pin || ''));
+    clockApi(d, e ? e.role : ROLEPINS[String(d.pin || '')], e ? e.name : '').then((r) => send(res, 200, JSON.stringify(r)));
+    return;
+  }
   if (d.a === 'empList' || d.a === 'empAdd' || d.a === 'empDel') {
     const me = employees.find((u) => u.pin === String(d.pin || ''));
     const role = me ? me.role : ROLEPINS[String(d.pin || '')];
@@ -272,3 +277,48 @@ export function start(port) {
   return new Promise((resolve) => server.listen(port || 0, '127.0.0.1', () => resolve(server)));
 }
 export function addJob(j) { jobs.push(j); }
+// ---- Crew clock (same rules as Code.gs clockApi_) ----
+export const punches = [];
+let CLOCK = true; export function setClock(v) { CLOCK = !!v; }
+export function resetPunches() { punches.length = 0; }
+const ck = (s) => String(s || '').trim().toLowerCase();
+const cOpen = (who) => punches.find((p) => !p.out && ck(p.who) === ck(who)) || null;
+function cDay(ms, back = 0) { const d = new Date(ms); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - back); return d.getTime(); }
+function cHrs(who, a, b, now) { let ms = 0; punches.forEach((p) => { if (who && ck(p.who) !== ck(who)) return; const s = Math.max(+new Date(p.in), a), e = Math.min(p.out ? +new Date(p.out) : now, b); if (e > s) ms += e - s; }); return Math.round(ms / 36000) / 100; }
+function cSum(who) { const now = Date.now(); return { who, open: cOpen(who), today: cHrs(who, cDay(now), now, now), week: cHrs(who, cDay(now, new Date(now).getDay()), now, now) }; }
+function cAt(v) { const now = Date.now(); let t = v ? +new Date(v) : now; if (!isFinite(t)) t = now; if (t > now + 300000) t = now; if (t < now - 14 * 864e5) t = now - 14 * 864e5; return new Date(t).toISOString(); }
+let LOCK = Promise.resolve();
+function locked(fn) { const run = LOCK.then(() => new Promise((r) => setTimeout(r, Math.random() * 8)).then(fn)); LOCK = run.catch(() => {}); return run; }
+export async function clockApi(d, role, empName) {
+  if (!CLOCK) return { ok: false, err: 'Bad action' };
+  if (!role) return { ok: false, err: 'PIN required' };
+  const boss = role === 'Admin' || role === 'Manager';
+  if (d.a === 'clockList') {
+    if (!boss) return { ok: false, err: "Only Admin can see everyone's hours." };
+    const f = d.from ? +new Date(d.from + 'T00:00') : 0, t = d.to ? +new Date(d.to + 'T23:59') + 60000 : Date.now() + 864e5;
+    return { ok: true, punches: punches.filter((p) => { const s = +new Date(p.in), e = p.out ? +new Date(p.out) : Date.now(); return e >= f && s < t && (!d.who || ck(p.who) === ck(d.who)); }), now: punches.filter((p) => !p.out) };
+  }
+  if (d.a === 'clockFix') {
+    if (!boss) return { ok: false, err: 'Only Admin can fix punches.' };
+    const ni = d.in ? cAt(d.in) : '', no = d.out ? new Date(d.out).toISOString() : '';
+    if (!d.del) { if (!ni) return { ok: false, err: 'Enter the clock-in time.' }; if (no && no <= ni) return { ok: false, err: 'Clock-out must be after clock-in.' }; if (no && new Date(no) - new Date(ni) > 864e5) return { ok: false, err: 'A shift cannot be longer than 24 hours.' }; }
+    return locked(() => {
+      if (d.id) { const i = punches.findIndex((x) => x.id === d.id); if (i < 0) return { ok: false, err: 'Punch not found' }; if (d.del) { punches.splice(i, 1); return { ok: true, deleted: d.id }; }
+        const p = punches[i], o = cOpen(p.who); if (!no && o && o.id !== p.id) return { ok: false, err: p.who + ' already has an open punch.' };
+        Object.assign(p, { in: ni, out: no || null, edited: { by: role, at: new Date().toISOString() } }); return { ok: true, punch: p }; }
+      const w = String(d.who || '').trim().slice(0, 60); if (!w) return { ok: false, err: 'Pick the person.' }; if (!no && cOpen(w)) return { ok: false, err: w + ' is already clocked in.' };
+      const p = { id: 'P-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), who: w, in: ni, out: no || null, by: role, src: 'fix', edited: { by: role, at: new Date().toISOString() } }; punches.push(p); return { ok: true, punch: p };
+    });
+  }
+  const who = empName || String(d.who || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (!who) return { ok: false, err: 'Pick your name first.', needName: true };
+  if (d.a === 'clockStatus') return { ok: true, ...cSum(who) };
+  return locked(() => {
+    const at = cAt(d.at), cid = String(d.cid || '').slice(0, 40); let res;
+    const op = cOpen(who);
+    if (cid && punches.some((x) => x.cid === cid || x.ocid === cid)) res = { ok: true, dup: true };
+    else if (d.a === 'clockIn') { if (op) res = { ok: false, already: true, err: who + ' is already clocked in.' }; else { punches.push({ id: 'P-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), who, in: at, out: null, cid, by: role, src: d.offline ? 'offline' : 'app' }); res = { ok: true }; } }
+    else { if (!op) res = { ok: false, notIn: true, err: who + ' is not clocked in.' }; else { op.out = at < op.in ? op.in : at; op.ocid = cid; res = { ok: true }; } }
+    return { ...res, ...cSum(who) };
+  });
+}
