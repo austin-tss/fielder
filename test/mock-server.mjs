@@ -266,7 +266,7 @@ export function start(port) {
       return;
     }
     const ext = path.extname(full);
-    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png' };
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' };
     send(res, 200, fs.readFileSync(full), types[ext] || 'application/octet-stream');
   });
   return new Promise((resolve) => server.listen(port || 0, '127.0.0.1', () => resolve(server)));

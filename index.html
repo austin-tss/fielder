@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="preconnect" href="https://script.google.com" crossorigin><link rel="preconnect" href="https://script.googleusercontent.com" crossorigin><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fielder Field Desk</title><link rel="preconnect" href="https://places.googleapis.com" crossorigin><link rel="preconnect" href="https://photon.komoot.io" crossorigin><link rel="dns-prefetch" href="https://nominatim.openstreetmap.org"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#112337">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Fielder">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/svg+xml" href="mark.svg"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1179x2556.png">
 <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1290x2796.png">
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="icons/splash-750x1334.png">
@@ -13,7 +13,7 @@
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--c);background:var(--bg)}
 #topstick{position:sticky;top:0;z-index:8;background:var(--n);padding-top:env(safe-area-inset-top)}
 header{background:var(--n);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
-header img{height:46px;width:auto;background:#fff;border-radius:8px;padding:2px;flex:0 0 auto}header b{font-size:18px;line-height:1.15;display:block}header small{display:block;color:#b9d68a;font-size:13px;margin-top:2px}
+header img{height:46px;width:46px;border-radius:11px;flex:0 0 auto;box-shadow:0 1px 3px rgba(0,0,0,.25)}.loginlogo{display:block;width:260px;max-width:75%;margin:18px auto 6px}header b{font-size:18px;line-height:1.15;display:block}header small{display:block;color:#b9d68a;font-size:13px;margin-top:2px}
 #brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;min-height:52px;background:transparent;border:0;color:#fff;padding:0;text-align:left;font:inherit;cursor:pointer}
 #out{flex:0 0 auto;background:transparent;border:1px solid #c5d3b0;color:#fff;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer}
 #gear{flex:0 0 auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid #c5d3b0;color:#fff;border-radius:10px;padding:0;font-size:22px;line-height:1;cursor:pointer}
@@ -68,9 +68,9 @@ html[data-theme=dark] .muted{color:#c5d0bc}
 input[type=radio]{width:22px;height:22px;padding:0;margin:0;flex:0 0 22px}
 .sug{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:2px solid #78a22f;border-radius:12px;box-shadow:0 8px 24px rgba(17,35,55,.18);z-index:30;overflow:hidden}
 .sug button{display:block;width:100%;text-align:left;font:inherit;font-size:17px;min-height:56px;padding:14px 16px;border:0;border-bottom:1px solid #eef0ea;background:#fff;color:#112337}.sug button:last-child{border:0}.sug button:active,.sug button:hover{background:#eef6dc}.sug .h{padding:12px 16px;color:#5b6168;font-size:14px}
-#fdload{position:fixed;inset:0;z-index:9999;background:#f7f9fb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;color:#112337;font-size:20px;font-weight:600}#fdload img{width:180px;max-width:60vw}#fdload .spin{width:56px;height:56px;border:6px solid #dfe7d0;border-top-color:#78a22f;border-radius:50%;animation:fdspin .9s linear infinite}@keyframes fdspin{to{transform:rotate(360deg)}}#fdload .le{color:#b91c1c;font-weight:600;max-width:340px}#fdload .btn{min-width:220px}
+#fdload{position:fixed;inset:0;z-index:9999;background:#f7f9fb;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;color:#112337;font-size:20px;font-weight:600}#fdload img{width:260px;max-width:75vw}#fdload .spin{width:56px;height:56px;border:6px solid #dfe7d0;border-top-color:#78a22f;border-radius:50%;animation:fdspin .9s linear infinite}@keyframes fdspin{to{transform:rotate(360deg)}}#fdload .le{color:#b91c1c;font-weight:600;max-width:340px}#fdload .btn{min-width:220px}
 </style></head><body>
-<div id="topstick"><header><button id="brand" type="button" onclick="logoHome()" aria-label="Fielder Field Desk, Home"><img src="logo.png" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="gear" type="button" hidden onclick="openSet()" aria-label="Settings" title="Settings">⚙<span class="sr">Settings</span></button><button id="out" type="button" hidden onclick="logout()">Sign out</button></header>
+<div id="topstick"><header><button id="brand" type="button" onclick="logoHome()" aria-label="Fielder Field Desk, Home"><img src="mark.svg" alt=""><div><b>Fielder Field Desk</b><small id="who">Tree Care &amp; Service</small></div></button><button id="gear" type="button" hidden onclick="openSet()" aria-label="Settings" title="Settings">⚙<span class="sr">Settings</span></button><button id="out" type="button" hidden onclick="logout()">Sign out</button></header>
 <div id="navbar" hidden><button id="back" type="button" onclick="goBack()">← Back</button><button id="navhome" type="button" onclick="navHome()">Home</button></div></div>
 <div class="wrap" id="app"></div><div id="toast"></div><div id="selbar" hidden><button class="btn gr" type="button" onclick="selOff()">Cancel</button><button class="btn red" id="seldel" type="button" onclick="delSel()">Delete 0 selected</button></div><div id="modal" hidden></div><div id="undo" hidden><span id="undot"></span><button type="button" id="undob">Undo</button></div><div id="lb" onclick="if(event.target==this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;align-items:center;justify-content:center;flex-direction:column"><img id="lbi" style="max-width:100%;max-height:80vh"><div class="row" style="width:100%;max-width:560px;padding:10px"><button class="btn n" onclick="nav(-1)">◀</button><button class="btn gr" onclick="$('#lb').style.display='none'">✕ Close</button><button class="btn n" onclick="nav(1)">▶</button></div></div>
 <script src="form.js?v=20261028v"></script>
@@ -131,12 +131,15 @@ function roleLabel(r){return r==='Manager'?'Estimator':r}
 function logout(){try{localStorage.removeItem('fdCache')}catch(e){}SEL=null;selBar();sessionStorage.fdRole='';sessionStorage.fdPin='';role='';cur=null;view='';render()}
 function shrink(f){return new Promise(res=>{const i=new Image();i.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))};i.src=URL.createObjectURL(f)})}
 async function pick(inp,cb){for(const f of inp.files)photos.push(await shrink(f));inp.value='';cb()}
+function fieldFix(q){const V=FDVoice;if(q.tagName==='TEXTAREA'){const r=V.resolve(q.value);if(r.fixes.length){q.value=r.text;window.FDFlags&&FDFlags.flag(q.id,'Corrected from '+r.fixes.map(f=>f.from).join(', '))}return}
+ const m=q.value.match(/^(.*?)[\s,.;]*(?:\b(?:oh wait|no wait|actually|i mean|scratch that|correction|sorry|make that)\b[\s,.;:!-]*)+(?:(?:it'?s|it is|that'?s|make it)\b[\s,:]*)?(.+)$/i);
+ if(!m||!m[1].trim()||!m[2].trim())return;const from=m[1].trim();q.value=V.normNums(m[2].trim());q.dispatchEvent(new Event('input',{bubbles:true}));window.FDFlags&&FDFlags.flag(q.id,'Corrected from '+from)}
 function mic(btnId,fieldId){const SR=window.SpeechRecognition||window.webkitSpeechRecognition,b=$('#'+btnId),q=$('#'+fieldId);
  if(!b||!q)return;if(!SR){b.onclick=()=>toast('Voice not supported here. Use the keyboard mic.');return}
  let r=null;b.onclick=()=>{if(r){const x=r;if(x._muted){x._muted=false;x.onend();return}x.stop();return}r=new SR();r.lang='en-US';r.continuous=true;r.interimResults=false;const me=r;
   const ctl={mute(){me._muted=true;try{me.abort()}catch(e){}},resume(){me._muted=false;try{me.start()}catch(e){}}};me._ctl=ctl;vmOn(ctl);
-  r.onresult=e=>{if(VMUTED||me._muted)return;for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)q.value+=(q.value?' ':'')+e.results[i][0].transcript.trim()};
-  const ic=b.classList.contains('cmic');r.onend=()=>{if(me._muted&&VMCTL===ctl)return;vmOff(ctl);r=null;b.classList.remove('on');b.textContent=ic?'🎤':'🎤 Talk'};r.start();b.classList.add('on');b.textContent=ic?'⏹':'⏹ Stop'}}
+  r.onresult=e=>{if(VMUTED||me._muted)return;for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal){q.value+=(q.value?' ':'')+e.results[i][0].transcript.trim();if(window.FDVoice)fieldFix(q)}};
+  const ic=b.classList.contains('cmic');r.onend=()=>{if(me._muted&&VMCTL===ctl)return;vmOff(ctl);window.FDVoice&&(FDVoice.wake(false),FDVoice.buzz([20,60,20]));r=null;b.classList.remove('on');b.textContent=ic?'🎤':'🎤 Talk'};r.start();window.FDVoice&&(FDVoice.wake(true),FDVoice.buzz(30));b.classList.add('on');b.textContent=ic?'⏹':'⏹ Stop'}}
 let GAL=[];function src(p){return typeof p=='string'?p:'https://lh3.googleusercontent.com/d/'+p.id+'=w1000'}
 function imgs(l){l=l||[];const s=GAL.length;GAL.push(...l);return '<div class="ph">'+l.map((p,i)=>`<img loading="lazy" src="${esc(src(p))}" data-id="${p.id||''}" onerror="fb(this)" onclick="big(${s+i})">`).join('')+'</div>'}
 async function fb(im){if(im.dataset.tried||!im.dataset.id)return;im.dataset.tried=1;try{const r=await fetch(API+'?a=img&id='+im.dataset.id+'&pin='+encodeURIComponent(myPin()));const j=await r.json();im.src=j.data}catch(e){}}
@@ -166,7 +169,7 @@ function goBack(){if(BACKFN&&okToLeave())BACKFN()}
 function logoHome(){if(!role)return;navHome()}
 function navHome(){if(!okToLeave())return;SEL=null;selBar();view='';cur=null;editId='';armBack(null);render();window.scrollTo(0,0)}
 function render(){GAL=[];applyTheme();if(/^(set|setform|conn)$/.test(view)&&role!=='Manager')view='';$('#gear').hidden=role!=='Manager';$('#out').hidden=!role;$('#who').textContent=role?roleLabel(role)+' view':'Tree Care & Service';
- if(!role){pin='';view='';editId='';armBack(null);A.innerHTML=setupCard()+`<div class="card"><h2>Enter your PIN</h2><div id="dots"></div><div class="pin">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
+ if(!role){pin='';view='';editId='';armBack(null);A.innerHTML=setupCard()+`<img class="loginlogo" src="logo.svg" alt="Fielder Tree Care &amp; Service"><div class="card"><h2>Enter your PIN</h2><div id="dots"></div><div class="pin">${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div></div>
  <p class="muted">Free estimates · 24 HR emergency · (850) 656-8737</p>`;return}
  if(view==='set')return setScreen();
  if(view==='setform')return formScreen();
@@ -181,7 +184,7 @@ function key(k){if(k=='⌫')pin=pin.slice(0,-1);else if(k=='✓'||pin.length<4){
 // The server checks the PIN (role PINs live in Script Properties). Old backends without 'login' fall back to the built-in PINs.
 // Full-screen loading state shown from PIN entry until the job list arrives.
 function loadScreen(msg,retry){let o=$('#fdload');if(!o){o=document.createElement('div');o.id='fdload';document.body.appendChild(o)}
- o.innerHTML='<img src="logo.png" alt="Fielder">'+(retry?'<p class="le">'+esc(msg)+'</p><button class="btn g" id="fdretry">Retry</button><button class="btn" id="fdback" style="background:#fff;color:var(--n);border:2px solid var(--n)">Back to PIN</button>':'<div class="spin" role="status" aria-label="Loading"></div><p>'+esc(msg||'Loading…')+'</p>');
+ o.innerHTML='<img src="logo.svg" alt="Fielder Tree Care &amp; Service">'+(retry?'<p class="le">'+esc(msg)+'</p><button class="btn g" id="fdretry">Retry</button><button class="btn" id="fdback" style="background:#fff;color:var(--n);border:2px solid var(--n)">Back to PIN</button>':'<div class="spin" role="status" aria-label="Loading"></div><p>'+esc(msg||'Loading…')+'</p>');
  if(retry){$('#fdretry').onclick=retry;$('#fdback').onclick=()=>{hideLoad();logout()}}}
 function hideLoad(){const o=$('#fdload');if(o)o.remove()}
 // PINs that signed in before on this device (hashed). Only those get the login + job list fetched in parallel,
@@ -487,7 +490,7 @@ let AIREC=null,AICH=[],AIT=null,AIS=0;
 function aiReady(){return !!(SET&&SET.voice)}
 function aiInit(){const b=$('#aibtn');if(!b)return;if(!aiReady()){b.classList.add('gr');b.disabled=true;b.textContent='🎙 Voice quotes need setup';$('#aistat').textContent='Ask the office to add the Gemini key.'}}
 function aiStat(t){const e=$('#aistat');if(e)e.textContent=t}
-let AISR=null,AITX='',AINOSR=false,AICONF=null;
+let RESTARTS=0,AISR=null,AITX='',AINOSR=false,AICONF=null;
 // ===== Mute: one big button while any voice capture is live. Muted = recognition aborted, results ignored, nothing filled. =====
 let VMUTED=false,VMCTL=null;
 const VMIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',VMOFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 9.3V6a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 5.1 2.1M5 11a7 7 0 0 0 11.8 5.1M19 11a7 7 0 0 1-.6 2.8M12 18v3M3 3l18 18"/></svg>';
@@ -502,19 +505,19 @@ async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');c
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(SR&&!AINOSR){let r;try{r=new SR()}catch(e){r=null}
   if(r){AITX='';AICONF=null;let interim='';
-   const fin=()=>{vmOff(ctl);AISR=null;clearInterval(AIT);b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
+   const fin=()=>{vmOff(ctl);window.FDVoice&&(FDVoice.wake(false),FDVoice.buzz([20,60,20]));AISR=null;clearInterval(AIT);b.classList.remove('red');b.textContent='🎙 Have AI fill this quote out';
     const typed=$('#qt')?$('#qt').value.trim():'',said=(AITX+' '+interim).trim();interim='';const t=[said,typed].filter(Boolean).join('\n');
     if(!t){if(r._err&&r._err!=='no-speech'&&r._err!=='aborted'&&r._err!=='not-allowed'){AINOSR=true;aiStat('Speech recognition unavailable ('+r._err+'). Tap again to record audio instead.');return}return aiStat('Nothing heard. Try again or type the quote in the box.')}aiSend({text:t})};
-   const wire=x=>{r=x;AISR=x;x.lang='en-US';x.continuous=true;x.interimResults=true;
+   const wire=x=>{r=x;AISR=x;try{x._ctl=ctl}catch(e){}x.lang='en-US';x.continuous=true;x.interimResults=true;
     x.onresult=ev=>{if(VMUTED||x._muted)return;interim='';for(let i=ev.resultIndex;i<ev.results.length;i++){const t=ev.results[i][0].transcript;if(ev.results[i].isFinal){AITX+=t+' ';const cf=ev.results[i][0].confidence;if(cf>0)AICONF=AICONF==null?cf:Math.min(AICONF,cf)}else interim+=t}aiStat('Heard: '+(AITX+interim).slice(-160))};
     x.onerror=ev=>{x._err=ev.error;if(ev.error==='not-allowed')toast('Speech blocked. Allow the microphone, or type the quote in the box.')};
-    x.onend=()=>{if(x._muted)return;if(x._fin||AISR===x)fin()}};
+    x.onend=()=>{if(x._muted)return;if(AISR===x&&!x._fin&&!/not-allowed|service-not-allowed|audio-capture/.test(x._err||'')&&RESTARTS++<30&&Date.now()-AIS<300000){let y;try{y=new SR()}catch(e){y=null}if(y){wire(y);try{y.start();aiStat('Still listening… '+AITX.slice(-120));return}catch(e){}}}if(x._fin||AISR===x)fin()}};
    // stop while muted: fill from what was heard before muting
    const ctl={mute(){r._muted=true;interim='';try{r.abort()}catch(e){}aiStat('Muted. Nothing is being heard. Tap the mic button to resume.')},
     resume(){let x;try{x=new SR()}catch(e){return}wire(x);try{x.start()}catch(e){}aiStat('Listening… '+AITX.slice(-120))},
-    stop(){if(VMUTED){fin()}else r.stop()}};
-   wire(r);try{r.start()}catch(e){AISR=null}
-   if(AISR){AISR._ctl=ctl;vmOn(ctl);AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
+    stop(){r._fin=true;if(VMUTED){fin()}else r.stop()}};
+   RESTARTS=0;wire(r);try{r.start()}catch(e){AISR=null}
+   if(AISR){AISR._ctl=ctl;vmOn(ctl);AIS=Date.now();window.FDVoice&&(FDVoice.wake(true),FDVoice.buzz(40));AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
     AIT=setInterval(()=>{if(Date.now()-AIS>300000&&AISR)ctl.stop()},1000);return}}}
  if(!navigator.mediaDevices||!window.MediaRecorder){const t=$('#qt')?$('#qt').value.trim():'';if(!t)return toast('Recording is not supported here. Type or dictate the quote in the box, then tap the button again.');return aiSend({text:t})}
  let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){return toast('Microphone blocked. Allow it, or type the quote in the box.')}
@@ -527,9 +530,11 @@ async function aiStart(){if(!aiReady())return toast('Voice quotes need setup');c
  const rec=AIREC,rctl={mute(){try{rec.pause()}catch(e){}aiStat('Muted. Nothing is being recorded. Tap the mic button to resume.')},resume(){try{rec.resume()}catch(e){}}};
  AIREC.start();vmOn(rctl);AIS=Date.now();b.classList.add('red');b.textContent='⏹ Stop and fill the quote';aiStat('Listening… say the customer, the work and prices, and anything for the crew.');
  AIT=setInterval(()=>{if(VMUTED)return;const s=Math.round((Date.now()-AIS)/1000);aiStat('Recording '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+(s>240?' (keep it under 5 minutes)':''));if(s>=300&&AIREC)AIREC.stop()},1000)}
-async function aiSend(body){const b=$('#aibtn');b.disabled=true;aiStat('AI is filling the quote…');
- try{const r=await api(Object.assign({a:'voiceQuote',pin:myPin()},body));aiFill(r.result||{});if(window.FDFlags)FDFlags.applyFlags(r.result||{},AICONF);aiStat('Filled in. Check anything marked in amber before you send.')}
- catch(e){aiStat('');toast(REDEPLOY(e.message)||/role cannot do that/.test(e.message)?'Voice quotes need a Field Desk script update first.':e.message)}
+async function aiSend(body){const b=$('#aibtn');b.disabled=true;aiStat('AI is filling the quote…');const V=window.FDVoice;let fixes=[];const orig=body;
+ if(V&&body.text){const raw=body.text;const rs=V.resolve(raw);fixes=rs.fixes;V.save(raw);body=Object.assign({},body,{text:V.NOTE+'\n'+rs.text})}
+ try{const r=await api(Object.assign({a:'voiceQuote',pin:myPin()},body));aiFill(r.result||{});if(window.FDFlags)FDFlags.applyFlags(r.result||{},AICONF);let fx=[];if(V){fx=V.applyFixes(fixes,IT,drawPv);V.clear()}aiStat('Filled in. '+fx.join(' ')+(fx.length?' ':'')+'Check anything marked in amber before you send.')}
+ catch(e){const msg=REDEPLOY(e.message)||/role cannot do that/.test(e.message)?'Voice quotes need a Field Desk script update first.':e.message;aiStat('');toast(msg);
+  const st=$('#aistat');if(st&&orig.text&&!/script update/.test(msg)){const p=document.createElement('span');p.textContent='Could not fill the quote. What you said is saved. ';const rb=document.createElement('button');rb.type='button';rb.id='airetry';rb.className='btn g';rb.textContent='↻ Retry fill (no need to re-speak)';rb.onclick=()=>aiSend(orig);st.appendChild(p);st.appendChild(rb)}}
  b.disabled=false}
 // Customer and estimate parts go to customer-facing fields. Crew parts go ONLY to Internal notes.
 function aiFill(o){const c=o.customer||{},e=o.estimate||{},k=o.crew||{};
@@ -557,4 +562,4 @@ function prev(){var spoken=$('#qt')?$('#qt').value.trim():'';var svc=$('#svc')?$
 function drawPv(){var t=IT.reduce(function(a,i){return a+(Number(i.price)||0)},0);var face=FDForm.customerPreviewHtml(quoteFace(),formCfg());var sendBtn=editId?'<button class="btn huge" id="sqsave" type="button" onclick="saveEdit(false)">Save</button><button class="btn huge d" id="sq" type="button" onclick="saveEdit(true)">Send updated estimate</button>':'<p style="font-weight:700;margin:14px 0 4px">How should the customer get it?</p><button class="btn huge" id="sq" type="button" onclick="sendQ()">📧 Email quote + PDF</button><button class="btn huge n" id="sqt" type="button" onclick="sendQT()">💬 Text a link</button><p class="muted" id="sqtnote"></p>';$('#pv').innerHTML='<div class="card" style="border:3px solid var(--g)"><h2>Customer will see</h2><p class="muted">Edit anything. Blank price = Included. Internal notes are not in this box.</p>'+face+IT.map(function(i,n){return '<div style="border-bottom:1px solid #e6e9e0;padding:8px 0"><input value="'+esc(i.title)+'" oninput="IT['+n+'].title=this.value" style="font-weight:700"><textarea rows="2" oninput="IT['+n+'].detail=this.value" style="margin-top:6px;font-size:15px">'+esc(i.detail)+'</textarea><div class="row"><input inputmode="decimal" placeholder="Price" value="'+(i.price==null?'':i.price)+'" oninput="IT['+n+'].price=this.value===\'\'?null:Number(this.value.replace(/[$,]/g,\'\'));$(\'#tot\').textContent=money(IT.reduce(function(a,i){return a+(Number(i.price)||0)},0))"><button class="btn gr" style="margin:0;flex:0 0 90px" onclick="IT.splice('+n+',1);drawPv()">Remove</button></div></div>'}).join('')+'<button class="btn gr" onclick="IT.push({title:\'\',detail:\'\',price:null});drawPv()">+ Add line</button><p style="font-size:22px;text-align:right"><b>Total: <span id="tot">'+money(t)+'</span></b></p>'+sendBtn+'</div>';if(!editId){txtState();if($('#ph'))$('#ph').oninput=txtState;$('#pv').scrollIntoView({behavior:'smooth'})}}
 if(role){if(loadCache()){render();refresh().then(()=>{if(onListScreen())render()})}else{const go=async()=>{loadScreen('Loading…');try{useData(await api());hideLoad();render()}catch(e){loadScreen("Couldn't load your jobs. "+(e.message||''),go)}};go()}}else render();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)))navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script><script src="v5.js?v=20261027c"></script><script src="csv.js?v=20261028a"></script><script src="flags.js?v=20261029a"></script></body></html>
+</script><script src="v5.js?v=20261027c"></script><script src="csv.js?v=20261028a"></script><script src="flags.js?v=20261029a"></script><script src="voice.js?v=20261030a"></script></body></html>
