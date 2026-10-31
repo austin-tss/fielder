@@ -317,7 +317,7 @@ export async function clockApi(d, role, empName) {
     const at = cAt(d.at), cid = String(d.cid || '').slice(0, 40); let res;
     const op = cOpen(who);
     if (cid && punches.some((x) => x.cid === cid || x.ocid === cid)) res = { ok: true, dup: true };
-    else if (d.a === 'clockIn') { if (op) res = { ok: false, already: true, err: who + ' is already clocked in.' }; else { punches.push({ id: 'P-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), who, in: at, out: null, cid, by: role, src: d.offline ? 'offline' : 'app' }); res = { ok: true }; } }
+    else if (d.a === 'clockIn') { if (op) res = { ok: false, already: true, err: who + ' is already clocked in.' }; else { punches.push({ id: 'P-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), who, in: at, out: null, cid, by: role, src: d.offline ? 'offline' : 'app', dev: d.deviceId, devName: d.deviceName }); res = { ok: true }; } }
     else { if (!op) res = { ok: false, notIn: true, err: who + ' is not clocked in.' }; else { op.out = at < op.in ? op.in : at; op.ocid = cid; res = { ok: true }; } }
     return { ...res, ...cSum(who) };
   });

@@ -502,7 +502,7 @@ function get_(e){var p=(e&&e.parameter)||{};
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
-var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1};
+var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
@@ -655,37 +655,121 @@ function qboFinish_(p){var expect=qboProp_('QBO_STATE');if(!p.code||!p.state||p.
   try{qboApplyTok_({},qboExchange_('grant_type=authorization_code&code='+encodeURIComponent(p.code)+'&redirect_uri='+encodeURIComponent(qboRedirect_())),p.realmId)}catch(e2){return page_('<h2>QuickBooks</h2><p>Could not finish connecting. Check the Intuit keys and try again.</p>')}
   return page_('<h2>QuickBooks connected</h2><p>You can close this tab and return to the app.</p><p><a href="https://austin-tss.github.io/fielder/">Back to Fielder Field Desk</a></p>')}
 
-// ===== Crew clock in/out (modeled on TSShourtracker). Punches live in punches.json: [{id,who,in,out,cid,by,src,edited}] =====
-// Lock covers only read-change-write of punches.json (separate file from jobs.json, so clocking never waits on job saves for long).
-var CLOCK_TZ='America/New_York',CLOCK_ACTS_={clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1};
+// ===== Crew clock in/out (modeled on TSShourtracker). =====
+// Punches are sharded by week and name bucket: punches-YYYY-MM-DD-b.json (Sunday-start week in America/New_York, b = name hash % 4):
+// [{id,who,in,out,cid,ocid,by,src,dev,odev,devName,flag,edited}]. A person's punches for a week are always in one small file.
+// The clock has its OWN lock (LockService user lock: this web app runs as the owner, so it is one global lock separate from the
+// job/script lock). Inside it a punch only touches CacheService (the live copy, written only by lock holders). Drive files are then
+// written by a short flush that coalesces every dirty shard, so 30 crew punching at once cost a few Drive writes, not 30 rewrites.
+var CLOCK_TZ='America/New_York',CLOCK_ACTS_={clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1};
+var CLOCK_SKEW=15*60000,CLOCK_REPLAY=72*3600000,CLOCK_MAXSHIFT=16*3600000,CLOCK_FIXBACK=14*86400000,CLOCK_BUSY_={ok:false,busy:true,err:'Busy, please retry'};
+function clockLock_(ms){var L=null;try{L=LockService.getUserLock()}catch(e){}if(!L)try{L=LockService.getScriptLock()}catch(e){}try{if(L&&L.tryLock(ms||20000))return L}catch(e){}return null;}
 function clockWho_(d,me){var e=empOf_(d);if(e&&e.name)return clip_(e.name,60);return clip_(String(d.who||'').replace(/[\u0000-\u001f<>]/g,'').replace(/\s+/g,' '),60);}
 function clockKey_(s){return String(s||'').trim().toLowerCase();}
-function clockAt_(v){var now=Date.now(),t=v?new Date(v).getTime():now;if(!isFinite(t))t=now;if(t>now+5*60000)t=now;if(t<now-14*86400000)t=now-14*86400000;return new Date(t).toISOString();}
 function clockDayStart_(ms,back){var s=Utilities.formatDate(new Date(ms),CLOCK_TZ,'yyyy-MM-dd'),p=s.split('-').map(Number),u=new Date(Date.UTC(p[0],p[1]-1,p[2]-(back||0)));return Utilities.parseDate(Utilities.formatDate(u,'UTC','yyyy-MM-dd')+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime();}
 function clockWeekStart_(ms){var dow=Number(Utilities.formatDate(new Date(ms),CLOCK_TZ,'u'))%7;return clockDayStart_(ms,dow);}// Sunday start, like TSShourtracker
-function clockHrs_(ps,who,a,b,now){var k=clockKey_(who),ms=0;ps.forEach(function(p){if(who&&clockKey_(p.who)!==k)return;var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():now;s=Math.max(s,a);e=Math.min(e,b);if(e>s)ms+=e-s;});return Math.round(ms/36000)/100;}
+var CLOCK_BUCKETS=4;
+function clockBucket_(who){var k=clockKey_(who),h=0;for(var i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))|0;return Math.abs(h)%CLOCK_BUCKETS;}
+function clockShard_(ms,who){return 'punches-'+Utilities.formatDate(new Date(clockWeekStart_(ms)),CLOCK_TZ,'yyyy-MM-dd')+'-'+clockBucket_(who)+'.json';}
+function clockIndex_(){try{var a=JSON.parse(prop_('CLOCK_SHARDS')||'[]');return Array.isArray(a)?a:[]}catch(e){return []}}
+// Cache 'ck:<shard>' = {v,p} is the live copy (only lock holders put it); 'ckv:<shard>' = version last written to Drive.
+function clockC_(){try{return CacheService.getScriptCache()}catch(e){return null}}
+function clockRead_(n){var c=clockC_();try{var x=c&&c.get('ck:'+n);if(x)return JSON.parse(x).p}catch(e){}return load_(n);}
+function clockWrite_(n,arr){var c=clockC_(),v=newId_('V'),s=JSON.stringify({v:v,p:arr}),cached=false;
+  if(c&&s.length<95000)try{c.put('ck:'+n,s,21600);cached=true}catch(e){}
+  if(!cached){if(c)try{c.remove('ck:'+n)}catch(e){}save_(arr,n);}else{var d=clockDirty_();if(d.indexOf(n)<0){d.push(n);c.put('ckdirty',JSON.stringify(d),21600);}}
+  var ix=clockIndex_();if(ix.indexOf(n)<0){ix.push(n);ix.sort();PropertiesService.getScriptProperties().setProperty('CLOCK_SHARDS',JSON.stringify(ix));}}
+function clockDirty_(){var c=clockC_();try{var d=JSON.parse(c&&c.get('ckdirty')||'[]');return Array.isArray(d)?d:[]}catch(e){return []}}
+// Write every dirty shard's latest cached copy to Drive. Called after a punch releases the lock; whoever gets the lock writes all
+// pending punches, so later callers usually find nothing left to do. Also run by clockFlushAll (time trigger, every minute is fine).
+function clockFlush_(ms){var c=clockC_();if(!c||!clockDirty_().length)return true;var L=clockLock_(ms||20000);if(!L)return false;
+  try{var d=clockDirty_();d.forEach(function(n){var x=c.get('ck:'+n);if(!x)return;var o=JSON.parse(x);if(c.get('ckv:'+n)===o.v)return;save_(o.p,n);c.put('ckv:'+n,o.v,21600);});c.put('ckdirty','[]',21600);}
+  finally{unlock_(L)}return true;}
+function clockFlushAll(){clockFlush_(25000);}
+// Run once from the editor after deploying: safety net that writes any punch still only in the cache (e.g. a flush that timed out).
+function installClockFlushTrigger(){ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()=='clockFlushAll')ScriptApp.deleteTrigger(t)});
+  ScriptApp.newTrigger('clockFlushAll').timeBased().everyMinutes(1).create();Logger.log('clockFlushAll trigger installed (every minute)');}
+// One-time move of the old single punches.json into weekly shards (runs under the clock lock).
+function clockMigrate_(){if(prop_('CLOCK_MIGRATED')==='1')return;var old=[];try{var r=root_(),it=r.getFilesByName('punches.json');if(it.hasNext())old=JSON.parse(it.next().getBlob().getDataAsString()||'[]')}catch(e){old=[]}
+  var by={};old.forEach(function(p){var n=clockShard_(new Date(p.in).getTime(),p.who);(by[n]=by[n]||[]).push(p)});
+  for(var n in by){var cur=clockRead_(n),ids={};cur.forEach(function(p){ids[p.id]=1});clockWrite_(n,cur.concat(by[n].filter(function(p){return !ids[p.id]})));}
+  PropertiesService.getScriptProperties().setProperty('CLOCK_MIGRATED','1');}
+// Shards whose week could hold punches touching [a,b] (one extra week back for shifts that cross Sunday midnight).
+function clockNames_(a,b,who){var lo=clockShard_(a-7*86400000,'').slice(0,18),hi=clockShard_(b,'').slice(0,18),bk=who==null?null:'-'+clockBucket_(who)+'.json';
+  return clockIndex_().filter(function(n){var w=n.slice(0,18);return w>=lo&&w<=hi&&(bk==null||n.slice(18)===bk)});}
+function clockLoad_(names){var m={},all=[];names.forEach(function(n){m[n]=clockRead_(n);all=all.concat(m[n])});return {m:m,all:all};}
+function clockEnd_(p,now){return p.out?new Date(p.out).getTime():Math.min(now,new Date(p.in).getTime()+CLOCK_MAXSHIFT);}
+function clockHrs_(ps,who,a,b,now){var k=clockKey_(who),ms=0;ps.forEach(function(p){if(who&&clockKey_(p.who)!==k)return;var s=new Date(p.in).getTime(),e=clockEnd_(p,now);s=Math.max(s,a);e=Math.min(e,b);if(e>s)ms+=e-s;});return Math.round(ms/36000)/100;}
 function clockOpen_(ps,who){var k=clockKey_(who);return ps.filter(function(p){return !p.out&&clockKey_(p.who)===k})[0]||null;}
-function clockSum_(ps,who){var now=Date.now(),d0=clockDayStart_(now),w0=clockWeekStart_(now);return {who:who,open:clockOpen_(ps,who),today:clockHrs_(ps,who,d0,now,now),week:clockHrs_(ps,who,w0,now,now)};}
-function clockApi_(d,me){if(!CLOCK_ACTS_[d.a])return null;var boss=me==='Admin'||me==='Manager';
-  if(d.a=='clockList'){if(!boss)return {ok:false,err:'Only Admin can see everyone\'s hours.'};var ps=load_('punches.json'),f=d.from?Utilities.parseDate(d.from+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime():0,t=d.to?Utilities.parseDate(d.to+' 23:59',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime()+60000:Date.now()+86400000;
-    var sel=ps.filter(function(p){var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():Date.now();return e>=f&&s<t&&(!d.who||clockKey_(p.who)===clockKey_(d.who))});
-    return {ok:true,punches:sel,now:ps.filter(function(p){return !p.out})};}
-  if(d.a=='clockFix'){if(!boss)return {ok:false,err:'Only Admin can fix punches.'};var ni=d.in?clockAt_(d.in):'',no=d.out?new Date(d.out).toISOString():'';
-    if(!d.del){if(!ni)return {ok:false,err:'Enter the clock-in time.'};if(no&&new Date(no)<=new Date(ni))return {ok:false,err:'Clock-out must be after clock-in.'};if(no&&new Date(no)-new Date(ni)>24*3600000)return {ok:false,err:'A shift cannot be longer than 24 hours.'};}
-    var L=lock_(10000);if(!L)return BUSY_;var r;try{var ps2=load_('punches.json'),p;
-      if(d.id){p=ps2.filter(function(x){return x.id===d.id})[0];if(!p)r={ok:false,err:'Punch not found'};else if(d.del){ps2=ps2.filter(function(x){return x.id!==d.id});save_(ps2,'punches.json');r={ok:true,deleted:d.id};}
-        else{if(!no&&clockOpen_(ps2,p.who)&&clockOpen_(ps2,p.who).id!==p.id)r={ok:false,err:p.who+' already has an open punch.'};else{p.in=ni;p.out=no||null;p.edited={by:me,at:new Date().toISOString()};save_(ps2,'punches.json');r={ok:true,punch:p};}}}
-      else{var w=clip_(d.who,60);if(!w)r={ok:false,err:'Pick the person.'};else if(!no&&clockOpen_(ps2,w))r={ok:false,err:w+' is already clocked in.'};else{p={id:newId_('P-'),who:w,in:ni,out:no||null,by:me,src:'fix',edited:{by:me,at:new Date().toISOString()}};ps2.push(p);save_(ps2,'punches.json');r={ok:true,punch:p};}}
-    }finally{unlock_(L);}return r;}
-  var who=clockWho_(d,me);if(!who)return {ok:false,err:'Pick your name first.',needName:true};
-  if(d.a=='clockStatus')return Object.assign({ok:true},clockSum_(load_('punches.json'),who));
-  var at=clockAt_(d.at),cid=clip_(d.cid,40),L2=lock_(10000);if(!L2)return BUSY_;var res,ps3;
-  try{ps3=load_('punches.json');var dup=cid&&ps3.filter(function(x){return x.cid===cid||x.ocid===cid})[0],op=clockOpen_(ps3,who);
-    if(dup)res={ok:true,dup:true};
-    else if(d.a=='clockIn'){if(op)res={ok:false,already:true,err:who+' is already clocked in.'};else{ps3.push({id:newId_('P-'),who:who,in:at,out:null,cid:cid,by:me,src:d.offline?'offline':'app'});save_(ps3,'punches.json');res={ok:true};}}
-    else{if(!op)res={ok:false,notIn:true,err:who+' is not clocked in.'};else{if(new Date(at)<new Date(op.in))at=op.in;op.out=at;op.ocid=cid;save_(ps3,'punches.json');res={ok:true};}}
+function clockPub_(p,now){if(!p)return p;var o=Object.assign({},p);if(!o.out&&now-new Date(o.in).getTime()>CLOCK_MAXSHIFT){o.long=true;o.flag=o.flag||'Open more than 16 h. Check with crew.';}return o;}
+function clockSum_(ps,who){var now=Date.now(),d0=clockDayStart_(now),w0=clockWeekStart_(now);return {who:who,open:clockPub_(clockOpen_(ps,who),now),today:clockHrs_(ps,who,d0,now,now),week:clockHrs_(ps,who,w0,now,now)};}
+// Time for a live punch or an offline replay. Live: phone time must be within 15 min of the server, otherwise the server time is used.
+// Replay (offline:true with its original queuedAt + cid): the punch time must match when it was queued, and that must be within 72 h.
+function clockTime_(d,now){var t=d.at?Date.parse(d.at):NaN;if(!isFinite(t))return {t:now};
+  if(d.offline&&d.queuedAt&&d.cid){var q=Date.parse(d.queuedAt);if(!isFinite(q)||Math.abs(t-q)>CLOCK_SKEW||q>now+CLOCK_SKEW)return {err:'This saved punch has a bad time. Ask Admin to add it.',badTime:true};
+    if(q<now-CLOCK_REPLAY)return {err:'This punch was saved on the phone more than 72 hours ago, so it was not sent. Ask Admin to add it.',tooOld:true};return {t:Math.min(t,now),replay:true};}
+  if(Math.abs(t-now)>CLOCK_SKEW)return {t:now,skew:Math.round((t-now)/60000)};return {t:Math.min(t,now)};}
+function clockDevs_(){try{var o=JSON.parse(prop_('CLOCK_DEVICES')||'{}');o.byDev=o.byDev||{};o.byName=o.byName||{};return o}catch(e){return {byDev:{},byName:{}}}}
+function clockDevSave_(o){PropertiesService.getScriptProperties().setProperty('CLOCK_DEVICES',JSON.stringify(o));}
+function clockBind_(o,dev,who){var k=clockKey_(who),old=o.byDev[dev];if(old&&o.byName[old]===dev)delete o.byName[old];var od=o.byName[k];if(od)delete o.byDev[od];o.byDev[dev]=k;o.byName[k]=dev;o.names=o.names||{};o.names[k]=who;}
+// Name is locked to the phone after first use; a name is on one phone at a time. Employee logins (own PIN) skip this.
+function clockDevCheck_(d,who,emp){var dev=clip_(d.deviceId,64);if(emp)return {dev:dev};if(!dev)return {err:'Update the app to clock in (this phone has no device ID).',needUpdate:true};
+  var o=clockDevs_(),k=clockKey_(who),had=o.byDev[dev];
+  if(had&&had!==k)return {err:'This phone is set to '+((o.names||{})[had]||had)+'. Admin PIN is needed to change it.',nameLocked:true};
+  if(o.byName[k]&&o.byName[k]!==dev)return {err:who+' is set up on another phone. Admin PIN is needed to move it to this phone.',nameLocked:true};
+  if(!had){clockBind_(o,dev,who);clockDevSave_(o);}return {dev:dev};}
+function clockApi_(d,me){if(!CLOCK_ACTS_[d.a])return null;var r=clockApi0_(d,me);if(r&&r.ok&&(d.a=='clockFix'||d.a=='clockDevice'))clockFlush_(15000);return r;}
+function clockApi0_(d,me){var boss=me==='Admin',now=Date.now();
+  if(d.a=='clockDevice'){// change this phone's name: needs the Admin PIN (adminPin), or an Admin login.
+    var okA=boss||(d.adminPin&&roleOf_({pin:d.adminPin})==='Admin');if(!okA)return {ok:false,err:'Admin PIN needed to change the name on this phone.'};
+    var dv=clip_(d.deviceId,64),nw=clockWho_({who:d.who},me);if(!dv||!nw)return {ok:false,err:'Pick the name.'};
+    var Ld=clockLock_(10000);if(!Ld)return CLOCK_BUSY_;try{var o=clockDevs_();clockBind_(o,dv,nw);clockDevSave_(o);}finally{unlock_(Ld);}return {ok:true,who:nw};}
+  if(d.a=='clockList'){if(!boss)return {ok:false,err:'Only Admin can see everyone\'s hours.'};var f=d.from?Utilities.parseDate(d.from+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime():0,t=d.to?Utilities.parseDate(d.to+' 23:59',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime()+60000:now+86400000;
+    var ps=clockLoad_(f?clockNames_(f,t):clockIndex_()).all,recent=clockLoad_(clockNames_(now-14*86400000,now)).all;
+    var sel=ps.filter(function(p){var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():now;return e>=f&&s<t&&(!d.who||clockKey_(p.who)===clockKey_(d.who))});
+    return {ok:true,punches:sel.map(function(p){return clockPub_(p,now)}),now:recent.filter(function(p){return !p.out}).map(function(p){return clockPub_(p,now)})};}
+  if(d.a=='clockFix'){if(!boss)return {ok:false,err:'Only Admin can fix punches.'};
+    var ni=0,no=0;if(!d.del){ni=d.in?Date.parse(d.in):NaN;no=d.out?Date.parse(d.out):0;
+      if(!isFinite(ni))return {ok:false,err:'Enter the clock-in time.'};if(!isFinite(no))return {ok:false,err:'That clock-out time is not valid.'};
+      if(ni<now-CLOCK_FIXBACK)return {ok:false,err:'Clock-in is more than 14 days ago. Only the last 14 days can be fixed here.',outOfWindow:true};
+      if(ni>now+5*60000)return {ok:false,err:'Clock-in cannot be in the future.',outOfWindow:true};
+      var clamped=false;if(no&&no>now){no=now;clamped=true;}
+      if(no&&no<=ni)return {ok:false,err:clamped?'Clock-out was in the future, so it was set to now, which is before the clock-in.':'Clock-out must be after clock-in.'};
+      if(no&&no-ni>24*3600000)return {ok:false,err:'A shift cannot be longer than 24 hours.'};}
+    var L=clockLock_(10000);if(!L)return CLOCK_BUSY_;var r;try{clockMigrate_();
+      var all=d.id?clockIndex_():clockNames_(ni,now,clip_(d.who,60)),S=clockLoad_(all),p=null,pn=null;
+      if(d.id){for(var n in S.m){var hit=S.m[n].filter(function(x){return x.id===d.id})[0];if(hit){p=hit;pn=n;break}}if(!p)return {ok:false,err:'Punch not found'};}
+      if(d.del){clockWrite_(pn,S.m[pn].filter(function(x){return x.id!==d.id}));return {ok:true,deleted:d.id};}
+      var w=p?p.who:clip_(d.who,60);if(!w)return {ok:false,err:'Pick the person.'};var k=clockKey_(w),e1=no||now;
+      var clash=S.all.filter(function(x){if(x===p||clockKey_(x.who)!==k)return false;var s=new Date(x.in).getTime(),e=x.out?new Date(x.out).getTime():now;return s<e1&&ni<e})[0];
+      if(clash)return {ok:false,err:w+' already has a punch from '+Utilities.formatDate(new Date(clash.in),CLOCK_TZ,'MMM d h:mm a')+' that overlaps this one.',overlap:true};
+      if(!no){var op=clockOpen_(S.all,w);if(op&&op!==p)return {ok:false,err:w+' already has an open punch.'};}
+      var ed={by:me,at:new Date().toISOString()},tn=clockShard_(ni,w);
+      if(p){p.in=new Date(ni).toISOString();p.out=no?new Date(no).toISOString():null;p.edited=ed;delete p.flag;
+        if(tn!==pn){clockWrite_(pn,S.m[pn].filter(function(x){return x!==p}));var dst=S.m[tn]||clockRead_(tn);dst.push(p);clockWrite_(tn,dst);}else clockWrite_(pn,S.m[pn]);}
+      else{p={id:newId_('P-'),who:w,in:new Date(ni).toISOString(),out:no?new Date(no).toISOString():null,by:me,src:'fix',edited:ed};var arr=S.m[tn]||clockRead_(tn);arr.push(p);clockWrite_(tn,arr);}
+      r={ok:true,punch:p,clamped:clamped};}finally{unlock_(L);}return r;}
+  var emp=empOf_(d),who=clockWho_(d,me);if(!who)return {ok:false,err:'Pick your name first.',needName:true};
+  if(d.a=='clockStatus')return Object.assign({ok:true},clockSum_(clockLoad_(clockNames_(now-7*86400000,now,who)).all,who));
+  var tm=clockTime_(d,now);if(tm.err)return {ok:false,err:tm.err,tooOld:!!tm.tooOld,badTime:!!tm.badTime};
+  var at=tm.t,cid=clip_(d.cid,40),L2=clockLock_(20000);if(!L2)return CLOCK_BUSY_;var res,all2;
+  try{clockMigrate_();var S2=clockLoad_(clockNames_(now-7*86400000,now,who));all2=S2.all;
+    var dup=cid&&all2.filter(function(x){return x.cid===cid||x.ocid===cid})[0];if(dup)res={ok:true,dup:true};
+    else{var dc=clockDevCheck_(d,who,emp);if(dc.err)res={ok:false,err:dc.err,nameLocked:!!dc.nameLocked,needUpdate:!!dc.needUpdate};
+    else{var op2=clockOpen_(all2,who),src=tm.replay?'offline':'app',devName=clip_(d.deviceName,40);
+      if(d.a=='clockIn'){var auto=null;
+        if(op2&&at-new Date(op2.in).getTime()>CLOCK_MAXSHIFT){op2.out=new Date(new Date(op2.in).getTime()+CLOCK_MAXSHIFT).toISOString();op2.flag='Auto-closed at 16 h (no clock-out). Check with crew.';auto=op2;
+          var on=clockShard_(new Date(op2.in).getTime(),op2.who);clockWrite_(on,S2.m[on]);op2=null;}
+        if(op2)res={ok:false,already:true,err:who+' is already clocked in.'};
+        else{if(auto&&at<new Date(auto.out).getTime())at=new Date(auto.out).getTime();var np={id:newId_('P-'),who:who,in:new Date(at).toISOString(),out:null,cid:cid,by:me,src:src,dev:dc.dev,devName:devName};if(tm.skew)np.skewMin=tm.skew;
+          var sn=clockShard_(at,who),sa=S2.m[sn]||clockRead_(sn);sa.push(np);all2.push(np);clockWrite_(sn,sa);res={ok:true,autoClosed:auto?auto.id:undefined};}}
+      else{if(!op2)res={ok:false,notIn:true,err:who+' is not clocked in.'};else{var oin=new Date(op2.in).getTime();if(at<oin)at=oin;
+        if(at-oin>CLOCK_MAXSHIFT){at=oin+CLOCK_MAXSHIFT;op2.flag='Over 16 h, capped at 16 h. Check with crew.';}
+        op2.out=new Date(at).toISOString();op2.ocid=cid;op2.odev=dc.dev;if(tm.skew)op2.oskewMin=tm.skew;var osn=clockShard_(oin,op2.who);clockWrite_(osn,S2.m[osn]);res={ok:true,capped:!!op2.flag};}}}}
   }finally{unlock_(L2);}
-  return Object.assign(res,clockSum_(ps3,who));}
+  if(res.ok&&!res.dup&&!clockFlush_(5000))res.pending=true;
+  if(tm.skew&&res.ok)res.note='Phone clock is off by '+tm.skew+' min; server time was used.';
+  return Object.assign(res,clockSum_(all2,who));}
 // ===== Employees (Admin only). Codes are 4 digits, unique, never returned by empList. =====
 function empPublic_(u){return {id:u.id,name:u.name,email:u.email,role:u.role,created:u.created}}
 function empApi_(d){

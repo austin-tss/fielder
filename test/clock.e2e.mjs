@@ -36,6 +36,7 @@ try {
   await page.click('#clockbtn');
   await page.waitForFunction(() => $('#clockbtn').textContent === 'Clock Out' && !JSON.parse(localStorage.fdClockQ || '[]').length);
   if (punches.filter((p) => !p.out && p.who === 'Sam Oak').length !== 1) fail('server punch missing');
+  { const sp0 = punches.find((p) => !p.out && p.who === 'Sam Oak'); const did = await page.evaluate(() => JSON.parse(localStorage.fdDevId || '""')); if (!did || sp0.dev !== did || !sp0.devName) fail('deviceId not sent ' + JSON.stringify(sp0)); }
   // Double tap from a second phone is rejected by the server.
   const dbl = await page.evaluate(() => api({ a: 'clockIn', who: 'Sam Oak', cid: 'X1' }).then(() => 'ok', (e) => e.message)); if (!/already clocked in/.test(dbl)) fail('double clock-in allowed: ' + dbl);
   await page.screenshot({ path: '/workspace/fielder-clock-crew.png' });
@@ -66,7 +67,7 @@ try {
   await page.evaluate(() => logout()); await login('6789'); await page.waitForSelector('#row-hours'); await page.click('#row-hours');
   await page.waitForFunction(() => document.body.innerText.includes('On the clock now (1)') && document.querySelector('#htot'));
   const tot = await page.$eval('#htot', (t) => t.innerText); if (!/Sam Oak\s+2\.0\d/.test(tot)) fail('totals ' + tot);
-  const csv = await page.evaluate(() => hoursCsvText()); if (!/^Name,Date,Clock in,Clock out,Hours,Edited\r\n/.test(csv) || (csv.match(/Sam Oak/g) || []).length !== 3) fail('csv ' + csv);
+  const csv = await page.evaluate(() => hoursCsvText()); if (!/^Name,Date,Clock in,Clock out,Hours,Edited,Device,Flag\r\n/.test(csv) || (csv.match(/Sam Oak/g) || []).length !== 3) fail('csv ' + csv);
   await page.screenshot({ path: '/workspace/fielder-clock-admin.png', fullPage: true });
   // Fix a missed punch: close the open one.
   const open = punches.find((p) => !p.out); await page.evaluate((id) => punchEdit(id), open.id);
