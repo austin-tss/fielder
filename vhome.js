@@ -58,6 +58,7 @@ function route(raw){const t=norm(raw);let m;
  if(/^(go )?(back )?home$|^main (menu|screen)$|^start over$/.test(t)){go(navHome);return done('Home')}
  if(/\b(use )?(buttons|forms)( instead)?\b/.test(t)&&!/invoice/.test(t)){forms();return}
  if(/\bvoice mode\b/.test(t)){voice();return}
+ if(/(use )?my location|i'?m here|i am here|where i am|current location/.test(t)&&window.FDGPS){if(!document.getElementById('ad')){if(role!=='Manager')return done('Location fills the address on a quote.');go(()=>newq())}FDGPS.fill(false);return done('Finding your address…')}
  if(/^(save|save it|done)$/.test(t)&&document.getElementById('bsv')){document.getElementById('bsv').click();return done('Saving')}
  if(/^cancel$/.test(t)&&ctx()==='blk'&&document.getElementById('bsv')){go(()=>blkBack());return done('Cancelled')}
  if(role==='Manager'&&window.sched){

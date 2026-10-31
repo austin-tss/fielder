@@ -38,7 +38,7 @@ await page.evaluate(()=>{DIRTY=false;newq()});await page.waitForSelector('#aibtn
 await page.evaluate(()=>{const o=window.api;let k=0;window.api=b=>{if(b.a==='voiceQuote'&&!k++)return Promise.reject(new Error('Network error'));return o(b)}});
 await page.evaluate(()=>$('#aibtn').click());await page.evaluate(()=>FAKESR.at(-1).say('Customer Ann Lee, oak trim 500 dollars.'));await page.evaluate(()=>$('#aibtn').click());
 await page.waitForSelector('#airetry');if(!(await page.evaluate(()=>localStorage.fdLastTx||'')).includes('Ann Lee'))fail('not saved');
-await page.click('#airetry');await page.waitForFunction(()=>/Filled in/.test(document.querySelector('#aistat').textContent),{timeout:8000});
+await new Promise(r=>setTimeout(r,800));await page.click('#airetry');await page.waitForFunction(()=>/Filled in/.test(document.querySelector('#aistat').textContent),{timeout:8000});
 if(await page.evaluate(()=>localStorage.fdLastTx))fail('saved not cleared');
 console.log('voice e2e OK');
 }finally{await browser.close();server.close()}
