@@ -16,11 +16,17 @@ const css=document.createElement('style');css.textContent=`
 .vhalt{background:none;border:0;color:#112337;text-decoration:underline;font-size:16px;padding:12px;cursor:pointer;margin:6px auto 0;display:block}
 #vhfab{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));z-index:59;width:56px;height:56px;border-radius:50%;border:3px solid #fff;background:#78a22f;color:#fff;box-shadow:0 4px 14px rgba(17,35,55,.35);display:grid;place-items:center;padding:0;cursor:pointer}
 body.vhf{padding-bottom:84px}#vhfab[hidden]{display:none}#vhfab svg{width:28px;height:28px}#vhfab.on{background:#112337;animation:vhb .8s ease-in-out infinite}
+.vhs{display:flex;align-items:center;gap:12px;background:#f1f5ea;border:2px solid #78a22f;border-radius:16px;padding:10px 12px;margin:0 0 12px;cursor:pointer;width:100%;text-align:left;font:inherit;color:#112337}.vhs .m{flex:none;width:56px;height:56px;border-radius:50%;background:#78a22f;color:#fff;display:grid;place-items:center;animation:vhb 2s ease-in-out infinite}.vhs .m svg{width:30px;height:30px}.vhs b{display:block;font-size:18px}.vhs small{font-size:14px;color:#475569}.vhs.on .m{background:#112337;animation-duration:.8s}
 #vhtip{position:fixed;left:80px;right:80px;bottom:max(20px,env(safe-area-inset-bottom));z-index:59;background:#112337;color:#fff;border-radius:12px;padding:10px 12px;font-size:15px;text-align:center}
 @media (prefers-reduced-motion:reduce){.vhw .p,#vhmic,#vhfab.on{animation:none}}`;document.head.appendChild(css);
 const mode=()=>{try{return localStorage.fdHome||(navigator.webdriver?'forms':'voice')}catch(e){return 'voice'}};
 const setMode=m=>{try{localStorage.fdHome=m}catch(e){}};
-let INVID=null,LISTEN=null;
+let INVID=null,LISTEN=null,CTX='',CTXARG=null;const ctx=()=>document.getElementById('vhstrip')?CTX:'';
+const DOW=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'],MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function when(t){const d=new Date();d.setHours(0,0,0,0);let m;if(/\btoday\b/.test(t))return d;if(/\btomorrow\b/.test(t)){d.setDate(d.getDate()+1);return d}
+ if((m=t.match(/\b(next )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))){let k=(DOW.indexOf(m[2])-d.getDay()+7)%7||7;if(m[1]&&k<7)k+=7;d.setDate(d.getDate()+k);return d}
+ if((m=t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (\d{1,2})(?:st|nd|rd|th)?\b/))){const x=new Date(d.getFullYear(),MON.indexOf(m[1]),+m[2]);if(x<d)x.setFullYear(x.getFullYear()+1);return x}
+ if((m=t.match(/\bthe (\d{1,2})(?:st|nd|rd|th)?\b/))){const x=new Date(d.getFullYear(),d.getMonth(),+m[2-1]);if(x<d)x.setMonth(x.getMonth()+1);return x}return null}
 const ORIG={mgr:window.mgr,crew:window.crew,admin:window.admin,aview:window.aview};
 window.aview=function(id){INVID=id;return ORIG.aview(id)};
 const HELP={Manager:['“New quote” (then just talk)','“New quote for John Smith”','“Quotes needed” · “Finished quotes”','“Schedule” or “Show today’s jobs”','“Open Smith” (a customer)','“My projects” · “Open settings”'],
@@ -32,11 +38,11 @@ function home(r){if(mode()!=='voice')return ORIG[r]();INVID=null;fab();
  <button class="vhalt" id="vhforms" type="button" onclick="FDVH.forms()">Use buttons instead</button></div>`;
  if(typeof armBack==='function')armBack(null);fab()}
 window.mgr=()=>home('mgr');window.crew=()=>home('crew');window.admin=()=>home('admin');
-function fab(){let b=document.getElementById('vhfab');let ex='';try{ex=localStorage.fdHome||''}catch(e){}const show=!!role&&!document.getElementById('vhome')&&!(navigator.webdriver&&!ex);
+function fab(){let b=document.getElementById('vhfab');let ex='';try{ex=localStorage.fdHome||''}catch(e){}const show=!!role&&!document.getElementById('vhome')&&!(navigator.webdriver&&!ex)&&!((document.getElementById('selbar')||{hidden:true}).hidden===false);
  if(!b){b=document.createElement('button');b.id='vhfab';b.type='button';b.setAttribute('aria-label','Voice command');b.innerHTML=MIC;b.onclick=()=>listen();document.body.appendChild(b)}b.hidden=!show;document.body.classList.toggle('vhf',show)}
 new MutationObserver(()=>fab()).observe(document.getElementById('app')||document.body,{childList:true});
 function say(t,heard){const s=document.getElementById('vhst');if(s){s.textContent=t;const h=document.getElementById('vhheard');if(h)h.textContent=heard?'“'+heard+'”':''}else{let tip=document.getElementById('vhtip');if(!tip){tip=document.createElement('div');tip.id='vhtip';document.body.appendChild(tip)}tip.textContent=t+(heard?' “'+heard+'”':'');clearTimeout(say.t);say.t=setTimeout(()=>tip.remove(),3500)}}
-function ui(on){const h=document.getElementById('vhome');if(h)h.classList.toggle('on',on);const f=document.getElementById('vhfab');if(f)f.classList.toggle('on',on)}
+function ui(on){const h=document.getElementById('vhome');if(h)h.classList.toggle('on',on);const f=document.getElementById('vhfab');if(f)f.classList.toggle('on',on);const g=document.getElementById('vhstrip');if(g)g.classList.toggle('on',on)}
 function listen(){if(LISTEN){LISTEN.stop();return}const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){say('Voice isn’t supported in this browser. Use buttons instead.');return}
  const r=new SR();LISTEN=r;r.lang='en-US';r.interimResults=false;r.continuous=false;let got='';ui(true);say('Listening…');if(window.FDVoice)FDVoice.buzz(30);
  r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal!==false)got+=' '+e.results[i][0].transcript;got=got.trim();if(got){try{r.stop()}catch(x){}}};
@@ -52,6 +58,21 @@ function route(raw){const t=norm(raw);let m;
  if(/^(go )?(back )?home$|^main (menu|screen)$|^start over$/.test(t)){go(navHome);return done('Home')}
  if(/\b(use )?(buttons|forms)( instead)?\b/.test(t)&&!/invoice/.test(t)){forms();return}
  if(/\bvoice mode\b/.test(t)){voice();return}
+ if(/^(save|save it|done)$/.test(t)&&document.getElementById('bsv')){document.getElementById('bsv').click();return done('Saving')}
+ if(/^cancel$/.test(t)&&ctx()==='blk'&&document.getElementById('bsv')){go(()=>blkBack());return done('Cancelled')}
+ if(role==='Manager'&&window.sched){
+  if((m=t.match(/^(?:schedule|put|book) (.+?)(?: (?:on|for|to|next|this) (.+))?$/))&&!/^(page|view)$/.test(m[1])){let nm=m[1],dt=m[2]?when(m[2]):null;if(!m[2]){const w2=nm.match(/^(.+?) (today|tomorrow|(?:next )?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday))$/);if(w2){nm=w2[1];dt=when(w2[2])}}
+   if(!dt&&ctx()==='dayView'&&CTXARG){const p=String(CTXARG).split('-');dt=new Date(+p[0],+p[1]-1,+p[2])}
+   const j=findJob(nm,jobs.filter(x=>x.status=='approved'))||findJob(nm);if(!j)return done('No job found for '+nm+'.');const k=dt?ymd(dt):ymd(new Date());go(()=>blk('',k,j.id));return done('Check the time, then say “save”: '+j.name+' on '+fmtD(k))}
+  if(/^(next|following) (week|month)$|^forward$/.test(t)){if(ctx()!=='sched')sched();mv(1);return done('Next')}
+  if(/^(previous|last|prior) (week|month)$|^back a (week|month)$/.test(t)){if(ctx()!=='sched')sched();mv(-1);return done('Previous')}
+  if(/^(today|this week|this month|go to today)$/.test(t)){SV.start=null;go(()=>sched());return done('This week')}
+  if(/^month( view)?$/.test(t)){SV.mode='month';go(()=>sched());return done('Month view')}
+  if(/^week( view)?$/.test(t)){SV.mode='week';go(()=>sched());return done('Week view')}
+  if(/^(back to (the )?calendar|calendar)$/.test(t)){go(()=>sched());return done('Calendar')}
+  if(/^block (off )?time/.test(t)){const dt=when(t);go(()=>blk('',dt?ymd(dt):undefined));return done('Block time')}
+  if((m=t.match(/^(?:open|show|go to) (today|tomorrow|(?:next )?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)|.*\d.*)$/))&&when(m[1])){const k=ymd(when(m[1]));go(()=>dayView(k));return done(fmtD(k))}
+ }
  if(role==='Manager'){
   if((m=t.match(/^(?:start (?:a )?|make (?:a )?|create (?:a )?)?(?:new )?(?:voice )?quote(?: for (.+))?$/))||(m=t.match(/^new (?:customer )?(?:quote|estimate)(?: for (.+))?$/))){
    go(()=>newq());const nm=m[1]&&m[1].replace(/\b\w/g,c=>c.toUpperCase());const el=document.getElementById('nm');
@@ -88,5 +109,8 @@ function voice(){setMode('voice');go(()=>{view='';render()})}
 function addBack(){if(document.getElementById('vhback'))return;const b=document.createElement('button');b.id='vhback';b.type='button';b.className='btn n';b.style.cssText='margin-bottom:12px';b.innerHTML='🎙 Switch to voice mode';b.onclick=voice;A.prepend(b)}
 // In buttons mode, keep a one-tap way back to voice on each home screen.
 ['mgr','crew','admin'].forEach(r=>{const f=window[r];window[r]=function(){const x=f.apply(this,arguments);try{if(localStorage.fdHome==='forms')addBack()}catch(e){}return x}});
+const SHINT={sched:'“Schedule Smith for Tuesday” · “Next week” · “Today” · “Month view”',dayView:'“Schedule Smith” (this day) · “Back to calendar” · “Go home”',blk:'“Save” · “Cancel” · “Go home”'};
+['sched','dayView','blk'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);try{CTX=n;CTXARG=arguments[0];let ex='';try{ex=localStorage.fdHome||''}catch(e){}if(!document.getElementById('vhstrip')&&!(navigator.webdriver&&!ex)){const b=document.createElement('button');b.id='vhstrip';b.type='button';b.className='vhs';b.setAttribute('aria-label','Voice command');b.innerHTML='<span class="m">'+MIC+'</span><span><b>Tap and talk</b><small>'+SHINT[n]+'</small></span>';b.onclick=()=>listen();A.prepend(b)}}catch(e){}return x}});
+if(typeof window.selBar==='function'){const sb=window.selBar;window.selBar=function(){const x=sb.apply(this,arguments);fab();return x}}
 window.FDVH={listen,route,forms,voice,mode};
 })();
