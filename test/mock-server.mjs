@@ -149,9 +149,10 @@ function handleApi(req, res, body) {
   if (d.a === 'voiceQuote') {
     if (!VOICE) return send(res, 200, JSON.stringify({ ok: false, setup: true, err: 'Voice quotes need setup' }));
     if (!d.audio && !d.text) return send(res, 200, JSON.stringify({ ok: false, err: 'Say or type the quote first.' }));
+    LASTVQ = String(d.text || '');
     return send(res, 200, JSON.stringify({ ok: true, result: {
       transcript: 'mock',
-      customer: { name: 'Pat Voice', phone: '850-555-0101', email: 'pat.voice@example.com', address: '12 Live Oak Ln, Tallahassee, FL 32312' },
+      customer: { name: 'Pat Voice', phone: '850-555-0101', email: 'pat.voice@example.com', address: /NOADDR/.test(String(d.text||'')) ? '' : '12 Live Oak Ln, Tallahassee, FL 32312' },
       estimate: { items: [{ service: 'Live Oak Removal', description: 'Remove the leaning live oak by the driveway.', qty: 1, price: 1800 }, { service: 'Stump Grinding', description: 'Grind the stump below grade.', qty: 2, price: 150 }], total: 2100, customerNotes: 'Work can start next week.' },
       crew: { access: 'Gate code 4321, dog in yard', hazards: 'Power line over the oak', equipment: 'Bucket truck and stump grinder', cleanup: 'Haul all debris', trees: 'Oak on the left of the driveway, 30 inch', internalNotes: 'Customer is picky, price is firm' }
     } }));
@@ -353,3 +354,6 @@ export function labor(d, emps) {
     days.push({ date: ymd(x), people, hours: Math.round(dh * 100) / 100, cost: Math.round(dc * 100) / 100 }); tot += dc; th += dh; }
   return { ok: true, from: fr, to, days, hours: Math.round(th * 100) / 100, cost: Math.round(tot * 100) / 100, missingRate: [...miss] };
 }
+
+let LASTVQ = '';
+export const lastVQ = () => LASTVQ;

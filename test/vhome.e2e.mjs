@@ -4,7 +4,7 @@ const server=await start(0);const base='http://127.0.0.1:'+server.address().port
 const browser=await puppeteer.launch({executablePath:process.env.CHROME||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const fail=m=>{throw new Error(m)};const SH=process.env.SHOTS_DIR||'/workspace';const w=ms=>new Promise(r=>setTimeout(r,ms));
 async function open(pin,shot){const page=await browser.newPage();await page.evaluateOnNewDocument(()=>{localStorage.fdAutoClock='off'});await page.setViewport({width:390,height:844,deviceScaleFactor:2});
- await page.evaluateOnNewDocument(()=>{localStorage.fdHome=localStorage.fdHome||'voice';window.FAKESR=[];window.SpeechRecognition=class{constructor(){FAKESR.push(this)}start(){this.live=true}stop(){if(!this.live)return;this.live=false;setTimeout(()=>this.onend&&this.onend(),10)}abort(){this.stop()}
+ await page.evaluateOnNewDocument(()=>{if(!sessionStorage.vhinit){sessionStorage.vhinit=1;localStorage.fdHome='voice'}window.FAKESR=[];window.SpeechRecognition=class{constructor(){FAKESR.push(this)}start(){this.live=true}stop(){if(!this.live)return;this.live=false;setTimeout(()=>this.onend&&this.onend(),10)}abort(){this.stop()}
   say(t){const r=[{transcript:t,confidence:.9}];r.isFinal=true;this.onresult&&this.onresult({resultIndex:0,results:[r]})}}});
  page.on('dialog',d=>{page._dlg=(page._dlg||[]).concat(d.message());d.accept()});
  await page.goto(base+'/?api='+encodeURIComponent(base+'/exec'),{waitUntil:'networkidle0'});
@@ -26,8 +26,8 @@ await cmd(p,'new quote','#aibtn');await w(100);const live=await p.evaluate(()=>F
 await p.evaluate(()=>{FAKESR.at(-1).abort();DIRTY=false});await w(100);await cmd(p,'go home','#vhmic');
 await cmd(p,'schedule');await cmd(p,'go home','#vhmic');await cmd(p,'open settings');if(!/Settings/.test(await txt(p)))fail('settings');
 await cmd(p,'go home','#vhmic');await p.click('#vhforms');await p.waitForFunction(()=>document.body.innerText.includes('New customer quote'));
-if(!(await p.$('#vhback')))fail('no back to voice');await p.screenshot({path:SH+'/fielder-voicehome-forms.png'});
-await p.click('#vhback');await p.waitForSelector('#vhmic');await p.close();
+await w(400);if(await p.$('#vhback'))fail('switch bar still shown');if(!(await p.$eval('#vhfab',e=>!e.hidden).catch(()=>false)))fail('no corner mic');await p.screenshot({path:SH+'/fielder-voicehome-forms.png'});
+if(await p.evaluate(()=>localStorage.fdHome)!=='forms')fail('choice not remembered');await p.close();
 // Crew
 p=await open('0123','fielder-voicehome-crew.png');await cmd(p,'show my jobs');if(!/Your jobs|Clock/i.test(await txt(p)))fail('crew jobs');await p.close();
 // Admin

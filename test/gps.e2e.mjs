@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-core';
-import { start } from './mock-server.mjs';
+import { start, setVoice, lastVQ } from './mock-server.mjs';
 const server=await start(0);const base='http://127.0.0.1:'+server.address().port;const SH=process.env.SHOTS_DIR||'/workspace';
 const browser=await puppeteer.launch({executablePath:process.env.CHROME||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const fail=m=>{throw new Error(m)};const w=ms=>new Promise(r=>setTimeout(r,ms));
@@ -22,11 +22,21 @@ await p.evaluate(()=>{$('#ad').value=''});await p.click('#gpsbtn');await p.waitF
 await p.evaluate(()=>document.getElementById('ad').scrollIntoView({block:'center'}));await p.screenshot({path:SH+'/fielder-gps.png'});
 // voice: "I'm here"
 await p.evaluate(()=>{$('#ad').value='';localStorage.fdHome='voice'});await p.evaluate(()=>{FDVH.listen();FAKESR.at(-1).say("I'm here")});await p.waitForFunction(()=>$('#ad').value.includes('Barbary'),{timeout:6000});
+// AI + GPS: spoken address wins over GPS; no spoken address -> GPS; Gemini gets [GPS] context
+setVoice(true);
+const ai=async(txt)=>{await p.evaluate(()=>{SET.voice=true;DIRTY=false;newq()});await p.waitForSelector('#aibtn');await p.waitForFunction(()=>$('#ad').value.includes('Barbary'),{timeout:6000});
+ await p.evaluate(t=>{$('#qt')&&($('#qt').value='');aiStart();FAKESR.at(-1).say(t);$('#aibtn').click()},txt);await p.waitForFunction(()=>/Filled in/.test($('#aistat').textContent),{timeout:9000}).catch(async e=>{console.log('STAT',await p.evaluate(()=>$('#aistat').textContent+'|'+(window.FAKESR||[]).length));throw e});return p.evaluate(()=>$('#ad').value)};
+let a1=await ai('Pat Voice at 12 Live Oak Lane removal 1800');if(!/Live Oak/.test(a1))fail('spoken addr should win '+a1);
+if(!/\[GPS\].*Barbary.*Tallahassee.*32309/.test(lastVQ()))fail('no gps context '+lastVQ());
+let a2=await ai('NOADDR Pat Voice removal 1800');if(!/Barbary/.test(a2))fail('gps addr expected '+a2);console.log('ai+gps ok');
 await c.close();
 // denied: friendly message, no fill
 [c,p]=await open(false);await p.evaluate(()=>newq());await p.waitForSelector('#gpsbtn');await w(500);if(await p.evaluate(()=>$('#ad').value))fail('auto-filled without permission');
 await p.evaluate(()=>{navigator.geolocation.getCurrentPosition=(ok,no)=>no({code:1})});await p.click('#gpsbtn');await w(300);
 const msg=await p.evaluate(()=>$('#gpsnote').textContent);if(!/blocked/.test(msg))fail('deny msg '+msg);
 await p.evaluate(()=>{navigator.geolocation.getCurrentPosition=(ok,no)=>no({code:3})});await p.click('#gpsbtn');await w(300);if(!/too long/.test(await p.evaluate(()=>$('#gpsnote').textContent)))fail('timeout msg');
+setVoice(true);await p.evaluate(()=>{SET.voice=true;$('#ad').value='';DIRTY=false;newq()});await p.waitForSelector('#aibtn');
+await p.evaluate(()=>{navigator.geolocation.getCurrentPosition=(ok,no)=>no({code:1});aiStart();FAKESR.at(-1).say('NOADDR Pat removal 900');$('#aibtn').click()});
+await p.waitForFunction(()=>/Filled in/.test($('#aistat').textContent),{timeout:9000});if(await p.evaluate(()=>$('#ad').value))fail('denied should leave address blank');if(/\[GPS\]/.test(lastVQ()))fail('gps ctx when denied');
 await c.close();console.log('gps ok',revHits);
 }finally{await browser.close();server.close()}

@@ -28,6 +28,7 @@ window.ownerBack=function(){if(!isOwner())return;role=sessionStorage.fdRole='Own
 window.ownerHome=function(){view='';if(typeof armBack==='function')armBack(null);bar();
  A.innerHTML=`<div class="vh" id="vhome"><h2>Owner</h2><p class="sub">Tap and talk, or use the buttons below.</p><div class="vhw"><span class="p"></span><span class="p p2"></span><button id="vhmic" type="button" aria-label="Tap to talk" onclick="FDVH.listen()">${MIC}</button></div><div id="vhst">Tap the mic</div><div id="vhheard"></div>
  <div class="vhcmd"><b>Try saying:</b><ul style="margin:0;padding-left:20px"><li>“Clock in Jake” · “Clock out Jake”</li><li>“Who’s on the clock?”</li><li>“Labor cost today” · “yesterday” · “this week”</li><li>“Add employee Jake Limb” · “Team”</li><li>“View as crew” · “View as estimator” · “View as admin”</li></ul></div></div>
+ <button class="btn huge n" id="custbtn" type="button" onclick="openCusts()" style="margin-bottom:12px">👥 Customers</button>
  <div class="card owc" id="ow-now"><h2>On the clock now</h2><p class="muted">Loading…</p></div>
  <div class="card owc" id="ow-lab"><h2>Labor today</h2><p class="muted">Loading…</p></div>
  <div class="card owc"><h2>Clock someone in</h2><select id="ow-who" style="width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:10px"><option value="">Pick a person</option></select><button class="btn huge" id="ow-in" type="button" onclick="ownerClock('clockIn',$('#ow-who').value)">Clock In</button></div>

@@ -26,5 +26,8 @@ function hook(){const ad=document.getElementById('ad');if(!ad||document.getEleme
  // New empty quote: fill silently only if location was already allowed (no surprise prompt).
  if(!ad.value.trim()&&navigator.permissions&&navigator.permissions.query){navigator.permissions.query({name:'geolocation'}).then(s=>{if(s.state==='granted'&&!ad.value.trim()&&!(typeof editId!=='undefined'&&editId))fill(true)}).catch(()=>{})}}
 new MutationObserver(hook).observe(document.getElementById('app')||document.body,{childList:true});
-window.FDGPS={fill,rev};
+// For AI fill: GPS address in parallel, never prompts errors into the UI; resolves null if denied/unavailable.
+async function get(){try{const p=await pos();const c=p.coords;try{window.GEO={lat:c.latitude,lon:c.longitude}}catch(e){}const a=await rev(c.latitude,c.longitude);if(!a)return null;
+ const m=a.match(/,\s*([^,]+),\s*[A-Z]{2}\s*(\d{5})?\s*$/);return {address:a,city:m?m[1].trim():'',zip:m&&m[2]||''}}catch(e){return null}}
+window.FDGPS={fill,rev,get};
 })();

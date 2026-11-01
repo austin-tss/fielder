@@ -48,13 +48,15 @@ try {
   const backOnPin = await page.$eval('#navbar', (el) => el.hidden);
   if (!backOnPin) fail('back button should be hidden on the PIN screen');
   await pressPin(page, '1234');
-  await waitText(page, 'Contact my account rep');
+  await waitText(page, 'New customer quote');
+  if (await page.$('#rephome')) fail('rep button should be in Settings, not on pages');
+  if (!(await page.$('#custbtn'))) fail('Customers button missing on home');
   if ((await page.evaluate(() => document.body.innerText)).includes('Drive folder')) fail('drive link should not be on the home list');
   await page.evaluate(() => { openSet(); openConn(); });
   await waitText(page, 'Open Drive folder');
   if (!(await page.$eval('#conn-drive a', (a) => a.href)).includes('MOCK-ROOT')) fail('drive link wrong');
   await page.evaluate(() => navHome());
-  await waitText(page, 'Contact my account rep');
+  await waitText(page, 'New customer quote');
   await page.evaluate(() => document.getElementById('row-fq').click());
   await waitText(page, 'Existing Oak');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Existing Oak')).click());
@@ -107,7 +109,7 @@ try {
   await waitText(page, 'New customer quote');
   const homeBack = await page.$eval('#navbar', (el) => el.hidden);
   if (!homeBack) fail('logo home should hide the back button');
-  await page.evaluate(() => document.getElementById('rephome').click());
+  await page.evaluate(() => (setScreen(),document.getElementById('row-rep').click()));
   await waitText(page, 'William Griffin');
   if (!(await page.$eval('#repcall', (a) => a.href)).startsWith('tel:8505550100')) fail('call link wrong');
   if (!(await page.$eval('#reptext', (a) => a.href)).startsWith('sms:8505550100')) fail('text link wrong');
@@ -125,7 +127,7 @@ try {
   if (dark !== 'dark') fail('modern dark did not apply');
   await shot(page, 'fielder-11-dark-home');
   await page.evaluate(() => document.getElementById('back').click());
-  await waitText(page, 'Contact my account rep');
+  await waitText(page, 'New customer quote');
   const stillDark = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   if (stillDark !== 'dark') fail('dark theme did not stay on home');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.id === 'gear').click());

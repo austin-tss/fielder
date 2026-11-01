@@ -105,11 +105,11 @@ function route(raw){const t=norm(raw);let m;
  if(/^(sign|log) ?out$/.test(t)&&document.getElementById('out')){document.getElementById('out').click();return}
  done('Not sure how to do that here. Try again, or use buttons.')}
 function done_(id){window.done(id)}
-function forms(){setMode('forms');const b=document.getElementById('vhfab');if(b)b.hidden=true;go(()=>{view='';render()});addBack()}
+function forms(){setMode('forms');const b=document.getElementById('vhfab');if(b)b.hidden=true;go(()=>{view='';render()});setTimeout(fab,50)}
 function voice(){setMode('voice');go(()=>{view='';render()})}
 function addBack(){if(document.getElementById('vhback'))return;const b=document.createElement('button');b.id='vhback';b.type='button';b.className='btn n';b.style.cssText='margin-bottom:12px';b.innerHTML='🎙 Switch to voice mode';b.onclick=voice;A.prepend(b)}
 // In buttons mode, keep a one-tap way back to voice on each home screen.
-['mgr','crew','admin'].forEach(r=>{const f=window[r];window[r]=function(){const x=f.apply(this,arguments);try{if(localStorage.fdHome==='forms')addBack()}catch(e){}return x}});
+['mgr','crew','admin'].forEach(r=>{const f=window[r];window[r]=function(){const x=f.apply(this,arguments);try{const o=document.getElementById('vhback');if(o)o.remove();setTimeout(fab,50)}catch(e){}return x}});
 const SHINT={sched:'“Schedule Smith for Tuesday” · “Next week” · “Today” · “Month view”',dayView:'“Schedule Smith” (this day) · “Back to calendar” · “Go home”',blk:'“Save” · “Cancel” · “Go home”'};
 ['sched','dayView','blk'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);try{CTX=n;CTXARG=arguments[0];let ex='';try{ex=localStorage.fdHome||''}catch(e){}if(!document.getElementById('vhstrip')&&!(navigator.webdriver&&!ex)){const b=document.createElement('button');b.id='vhstrip';b.type='button';b.className='vhs';b.setAttribute('aria-label','Voice command');b.innerHTML='<span class="m">'+MIC+'</span><span><b>Tap and talk</b><small>'+SHINT[n]+'</small></span>';b.onclick=()=>listen();A.prepend(b)}}catch(e){}return x}});
 if(typeof window.selBar==='function'){const sb=window.selBar;window.selBar=function(){const x=sb.apply(this,arguments);fab();return x}}
