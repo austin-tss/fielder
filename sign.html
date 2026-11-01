@@ -6,7 +6,7 @@
 input,textarea{width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:12px;margin:6px 0}canvas{width:100%;height:200px;border:2px dashed #112337;border-radius:12px;background:#fff;touch-action:none}.ph{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .ft{padding:16px 18px;color:#5b6168;font-size:13px;border-top:1px solid #eee}a{color:var(--n)}</style></head><body><div class="pg"><div class="hd"><img src="logo.png" alt="Fielder Tree"><div><b>Fielder Tree Care &amp; Service</b><small>Review &amp; sign</small></div></div><div class="bar"></div><div id="m" class="in mu">Loading…</div>
 <div class="ft">Fielder Tree Care &amp; Service · 1382 Timberlane Rd Suite C, Tallahassee, FL · <a href="tel:8506568737">(850) 656-8737</a> · office@fieldertree.com</div></div>
-<script>var Q=new URLSearchParams(location.search),T=Q.get('t')||'',API=Q.get('api')||'https://script.google.com/macros/s/AKfycbwQDIAb7fwXFVL6g9AjA-tKGoUcwal0-tozzbwJ4EOcNnaHE4AcqUOxdXuNMvRpKYJAlw/exec',M=document.getElementById('m');
+<script>var Q=new URLSearchParams(location.search),T=Q.get('t')||'',API=Q.get('api')||'/api/gas',M=document.getElementById('m');
 function e(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function $m(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function call(o){o.t=T;return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(o)}).then(function(r){return r.json()}).then(function(j){if(!j.ok)throw Error(j.err||'Please try again');return j})}

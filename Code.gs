@@ -450,7 +450,7 @@ function meta_(j,label,no){return '<table width="100%" style="font-size:14px;mar
 function imgs_(ps,pre){var inl={},h='';(ps||[]).forEach(function(p,i){inl[pre+i]=DriveApp.getFileById(p.id).getBlob();
   h+='<img src="cid:'+pre+i+'" style="width:48%;max-width:290px;border-radius:8px;margin:4px 1%;display:inline-block">';});return {inl:inl,h:h};}
 function logoBlob_(){return Utilities.newBlob(Utilities.base64Decode(LOGO.split(',')[1]),'image/png','logo.png');}
-function respUrl_(j,k){return 'https://ft.vnxt.app/a?a=respond&id='+encodeURIComponent(j.id)+'&ans='+k;}
+function respUrl_(j,k){return 'https://ft.vnxt.app/x?a=respond&id='+encodeURIComponent(j.id)+'&ans='+k;}
 function quoteHtml_(j,photosHtml,logoSrc,baseFn){var copy=FDForm.quoteCopy(settings_(),j);var btn=function(k,t,c){return '<a href="'+baseFn(k)+'" style="display:block;margin:8px 0;padding:15px;background:'+c+';color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:16px;text-align:center">'+t+'</a>';};
   return head_('Estimate',j.est,logoSrc)+'<p style="font-size:16px">Dear '+esc_(j.name)+',</p><p style="line-height:1.6">'+bodyHtml_(copy.body)+'</p>'+
   meta_(j,'Estimate #',j.est)+custBlock_(j)+itemsTable_(j)+(photosHtml?'<p style="margin:18px 0 6px"><b style="color:'+NAVY+'">Site photos</b></p>'+photosHtml:'')+
@@ -485,7 +485,7 @@ function respond_(j,p){if(p.ans=='A'||p.ans=='B')applyDiscount_(j);j.response={a
 var PAGE_JSON_=false;// Worker /a asks for the page body as JSON and shows it in the Fielder frame
 function page_(b){if(PAGE_JSON_)return out_({ok:true,page:String(b)});return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f6f1;font-family:Arial,sans-serif;color:#231f20}.w{max-width:520px;margin:0 auto;padding:18px}h2{color:'+NAVY+'}.s{display:block;width:100%;margin:8px 0;padding:18px;font-size:19px;font-weight:bold;border:3px solid '+NAVY+';background:#fff;color:'+NAVY+';border-radius:12px;text-align:center;cursor:pointer}input[type=radio]{display:none}input[type=radio]:checked+.s{background:'+GREEN+';border-color:'+GREEN+';color:#fff}textarea,input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:14px;border:2px solid #cfd6c4;border-radius:10px}.go{width:100%;padding:20px;font-size:21px;font-weight:bold;background:'+GREEN+';color:#fff;border:0;border-radius:12px;margin-top:14px}</style><div style="background:'+NAVY+';color:#fff;padding:14px 18px;font-weight:bold;font-size:18px">'+CO.name+'</div><div class="w">'+b+'</div>').setTitle('Fielder Tree Service').addMetaTag('viewport','width=device-width,initial-scale=1');}
 function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=radio name=avail id=s'+i+' value="'+s+'"'+(i==3?' checked':'')+'><label class=s for=s'+i+'>'+s+'</label>'}).join('');
-  return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="https://ft.vnxt.app/a" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
+  return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="https://ft.vnxt.app/x" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
    (ans=='B'||ans=='O'?'<p><b>'+(ans=='B'?'What would you like changed?':'Your question or message:')+'</b></p><textarea name=text rows=4></textarea>':'')+
    '<p><b>When works best for the work?</b> Tap one:</p>'+slots+'<p><b>Preferred date or time (optional)</b></p><input type=text name=when placeholder="e.g. Tuesday Nov 3 morning">'+
    '<button class=go>Send my answer</button></form>');}
@@ -493,7 +493,7 @@ function doGet(e){try{return get_(e)}catch(x){return out_({ok:false,err:String(x
 function get_(e){var p=(e&&e.parameter)||{};
   if(p.code&&p.state)return qboFinish_(p);
   if(p.a=='ok'&&typeof f6Get_==='function')return f6Get_(p);
-  if(p.a=='respond'&&p.fmt!=='json'&&typeof f6Bounce_==='function')return f6Bounce_(p);
+  if(p.a=='respond'&&p.fmt!=='json'&&typeof f6Bounce_==='function')return f6Bounce_(p,'/x');
   PAGE_JSON_=p.fmt==='json';
   if(p.a=='img'){var fi;try{fi=DriveApp.getFileById(p.id)}catch(x){return out_({ok:false,err:'Not found'})}if(!inRoot_(fi))return out_({ok:false,err:'Not found'});var b=fi.getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   if(p.a=='respond'){var js=load_(),j=js.filter(function(x){return x.id==p.id})[0];if(!j)return page_('<h2>Estimate not found</h2><p>Please call '+CO.phone+'.</p>');
@@ -1471,7 +1471,7 @@ function f6Sig_(kind,id,v,nonce){return Utilities.base64EncodeWebSafe(Utilities.
 // (Apps Script /exec links break on phones signed into Google.) Old /exec links bounce to the Worker.
 var APP_URL='https://ft.vnxt.app';
 function f6Link_(kind,id,v,nonce){return APP_URL+'/a?a=ok&k='+kind+'&id='+encodeURIComponent(id)+'&v='+v+'&s='+f6Sig_(kind,id,v,nonce)}
-function f6Bounce_(p){var q=Object.keys(p).filter(function(k){return k!=='fmt'}).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(p[k])}).join('&'),u=APP_URL+'/a?'+q;
+function f6Bounce_(p,path){var q=Object.keys(p).filter(function(k){return k!=='fmt'}).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(p[k])}).join('&'),u=APP_URL+(path||'/a')+'?'+q;
  return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><p style="font:18px Arial;padding:24px">One moment… <a href="'+esc_(u)+'" target="_top">Tap here if nothing happens</a></p><script>try{window.top.location.href='+JSON.stringify(u)+'}catch(e){}</script>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
 function f6Btns_(kind,id,nonce){return '<table cellpadding=0 cellspacing=0 style="margin:18px 0"><tr><td style="padding-right:12px"><a href="'+f6Link_(kind,id,'yes',nonce)+'" style="display:inline-block;background:#78a22f;color:#fff;font:bold 20px Arial;padding:16px 34px;border-radius:10px;text-decoration:none">Approve</a></td><td><a href="'+f6Link_(kind,id,'no',nonce)+'" style="display:inline-block;background:#b42318;color:#fff;font:bold 20px Arial;padding:16px 34px;border-radius:10px;text-decoration:none">Deny</a></td></tr></table><p style="color:#667;font:13px Arial">One tap, no sign-in. Each button works once.</p>'}
 var F6={sup:{file:'supplies.json',yes:'Needed',no:'Denied',name:function(x){return x.item}}};// receipts need no approval (Austin, Nov 1): the Owner reviews them on the Receipts page

@@ -4,6 +4,20 @@
 const usd0=v=>'$'+Math.round(Number(v||0)).toLocaleString('en-US');
 const ymdL=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const css=document.createElement('style');css.textContent=`
+.ohero{display:flex;align-items:center;gap:14px;margin:-2px -12px 10px;padding:16px 16px 18px;background:linear-gradient(120deg,#112337 0%,#2f4d22 55%,#78a22f 100%);color:#fff;border-radius:0 0 22px 22px;box-shadow:0 8px 24px -10px rgba(17,35,55,.45)}
+.ohero img{width:54px;height:54px;border-radius:14px;background:#fff;padding:3px;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.ohero h2{margin:2px 0 2px;font-size:26px;line-height:1.1;color:#fff;letter-spacing:-.3px}.ohero small{font-size:13px;opacity:.85;font-weight:700}.ohero p{margin:0;font-size:15px;opacity:.95;font-weight:700}
+.otick{overflow:hidden;margin:0 -12px 10px;background:#fff;border-top:1px solid #e3e8df;border-bottom:1px solid #e3e8df;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.otrack{display:inline-flex;gap:30px;padding:10px 0;animation:otick 38s linear infinite;font-size:15px;color:#112337;font-weight:600}.otrack b{color:#4f6d1d;font-weight:800}
+.otick:hover .otrack{animation-play-state:paused}@keyframes otick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.otrack{animation:none}}
+@media (max-width:767px){.ohero{padding:8px 14px;gap:10px;margin-bottom:5px;border-radius:0 0 16px 16px}.ohero img{width:38px;height:38px;border-radius:10px}.ohero h2{font-size:19px;margin:0!important;line-height:1.1!important}.ohero>div{min-width:0}.ohero small,.ohero p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ohero small{font-size:12px;line-height:1.25}.ohero p{font-size:13px}.otrack{padding:4px 0;font-size:14px}.otick{margin-bottom:5px}}
+.dc{position:relative;border:0!important;box-shadow:0 1px 2px rgba(17,35,55,.06),0 6px 18px rgba(17,35,55,.07);transition:transform .12s}.dc:active{transform:scale(.98)}
+.dc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:#c9d3c2}.dc.g::before{background:#78a22f}.dc.o::before{background:#e07a1f}.dc.b::before{background:#2563eb}
+.dc.o b{color:#c2410c}.dc.hero2{background:linear-gradient(135deg,#f0f6e6,#fff)}
+.dc.sk{min-height:64px;background:linear-gradient(90deg,#eef1ea 25%,#f7f9f5 50%,#eef1ea 75%);background-size:200% 100%;animation:sk 1.2s infinite}@keyframes sk{to{background-position:-200% 0}}
+@media (min-width:768px){.ohero{margin:0 0 14px;border-radius:20px;padding:22px 26px}.ohero h2{font-size:34px}.otick{margin:0 0 14px;border-radius:14px;border:1px solid #e3e8df}}@media (min-width:768px) and (max-width:1099px){.dc.hero2{grid-column:span 2}}
+
 .dnav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:0 -12px 8px;padding:6px 12px;position:sticky;top:var(--hdrh,0px);z-index:7;background:#f6f7f4;box-shadow:0 3px 6px -4px rgba(0,0,0,.2)}
 .dnav button{margin:0;min-height:52px;border-radius:10px;border:1.5px solid #dfe3da;background:#fff;color:#112337;font-weight:800;font-size:16px;line-height:1.05;padding:2px 2px;display:flex;align-items:center;justify-content:center;gap:2px;white-space:normal;text-align:center;overflow:hidden}.dnav button i{font-style:normal;font-size:13px}
 .dnav button.go{background:#112337;color:#fff;border-color:#112337}.dnav button.hm{background:#78a22f;color:#fff;border-color:#78a22f}
@@ -29,19 +43,34 @@ const card=(id,label,val,sub,fn,cls)=>`<button type="button" class="dc ${cls||''
 // Labor card: labor $ vs that day's job $, % green under 30, amber 30-45, red over 45.
 window.ftPct=window.ftPct||((p,txt)=>`<span class="pp ${p==null?'pn':p<30?'pg':p<=45?'pa':'pr'}">${txt||(p==null?'—':Math.round(p)+'%')}</span>`);
 function labSub(c){if(!c)return 'no hours yet';if(c.cmp)return usd0(c.cmp)+' job $ · '+ftPct(c.pct);return c.hours?c.hours.toFixed(1)+' h, no job $':'no hours yet'}
-function draw(){if(view!=='odash'||!DASH)return;const d=DASH,al=alerts(d),tm=s=>{const[h,m]=String(s||'0:00').split(':');return ((+h+11)%12+1)+(m!=='00'?':'+m:'')+(+h<12?'a':'p')};
- A.innerHTML=`<div class="dhead"><div><h2>Owner dashboard</h2><small>${new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}</small></div></div>
+// Owner home: branded banner, scrolling ticker of live numbers, 8 count-up tiles (real app data only). Mirrors Miller 829a754.
+const card2=(id,label,val,sub,fn,cls,n,fmt)=>`<button type="button" class="dc ${cls||''}" id="${id}" onclick="${fn}"><small>${label}</small><b${n!=null?` data-n="${n}" data-f="${fmt||''}"`:''}>${val}</b>${sub?`<span>${sub}</span>`:''}</button>`;
+function hero(d){const h=new Date().getHours(),hi=h<12?'Good morning':h<17?'Good afternoon':'Good evening',w=window.FTWX&&FTWX.days&&FTWX.days[0];
+ return `<div class="ohero" id="ohero"><img src="/logo.png" alt="" width="54" height="54"><div><small>${new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}${w&&w.hi!=null?` · ${Math.round(w.hi)}°${w.rain>=40?' · '+w.rain+'% rain':''}`:''}</small><h2>${hi}</h2>${d?`<p>${d.todayJobs.length} job${d.todayJobs.length==1?'':'s'} today · ${d.onClock.length} on the clock</p>`:'<p>Loading your numbers…</p>'}</div></div>`}
+function tick(d){const it=[['💵','Revenue this month',usd0(d.invoicedMonth)],['📬','Open invoices',usd0(d.unpaid.total)+' ('+d.unpaid.count+')'],['🌳','Jobs today',String(d.todayJobs.length)],['📝','Quotes waiting',d.openQuotes.count+' · '+usd0(d.openQuotes.total)],['👍','Approved',(d.approved?d.approved.count:0)+' · '+usd0(d.approved?d.approved.total:0)],['✅','Approval rate',d.closeRate+'%'],['⏱','On the clock',d.onClock.length?d.onClock.join(', '):'Nobody'],['👷','Labor today',usd0(d.laborToday)],['📈','Collected this week',usd0(d.paidWeek)]].map(x=>`<span>${x[0]} ${x[1]} <b>${esc(x[2])}</b></span>`).join('');
+ return `<div class="otick" id="otick" aria-label="Live numbers"><div class="otrack">${it}${it}</div></div>`}
+function countUp(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;document.querySelectorAll('#dgrid b[data-n]').forEach(el=>{const n=+el.dataset.n,f=el.dataset.f,t0=performance.now(),D=900;if(!(n>0))return;const fm=v=>f==='$'?usd0(v):f==='%'?Math.round(v)+'%':String(Math.round(v));
+ const st=t=>{const k=Math.max(0,Math.min(1,(t-t0)/D)),e=1-Math.pow(1-k,3);el.textContent=fm(n*e);if(k<1)requestAnimationFrame(st)};requestAnimationFrame(st)})}
+let DRAWN='';
+function draw(quiet){if(view!=='odash'||!DASH)return;const d=DASH,al=alerts(d),tm=s=>{const[h,m]=String(s||'0:00').split(':');return ((+h+11)%12+1)+(m!=='00'?':'+m:'')+(+h<12?'a':'p')};
+ A.innerHTML=`${hero(d)}${tick(d)}
  ${nav('dash')}${al.length?`<div class="dalert" id="dalert" onclick="this.classList.toggle('open')"><div class="a1">⚠️ ${al.length} alert${al.length>1?'s':''}: ${esc(al[0])}${al.length>1?' · tap':''}</div>${al.map(x=>`<div class="amore">${esc(x)}</div>`).join('')}</div>`:''}
- <div class="dgrid" id="dgrid">${card('dc-lab','Labor today',usd0(d.laborToday),labSub(d.laborCmp),"ftLaborCmp({period:'day',date:'"+d.today+"',vs:'jobs',by:'job',fby:'',fkey:''})",'w')}
- ${card('dc-wk','Revenue this week',usd0(d.invoicedWeek),usd0(d.paidWeek)+' collected',"ftJobs('paid')",'g')}${card('dc-mo','Revenue this month',usd0(d.invoicedMonth),'invoiced',"ftJobs('invoiced')",'g')}
- ${card('dc-open','Open invoices',usd0(d.unpaid.total),d.unpaid.count+' unpaid',"ftJobs('invoiced')")}${card('dc-q','Quotes waiting',d.openQuotes.count,usd0(d.openQuotes.total)+' out',"window.openOutstanding?(ownerAs('Manager'),openOutstanding()):ftJobs('sent')")}
- ${card('dc-appr','Approved',d.approved.count,usd0(d.approved.total)+' · '+(d.toSchedule||[]).length+' to schedule',"ftJobs('approved')")}${card('dc-close','Close rate',d.closeRate+'%',d.closeN+' won · 90 days',"ftJobs('all')")}
- ${card('dc-now','On the clock',d.onClock.length,d.onClock.join(', ')||'Nobody',"ownerSect('team')")}${card('dc-jobs','Today’s jobs',d.todayJobs.length,d.todayJobs.map(j=>tm(j.start)+' '+j.name).join(', ')||'None scheduled',"ftJobs('progress')")}</div>`}
+ <div class="dgrid" id="dgrid">${card2('dc-mo','Revenue this month',usd0(d.invoicedMonth),usd0(d.paidWeek)+' collected this week',"ftJobs('invoiced')",'g hero2',d.invoicedMonth,'$')}${card2('dc-wk','Revenue this week',usd0(d.invoicedWeek),usd0(d.paidWeek)+' collected',"ftJobs('paid')",'g',d.invoicedWeek,'$')}
+ ${card2('dc-open','Open invoices',usd0(d.unpaid.total),d.unpaid.count+' unpaid',"ftJobs('invoiced')",'o',d.unpaid.total,'$')}${card2('dc-jobs','Jobs today',d.todayJobs.length,d.todayJobs.map(j=>tm(j.start)+' '+j.name).join(', ')||'None scheduled',"ftJobs('progress')",'b',d.todayJobs.length,'')}
+ ${card2('dc-q','Quotes waiting',d.openQuotes.count,usd0(d.openQuotes.total)+' out',"window.openOutstanding?(ownerAs('Manager'),openOutstanding()):ftJobs('sent')",'b',d.openQuotes.count,'')}${card2('dc-close','Approval rate',d.closeRate+'%',d.closeN+' won · 90 days',"ftJobs('approved')",'g',d.closeRate,'%')}
+ ${card2('dc-lab','Labor today',usd0(d.laborToday),labSub(d.laborCmp),"ftLaborCmp({period:'day',date:'"+d.today+"',vs:'jobs',by:'job',fby:'',fkey:''})",'b',d.laborToday,'$')}${card2('dc-now','On the clock',d.onClock.length,d.onClock.join(', ')||'Nobody',"ownerSect('team')",'',d.onClock.length,'')}</div>`;
+ const key=JSON.stringify([d.invoicedMonth,d.invoicedWeek,d.unpaid,d.todayJobs.length,d.openQuotes,d.closeRate,d.laborToday,d.onClock.length]);if(!quiet&&key!==DRAWN)countUp();DRAWN=key}
+window.ftDashRedraw=()=>{if(view==='odash'&&DASH)draw(true)};
 const OH0=window.ownerHome;window.ftOwnerTeamTime=OH0;
+const dashKey=()=>'fdDash:'+(typeof myPin==='function'?myPin():'');
+// Speed: per-PIN localStorage snapshot drawn instantly; then the Worker's cached summary (/api/dash, prefetched in <head>); Apps Script last.
 window.ownerHome=async function(){if(!isO()&&sessionStorage.fdOwner==='1'){if(typeof window.ownerAs==='function'){ownerAs('Owner');if(view==='odash')return}else role=sessionStorage.fdRole='Owner'}if(!isO())return OH0&&OH0();view='odash';if(typeof armBack==='function')armBack(null);window.scrollTo(0,0);
- if(!DASH){try{DASH=JSON.parse(localStorage.fdDash||'null')}catch(e){}}
- if(!DASH)A.innerHTML=`<div class="dhead"><div><h2>Owner dashboard</h2><small>Loading numbers…</small></div></div>${nav('dash')}`;else draw();
- try{const r=await api({a:'dash'});DASH=r;try{localStorage.fdDash=JSON.stringify(r)}catch(e){}}catch(e){if(view==='odash'&&!DASH)A.insertAdjacentHTML('beforeend','<div class="card"><p>'+esc(e.message)+'</p></div>');return}draw()};
+ if(!DASH){try{const c=JSON.parse(localStorage[dashKey()]||'null');if(c&&c.d)DASH=c.d}catch(e){}}
+ if(!DASH)A.innerHTML=`${hero(null)}${nav('dash')}<div class="dgrid" id="dgrid">${'<div class="dc sk"></div>'.repeat(8)}</div>`;else draw();
+ try{let r=null;const pre=window.OH_PRE;window.OH_PRE=null;if(pre)r=await pre;
+  if(!r||!r.ok){try{const x=await fetch('/api/dash',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({pin:myPin()})});r=x.ok&&/json/.test(x.headers.get('content-type')||'')?await x.json():null}catch(e){r=null}}
+  if(!r||!r.ok)r=await api({a:'dash'});DASH=r;window.TB_DASH_SRC=r.cachedAgeS!=null?'worker':'gas';try{localStorage[dashKey()]=JSON.stringify({d:r,at:Date.now()});localStorage.removeItem('fdDash')}catch(e){}}
+ catch(e){if(view==='odash'&&!DASH)A.insertAdjacentHTML('beforeend','<div class="card"><p>'+esc(e.message)+'</p></div>');return}draw()};
 const big=(id,l,fn,cls)=>`<button class="btn huge ${cls||''}" id="${id}" type="button" onclick="${fn}">${l}</button>`;
 const asM=fn=>`ownerAs('Manager');${fn}`;
 const SECT={
@@ -60,19 +89,21 @@ window.ftTimberSetup=function(){view='otbset';armBack(()=>ownerSect('set'));A.in
 window.ftTimberKey=async function(){const v=($('#tbkey')||{}).value||'';if(!v.trim())return toast('Paste the key first');try{const r=await api({a:'aiKeys',GEMINI_API_KEY:v.trim()});$('#tbkey').value='';toast('Gemini key: '+(r.keys&&r.keys.GEMINI_API_KEY||'saved'));ftTimberSetup()}catch(e){toast(e.message)}};
 // ---------- Job status filter chips with counts (Owner / Admin / Estimator) ----------
 const blkJ=()=>{const m={};(typeof blocks!=='undefined'?blocks:[]).forEach(b=>{if(b.job)(m[b.job]=m[b.job]||[]).push(b.date)});return m};
-const QF=['sent','won','declined'],JF=['jobs','approved','scheduled','progress','complete','invoiced','paid'];
-const FIL=[['all','All'],['sent','Quotes sent'],['won','Won quotes'],['jobs','All jobs'],['approved','Unscheduled'],['scheduled','Scheduled'],['progress','In progress'],['complete','Complete'],['invoiced','Invoiced'],['paid','Paid'],['declined','Declined']];
+const QF=['sent','won','declined'],JF=['jobs','approved','scheduled','progress','complete','invoiced','paid','archived'];
+const FIL=[['all','All'],['sent','Quotes sent'],['won','Won quotes'],['jobs','All jobs'],['approved','Unscheduled'],['scheduled','Scheduled'],['progress','In progress'],['complete','Complete'],['invoiced','Invoiced'],['paid','Paid'],['declined','Declined'],['archived','Archived']];
+let ARCH=null;window.ftArchClear=()=>{ARCH=null};
 function fmatch(k,j,bm,td){const ds=bm[j.id]||[];switch(k){case 'all':return true;case 'jobs':return /^(approved|complete|invoiced)$/.test(j.status)||!!j.invoice;case 'won':return !!(j.jobNo||j.wonAt)||/^(approved|complete|invoiced)$/.test(j.status);case 'sent':return j.status==='sent'||j.status==='reply';case 'approved':return j.status==='approved'&&!ds.length;
  case 'scheduled':return j.status==='approved'&&ds.length>0&&ds.every(d=>d>td);case 'progress':return j.status==='approved'&&ds.some(d=>d<=td);case 'complete':return j.status==='complete';case 'invoiced':return !!j.invoice&&!j.invoice.paid;
- case 'paid':return !!(j.invoice&&j.invoice.paid);case 'declined':return j.status==='declined';default:return false}}
+ case 'archived':return !!j.archived;case 'paid':return !!(j.invoice&&j.invoice.paid);case 'declined':return j.status==='declined';default:return false}}
 window.ftJobCount=k=>{const bm=blkJ(),td=ymdL(new Date());return jobs.filter(j=>fmatch(k,j,bm,td)).length};
-function chips(cur){const bm=blkJ(),td=ymdL(new Date());return `<div id="fchips" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px">${FIL.filter(([k])=>cur==='all'||(QF.includes(cur)?QF:JF).includes(k)).map(([k,l])=>{const n=jobs.filter(j=>fmatch(k,j,bm,td)).length;
+function chips(cur){const bm=blkJ(),td=ymdL(new Date());return `<div id="fchips" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px">${FIL.filter(([k])=>cur==='all'||(QF.includes(cur)?QF:JF).includes(k)).map(([k,l])=>{const n=k==='archived'?(ARCH?ARCH.length:'…'):jobs.filter(j=>fmatch(k,j,bm,td)).length;
  return `<button type="button" id="fc-${k}" class="fchip${k===cur?' on':''}" onclick="ftJobs('${k}')" style="margin:0;min-height:46px;padding:8px 14px;border-radius:999px;font-weight:800;font-size:16px;border:1.5px solid ${k===cur?'#112337':'#dfe3da'};background:${k===cur?'#112337':'#fff'};color:${k===cur?'#fff':'#112337'}">${l} <span style="opacity:.75">${n}</span></button>`}).join('')}</div>`}
-window.ftJobs=function(k){k=k||'all';if(role==='Owner')ownerAs('Manager');
+window.ftJobs=async function(k){k=k||'all';if(role==='Owner')ownerAs('Manager');
+ if(k==='archived'&&!ARCH){window.FTFIL=k;try{const x=await fetch(API+(API.indexOf('?')<0?'?':'&')+'archived=1&pin='+encodeURIComponent(myPin()));const d=await x.json();ARCH=(d.jobs||[]).filter(j=>j.archived)}catch(e){ARCH=[]}}
  // Quotes sent keeps the Outstanding screen (multi-select, follow-up, % off) with the quote chips on top
- if(k==='sent'&&typeof window.openOutstanding==='function'){window.FTFIL='sent';openOutstanding();if(!document.getElementById('fchips'))A.insertAdjacentHTML('afterbegin',chips('sent'));topBar('sent');window.scrollTo(0,0);return}const bm=blkJ(),td=ymdL(new Date()),arr=jobs.filter(j=>fmatch(k,j,bm,td));
+ if(k==='sent'&&typeof window.openOutstanding==='function'){window.FTFIL='sent';openOutstanding();if(!document.getElementById('fchips'))A.insertAdjacentHTML('afterbegin',chips('sent'));topBar('sent');window.scrollTo(0,0);return}const bm=blkJ(),td=ymdL(new Date()),arr=k==='archived'?(ARCH||[]):jobs.filter(j=>fmatch(k,j,bm,td));
  const go=role==='Admin'?'aview':'mview',lab=(FIL.find(f=>f[0]===k)||['','Jobs'])[1];window.FTFIL=k;
- list((k==='all'?'All jobs':k==='jobs'?'Jobs':k==='won'?'Won quotes':k==='declined'?'Declined quotes':lab+' jobs')+' ('+arr.length+')',arr.slice().sort((a,b)=>String(b.created||'').localeCompare(String(a.created||''))),go,chips(k));if(k==='won')wonBadges();topBar(k);window.scrollTo(0,0)};
+ list((k==='all'?'All jobs':k==='jobs'?'Jobs':k==='won'?'Won quotes':k==='declined'?'Declined quotes':k==='archived'?'Archived':lab+' jobs')+' ('+arr.length+')',arr.slice().sort((a,b)=>String(b.created||'').localeCompare(String(a.created||''))),go,chips(k));if(k==='won')wonBadges();topBar(k);window.scrollTo(0,0)};
 function topBar(k){const q=QF.includes(k);if(q&&!document.getElementById('qnew'))A.insertAdjacentHTML('afterbegin','<button class="btn n" type="button" id="qnew" onclick="newq()" style="margin:0 0 8px">+ New quote</button>');if(sessionStorage.fdOwner==='1'&&!document.getElementById('dnav'))A.insertAdjacentHTML('afterbegin',nav(q?'quotes':'jobs'))}
 function wonBadges(){const bm={};(typeof blocks!=='undefined'?blocks:[]).forEach(b=>{if(b.job)(bm[b.job]=bm[b.job]||[]).push(b.date)});A.querySelectorAll('[onclick]').forEach(el=>{const m=String(el.getAttribute('onclick')).match(/\('([^']+)'\)/);const j=m&&jobs.find(x=>String(x.id)===m[1]);if(!j||el.querySelector('.wonst'))return;const d=(bm[j.id]||[]).sort()[0];
  const st=j.invoice&&j.invoice.paid?'Paid':j.invoice?'Invoiced':j.status==='complete'?'Complete':d?'Scheduled '+d.slice(5).replace('-','/'):'Unscheduled';el.insertAdjacentHTML('beforeend',`<small class="wonst" style="display:block;font-weight:800;color:#34460d">Job: ${st} · Open job ›</small>`)})}

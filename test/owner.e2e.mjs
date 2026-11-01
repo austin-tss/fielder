@@ -36,8 +36,8 @@ await p.waitForFunction(()=>[...$('#ow-who').options].some(o=>o.value==='Jake Li
 await say(p,'view as crew');if(await p.evaluate(()=>role)!=='Crew')fail('view as crew');if(!(await p.$('#owbar:not([hidden])')))fail('no back bar');
 await say(p,'view as estimator');if(await p.evaluate(()=>role)!=='Manager')fail('view as est');
 await say(p,'quotes needed');if(!/Quotes Needed/i.test(await txt(p)))fail('owner as estimator voice');
-await p.click('#owbar');await team(p);
-await say(p,'view as admin');await say(p,'show invoices');if(!/Invoices/.test(await txt(p)))fail('admin view');await p.click('#owbar');await team(p);
+await p.click('#bb-home');await team(p);
+await say(p,'view as admin');await say(p,'show invoices');if(!/Invoices/.test(await txt(p)))fail('admin view');await p.click('#bb-home');await team(p);
 await say(p,'set jake pay to 25');await w(300);await p.evaluate(()=>ownerTeam());await p.waitForFunction(()=>/\$25\.00\/hr/.test(document.body.innerText));
 await say(p,'crew hours');await p.waitForFunction(()=>/hours/i.test(document.body.innerText)&&view==='hours');
 await p.close();

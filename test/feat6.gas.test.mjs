@@ -69,11 +69,16 @@ test('Worker endpoints: ctx gives prompt, declarations, actions, snapshot; tool 
   assert.equal(g.post({ a: 'timber', pin: CREW, tool: 'addSupply', args: { item: 'X' } }).ok, false, 'crew has no Timber (unchanged)');
   assert.equal(g.post({ a: 'timber', tool: 'today', args: {} }).ok, false, 'PIN required');
 });
-test('customer quote answer links go through ft.vnxt.app/a; the form posts back to the Worker; old /exec links bounce', async () => {
-  const g = gas(); const u = new URL(g.ctx.respUrl_({ id: 'J1' }, 'C')); assert.equal(u.origin + u.pathname, 'https://ft.vnxt.app/a');
+test('customer quote answer links go through ft.vnxt.app/x; the time-window form posts back to /x; old /exec links bounce', async () => {
+  const g = gas(); const u = new URL(g.ctx.respUrl_({ id: 'J1' }, 'C')); assert.equal(u.origin + u.pathname, 'https://ft.vnxt.app/x');
   g.ctx.writeJson ? 0 : 0; const js = g.readJson('jobs.json'); js[0].status = 'sent'; g.writeJson('jobs.json', js);
-  const f = await getPage(g, new URL('https://ft.vnxt.app/a?a=respond&id=J1&ans=B')); assert.match(f, /action="\/a"/); assert.match(f, /Fielder Field Desk/); assert.ok(!/script\.google/.test(f));
-  const done = await getPage(g, new URL('https://ft.vnxt.app/a?a=respond&id=J1&ans=B&done=1&text=Less+please&avail=Weekends')); assert.match(done, /Thank you/);
+  const f = await getPage(g, new URL('https://ft.vnxt.app/x?a=respond&id=J1&ans=B')); assert.match(f, /action="\/x"/); assert.match(f, /Fielder Field Desk/); assert.ok(!/script\.google/.test(f));
+  const done = await getPage(g, new URL('https://ft.vnxt.app/x?a=respond&id=J1&ans=B&done=1&text=Less+please&avail=Weekends')); assert.match(done, /Thank you/);
   assert.equal(g.readJson('jobs.json')[0].response.text, 'Less please');
-  assert.match(execGet(g, { a: 'respond', id: 'J1', ans: 'C' }), /ft\.vnxt\.app\/a\?a=respond&id=J1&ans=C/);
+  assert.match(execGet(g, { a: 'respond', id: 'J1', ans: 'C' }), /ft\.vnxt\.app\/x\?a=respond&id=J1&ans=C/);
+});
+test('/api/gas proxies customer-page JSON calls (GET and POST) to Apps Script', async () => {
+  const seen = []; const h = makeLinks({ exec: 'https://script.google.com/macros/s/X/exec', fetch: async (url, init) => { seen.push({ url, method: init.method || 'GET', body: init.body }); return new Response('{"ok":true,"n":1}'); } });
+  const r1 = await h(new Request('https://ft.vnxt.app/api/gas?a=quotePublic&t=abc')); assert.deepEqual(await r1.json(), { ok: true, n: 1 }); assert.equal(seen[0].url, 'https://script.google.com/macros/s/X/exec?a=quotePublic&t=abc');
+  const r2 = await h(new Request('https://ft.vnxt.app/api/gas', { method: 'POST', body: '{"a":"sign"}' })); assert.equal(r2.headers.get('content-type'), 'application/json; charset=utf-8'); assert.equal(seen[1].method, 'POST'); assert.equal(seen[1].body, '{"a":"sign"}');
 });

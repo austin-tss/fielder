@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { makeGas } from './gas-harness.mjs';
 import { makeTimber } from '../worker/timber.mjs';
 import { makeLinks } from '../worker/links.mjs';
+import { makeDash } from '../worker/dash.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -91,7 +92,7 @@ function handleApi(req, res, body) {
   if (req.method === 'GET') {
     const q = new URL(req.url, 'http://x').searchParams;
     if (q.get('a') === 'quotePublic') return send(res, 200, JSON.stringify(pubQuote(q.get('t'))));
-    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, customers, settings: publicSettings(), caps: CAPS }));
+    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived || q.get('archived') === '1'), blocks, customers, settings: publicSettings(), caps: CAPS }));
     return;
   }
   const d = JSON.parse(body || '{}');
@@ -293,7 +294,13 @@ export function start(port) {
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
     if (u.pathname === '/__hits') return send(res, 200, JSON.stringify(hits));
-    if (u.pathname === '/a' && FEAT) { LINKS(new Request('http://x' + req.url)).then(async (r) => { res.writeHead(r.status, { 'content-type': r.headers.get('content-type') }); res.end(await r.text()); }); return; }
+    if ((u.pathname === '/api/gas' || u.pathname === '/api/dash') && FEAT) { const self = 'http://127.0.0.1:' + server.address().port + '/exec'; const chunks = []; req.on('data', (c) => chunks.push(c));
+      req.on('end', async () => { const body = Buffer.concat(chunks).toString('utf8'); WORKER_HITS.push(u.pathname + u.search);
+        const fx = (url, init) => fetch(url.replace('https://exec.mock/exec', self), init);
+        const h = u.pathname === '/api/dash' ? (DASHW = DASHW || makeDash({ exec: 'https://exec.mock/exec', fetch: fx })) : makeLinks({ exec: 'https://exec.mock/exec', fetch: fx });
+        const r = u.pathname === '/api/dash' ? await h(new Request('http://x' + req.url, { method: 'POST', body }), { waitUntil() {} }) : await h(new Request('http://x' + req.url, req.method === 'POST' ? { method: 'POST', body } : {}));
+        res.writeHead(r.status, { 'content-type': r.headers.get('content-type') }); res.end(await r.text()); }); return; }
+    if ((u.pathname === '/a' || u.pathname === '/x') && FEAT) { LINKS(new Request('http://x' + req.url)).then(async (r) => { res.writeHead(r.status, { 'content-type': r.headers.get('content-type') }); res.end(await r.text()); }); return; }
     if (u.pathname === '/api/timber' && req.method === 'POST') {
       if (!GEMSTREAM || !FEAT) return send(res, 404, 'no stream');
       const chunks = []; req.on('data', (c) => chunks.push(c));
@@ -419,3 +426,5 @@ const TIMBER = makeTimber({ exec: 'https://exec.mock/exec', fetch: async (url, i
 const LINKS = makeLinks({ exec: 'https://exec.mock/exec', fetch: async (url) => { const prm = Object.fromEntries(new URL(url).searchParams);
   FEAT.writeJson('jobs.json', jobs); const out = FEAT.ctx.doGet({ parameter: prm }).getContent(); const js = FEAT.readJson('jobs.json'); jobs.splice(0, jobs.length, ...js);
   return new Response(out, { headers: { 'content-type': 'application/json' } }); } });
+let DASHW = null; export const WORKER_HITS = [];
+export function resetDashCache() { DASHW = null; }

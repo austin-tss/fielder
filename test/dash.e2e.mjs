@@ -1,7 +1,7 @@
 // Parity batch 2 end to end on the mock: Owner one-screen dashboard + tabs, status chips + voice, speed layer,
 // Labor card + Labor compare, Timber (chat + hands-free voice). Real Code.gs feature code runs in the emulator.
 import puppeteer from 'puppeteer-core';
-import { start, addJob, featOn, mockEmployees } from './mock-server.mjs';
+import { start, addJob, featOn, mockEmployees , resetDashCache } from './mock-server.mjs';
 const server = await start(0); const base = 'http://127.0.0.1:' + server.address().port, api = base + '/exec';
 const DAY = 864e5, iso = (ms) => new Date(ms).toISOString(), ymd = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(ms));
 let gemQ = [];
@@ -39,7 +39,7 @@ try {
   await p.evaluate((d) => Promise.all([api({ a: 'block', block: { id: 'BD1', date: d, start: '08:00', end: '12:00', job: 'D-1' } }), api({ a: 'block', block: { id: 'BD2', date: d, start: '12:30', end: '16:30', job: 'D-2' } }), api({ a: 'block', block: { id: 'BD3', date: '2099-01-02', start: '08:00', end: '12:00', job: 'D-3' } })]), ymd(now));
   F.post({ a: 'clockIn', pin: '4321', forWho: 'Jake Saw' });
   for (const n of F.ctx.clockNames_(now - DAY, now)) { const a = F.ctx.clockRead_(n); a.forEach((x) => { x.in = iso(now - 4 * 3600000 - 60000); x.out = iso(now - 60000); }); F.ctx.clockWrite_(n, a); }
-  await p.evaluate(() => { localStorage.removeItem('fdDash'); window.fdCacheBust && fdCacheBust(); return refresh && refresh(); }); await p.evaluate(() => ownerHome()); await w(600);
+  resetDashCache(); await p.evaluate(() => { Object.keys(localStorage).filter((k) => /^fdDash/.test(k)).forEach((k) => localStorage.removeItem(k)); window.fdCacheBust && fdCacheBust(); return refresh && refresh(); }); await p.evaluate(() => ownerHome()); await w(600);
   await p.waitForFunction(() => /\$100/.test(document.getElementById('dc-lab')?.textContent), { timeout: 8000 }).catch(async (e) => { console.log(await p.$eval('#dc-lab', (x) => x.textContent), JSON.stringify(F.post({ a: 'dash', pin: '4321' })).slice(0, 400)); throw e; });
   // (A) one screen, sticky tab bar with the 7 sections, nothing below the fold
   const L = await p.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight, bottom: document.getElementById('dgrid').getBoundingClientRect().bottom, tabs: [...document.querySelectorAll('#dnav button')].map((b) => b.textContent.trim()), pos: getComputedStyle(document.getElementById('dnav')).position }));
@@ -53,7 +53,7 @@ try {
   if (await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => { const x = b.getBoundingClientRect(); return /🎙|🎤/.test(b.textContent) && x.width >= 100 && x.height >= 100 && b.offsetParent; }))) fail('centered mic on dashboard');
   await shot(p, 'owner-dash');
   // every number drills down, and Home comes back to the dashboard
-  for (const id of ['dc-lab', 'dc-wk', 'dc-mo', 'dc-open', 'dc-q', 'dc-appr', 'dc-close', 'dc-now', 'dc-jobs']) {
+  for (const id of ['dc-mo', 'dc-wk', 'dc-open', 'dc-jobs', 'dc-q', 'dc-close', 'dc-lab', 'dc-now']) {
     await p.evaluate(() => ownerHome()); await p.waitForSelector('#' + id, { timeout: 5000 });
     const before = await p.evaluate(() => A.innerHTML.length); await p.evaluate((id) => document.getElementById(id).click(), id); await w(250);
     const st = await p.evaluate(() => ({ v: view, dg: !!document.getElementById('dgrid') })); if (st.dg) fail('card did not drill down: ' + id + ' ' + before);

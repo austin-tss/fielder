@@ -76,9 +76,9 @@ try {
   await p.goto(base + rl.pathname + rl.search); if (!/Already Needed/.test(await p.evaluate(() => document.body.innerText))) fail('single use'); await shot(p, 'email-approve-again');
   const ol = linkIn(oilMail, 'no'); await p.goto(base + ol.pathname + ol.search); if (!/Nothing changed/.test(await p.evaluate(() => document.body.innerText))) fail('deny after approve');
   // customer quote answer through /a
-  await p.goto(base + '/a?a=respond&id=D5-2&ans=B'); await p.waitForSelector('textarea[name=text]'); await shot(p, 'customer-respond-form');
+  await p.goto(base + '/x?a=respond&id=D5-2&ans=B'); await p.waitForSelector('textarea[name=text]'); await shot(p, 'customer-respond-form');
   await p.type('textarea[name=text]', 'Can you do it for less?'); await Promise.all([p.waitForNavigation(), p.click('button.go')]);
-  if (!/Thank you/.test(await p.evaluate(() => document.body.innerText)) || new URL(p.url()).pathname !== '/a') fail('respond via worker ' + p.url());
+  if (!/Thank you/.test(await p.evaluate(() => document.body.innerText)) || new URL(p.url()).pathname !== '/x') fail('respond via worker ' + p.url());
   if (mockJobs.find((j) => j.id === 'D5-2').response.text !== 'Can you do it for less?') fail('response saved'); await shot(p, 'customer-respond-done'); await p.close();
   // ---- receipt scanner (crew) and Owner Receipts page ----
   const m1 = featOutbox.length;

@@ -26,7 +26,7 @@ let WX=null;async function weather(){if(WX&&Date.now()-WX.t<30*60000)return WX;t
  const d=j.daily,days=d.time.map((t,i)=>({day:t,code:d.weather_code[i],rain:d.precipitation_probability_max[i],gust:d.wind_gusts_10m_max[i],hi:d.temperature_2m_max[i]}));days.forEach(x=>{x.alerts=[];if(x.rain>=70)x.alerts.push(x.rain+'% rain');if(x.gust>20)x.alerts.push('Wind '+Math.round(x.gust)+' mph')});WX={t:Date.now(),days};window.FTWX=WX;return WX}catch(e){return null}}
 window.ftWeather=weather;
 // after the first forecast, redraw the Owner dashboard so weather alerts show
-{const t=setInterval(()=>{if(!role)return;clearInterval(t);weather().then(w=>{if(w&&view==='odash'&&window.ownerHome)ownerHome()})},1000)}
+{const t=setInterval(()=>{if(!role)return;clearInterval(t);weather().then(w=>{if(w&&view==='odash')window.ftDashRedraw?ftDashRedraw():window.ownerHome&&ownerHome()})},1000)}
 // ---------- weather ----------
 const WC={0:'☀️ Clear',1:'🌤 Mostly clear',2:'⛅ Partly cloudy',3:'☁️ Cloudy',45:'🌫 Fog',48:'🌫 Fog',51:'🌦 Drizzle',53:'🌦 Drizzle',55:'🌦 Drizzle',61:'🌧 Rain',63:'🌧 Rain',65:'🌧 Heavy rain',80:'🌦 Showers',81:'🌧 Showers',82:'⛈ Heavy showers',95:'⛈ Thunderstorms',96:'⛈ Storms + hail',99:'⛈ Storms + hail'};
 window.ftWx=async function(){view='ftwx';backTo('sched');A.innerHTML='<div class="card"><h2>⛅ Weather</h2><p class="muted">Loading…</p></div>';const w=await ftWeather();if(!w)return A.innerHTML='<div class="card"><h2>⛅ Weather</h2><p>Weather is not available right now.</p></div>';
