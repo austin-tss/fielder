@@ -61,8 +61,8 @@ try {
   await p.waitForFunction(() => /⛈/.test(document.getElementById('dalert')?.textContent || ''), { timeout: 8000 }).catch(async (e) => { console.log(await p.evaluate(() => document.getElementById('dalert')?.innerText)); throw e; });
   const L = await p.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight })); if (L.sh > L.ih) fail('dashboard scrolls with alerts ' + JSON.stringify(L));
   if (!(await noBigMic(p))) fail('big mic on dashboard');
-  await p.evaluate(() => ownerSect('tools')); for (const id of ['s-pay', 's-leads2', 's-permits2', 's-wx2', 's-coi2']) if (!(await p.$('#' + id))) fail('tools button ' + id);
-  await p.click('#s-pay'); await p.waitForSelector('#prf'); await p.waitForFunction(() => /overtime/i.test(document.body.innerText));
+  await p.evaluate(() => ownerSect('timber')); for (const id of ['s-pay', 's-leads2', 's-permits2', 's-wx2', 's-coi2']) if (!(await p.$('#' + id))) fail('tools button ' + id);
+  await p.evaluate(() => document.getElementById('s-pay').click()); await p.waitForSelector('#prf'); await p.waitForFunction(() => /overtime/i.test(document.body.innerText));
   await p.evaluate(() => ftCOI()); await p.waitForSelector('#coicard');
   const exp = ymd(now + 20 * DAY);
   await p.evaluate((exp) => { const e = document.getElementById('coie'); if (e) e.value = exp; const i = document.getElementById('coii'); if (i) i.value = 'Acme Mutual'; return ftCoiUp(new File([new Uint8Array([37, 80, 68, 70])], 'COI 2026.pdf', { type: 'application/pdf' })); }, exp);

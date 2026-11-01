@@ -23,15 +23,18 @@ let POS=null;function pos(ms){return new Promise(res=>{if(!navigator.geolocation
 window.ftPos=pos;
 const API0=window.api;window.api=api=async function(body){if(body&&/^(clockIn|clockOut|finish)$/.test(body.a)&&!body.gps){const p=await pos(4000);if(p)body=Object.assign({},body,{gps:{lat:p.lat,lng:p.lng,acc:p.acc}})}return API0(body)};
 // ---------- home cards ----------
-function grid(){const r=role,own=isOwn(),s=S();const b=[];
- const add=(id,l,fn)=>b.push(`<button class="btn n" id="${id}" type="button" onclick="${fn}">${l}</button>`);
+// The old tool buttons are quick-action chips on the Ask Timber page (ftTools); homes get one Ask Timber card.
+function tools(){const r=role,own=isOwn(),s=S();const b=[];
+ const add=(id,l,fn)=>{if(!b.some(x=>x.id===id))b.push({id,l,fn})};
  if(r==='Owner'||r==='Manager'){add('ft-storm',s.storm?'🌀 Storm queue':'🌀 Storm calls','ftStorm()');add('ft-follow','⭐ Reviews &amp; yearly follow-ups','ftFollow()');add('ft-profit','📈 Job profit','ftProfit()')}
  if(r==='Owner'||r==='Admin'){add('ft-map','🗺 Crew map','ftMap()');add('ft-saferep','🦺 Safety compliance','ftSafeRep()');add('ft-qb','📒 QuickBooks export','ftQB()');if(r==='Admin')add('ft-profit','📈 Job profit','ftProfit()')}
  if(r==='Crew'){add('ft-safety','🦺 Daily safety checklist','ftSafety()');add('ft-storm','🌀 Storm queue','ftStorm()')}
  add('ft-equip','🛠 Equipment &amp; maintenance','ftEquip()');
  if(r==='Owner'){add('ft-sched','📅 Schedule','ownerDo(\'Manager\',\'sched\')');add('ft-set','⚙️ Payments, texts, reviews','ftSet()')}
  if(r==='Manager'&&!own)add('ft-remind','🔔 Send tomorrow’s reminders','ftRemind()');
- return `<div class="card" id="ftcard"><h2>Business tools</h2><div class="ftgrid">${b.join('')}</div></div>`}
+ return b}
+window.ftTools=()=>tools();
+function grid(){return `<div class="card" id="ftcard"><button class="btn huge g" id="ft-timber" type="button" onclick="ftTimber()" style="margin:0">🌲 Ask Timber</button></div>`}
 window.ftGrid=()=>grid();
 function stormBar(){return S().storm&&(role==='Owner'||role==='Manager'||role==='Crew')?`<div class="ftstorm" id="ftstormbar">🌀 STORM MODE ON<button type="button" onclick="ftStormNew()">+ Storm call</button></div>`:''}
 function inject(){if(!role||document.getElementById('ftcard')||document.getElementById('dnav'))return;if(['Owner','Manager','Crew','Admin'].indexOf(role)<0)return;

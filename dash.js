@@ -13,8 +13,9 @@ const css=document.createElement('style');css.textContent=`
 .dhead{display:flex;align-items:center;justify-content:space-between;margin:-8px 0 4px}.dhead h2{margin:0;font-size:19px;color:#112337}.dhead small{display:block;color:#5b6168;font-size:13px}
 .dtb{margin:0;width:auto;min-height:40px;padding:0 12px;border-radius:12px;border:0;background:#78a22f;color:#fff;font-weight:800;font-size:15px}
 .sect .btn{margin:8px 0}body:has(#dgrid){padding-bottom:0!important}body:has(#dgrid) #app{padding-bottom:76px!important}`;document.head.appendChild(css);
-const NAV=[['dash','🏠','Home'],['quotes','📝','Quotes'],['sched','📅','Schedule'],['jobs','🌳','Jobs / Crew'],['inv','💵','Invoices'],['team','⏱','Team &amp; Time'],['tools','🧰','Business tools'],['set','⚙️','Settings']];
+const NAV=[['dash','🏠','Home'],['quotes','📝','Quotes'],['sched','📅','Schedule'],['jobs','🌳','Jobs / Crew'],['inv','💵','Invoices'],['team','⏱','Team &amp; Time'],['timber','🌲','Ask Timber'],['set','⚙️','Settings']];
 const nav=cur=>`<div class="dnav" id="dnav">${NAV.map(([k,i,l])=>`<button type="button" id="dn-${k}" class="${k==='dash'?'hm':k===cur?'go':''}" onclick="ownerSect('${k}')"><i>${i}</i>${l}</button>`).join('')}</div>`;
+window.ftOwnerTools=()=>[{id:'s-lc',l:'💲 Labor compare',fn:'ftLaborCmp()'},{id:'s-pay',l:'🧾 Payroll &amp; overtime',fn:'ftPayroll()'},{id:'s-leads2',l:'📊 Lead sources',fn:'ftLeads()'},{id:'s-permits2',l:'📋 Permits, HOA &amp; 811',fn:'ftPermits()'},{id:'s-wx2',l:'⛅ 7-day weather',fn:'ftWx()'},{id:'s-coi2',l:'📄 Send COI',fn:'ftCOI()'}];
 window.ftDashNav=nav;
 let DASH=null;
 const isO=()=>role==='Owner';
@@ -29,7 +30,7 @@ const card=(id,label,val,sub,fn,cls)=>`<button type="button" class="dc ${cls||''
 window.ftPct=window.ftPct||((p,txt)=>`<span class="pp ${p==null?'pn':p<30?'pg':p<=45?'pa':'pr'}">${txt||(p==null?'—':Math.round(p)+'%')}</span>`);
 function labSub(c){if(!c)return 'no hours yet';if(c.cmp)return usd0(c.cmp)+' job $ · '+ftPct(c.pct);return c.hours?c.hours.toFixed(1)+' h, no job $':'no hours yet'}
 function draw(){if(view!=='odash'||!DASH)return;const d=DASH,al=alerts(d),tm=s=>{const[h,m]=String(s||'0:00').split(':');return ((+h+11)%12+1)+(m!=='00'?':'+m:'')+(+h<12?'a':'p')};
- A.innerHTML=`<div class="dhead"><div><h2>Owner dashboard</h2><small>${new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}</small></div><button class="dtb" id="dtimber" type="button" onclick="ftTimber()">🌲 Timber</button></div>
+ A.innerHTML=`<div class="dhead"><div><h2>Owner dashboard</h2><small>${new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}</small></div></div>
  ${nav('dash')}${al.length?`<div class="dalert" id="dalert" onclick="this.classList.toggle('open')"><div class="a1">⚠️ ${al.length} alert${al.length>1?'s':''}: ${esc(al[0])}${al.length>1?' · tap':''}</div>${al.map(x=>`<div class="amore">${esc(x)}</div>`).join('')}</div>`:''}
  <div class="dgrid" id="dgrid">${card('dc-lab','Labor today',usd0(d.laborToday),labSub(d.laborCmp),"ftLaborCmp({period:'day',date:'"+d.today+"',vs:'jobs',by:'job',fby:'',fkey:''})",'w')}
  ${card('dc-wk','Revenue this week',usd0(d.invoicedWeek),usd0(d.paidWeek)+' collected',"ftJobs('paid')",'g')}${card('dc-mo','Revenue this month',usd0(d.invoicedMonth),'invoiced',"ftJobs('invoiced')",'g')}
@@ -47,7 +48,6 @@ const SECT={
  quotes:['📝 Quotes',()=>big('s-newq','+ New customer quote',asM('newq()'))+big('s-out','📨 Outstanding quotes',asM("window.openOutstanding?openOutstanding():ftJobs('sent')"),'n')+big('s-qn','📥 Quotes needed',asM('qn()'),'n')+big('s-fq','📁 All projects (filter by status)',"ftJobs('all')",'n')+big('s-cust','👥 Customers',"openCusts()",'n')+big('s-leads','📊 Lead sources',"ftLeads()",'n')],
  jobs:['🌳 Jobs / Crew',()=>big('s-alljobs','📁 All jobs (filter by status)',"ftJobs('all')")+big('s-crew','🌳 Crew view',"ownerAs('Crew')",'n')+big('s-map','🗺 Crew map',"ftMap()",'n')+big('s-profit','📈 Job profit',"ftProfit()",'n')+big('s-safe','🦺 Safety compliance',"ftSafeRep()",'n')+big('s-eq','🛠 Equipment',"ftEquip()",'n')+big('s-permits','📋 Permits, HOA &amp; 811',"ftPermits()",'n')+big('s-wx','⛅ 7-day weather',"ftWx()",'n')],
  inv:['💵 Invoices',()=>big('s-inv','💵 Invoices (send, mark paid)',"ownerAs('Admin')")+big('s-open','📬 Open invoices',"ftJobs('invoiced')",'n')+big('s-paid','✅ Paid',"ftJobs('paid')",'n')+big('s-qb','📒 QuickBooks export',"ftQB()",'n')+big('s-coi','📄 Insurance certificate (COI)',"ftCOI()",'n')],
- tools:['🧰 Business tools',()=>big('s-timber','🌲 Ask Timber',"ftTimber()")+big('s-lc','💲 Labor compare',"ftLaborCmp()",'n')+big('s-pay','🧾 Payroll &amp; overtime',"ftPayroll()",'n')+big('s-leads2','📊 Lead sources',"ftLeads()",'n')+big('s-permits2','📋 Permits, HOA &amp; 811',"ftPermits()",'n')+big('s-wx2','⛅ 7-day weather',"ftWx()",'n')+big('s-coi2','📄 Send COI',"ftCOI()",'n')+(window.ftGrid?ftGrid():'')],
  set:['⚙️ Settings',()=>big('s-form','📝 Quote form, prices &amp; wording',"openSet()")+big('ft-set','💳 Payments, texts &amp; reviews',"ftSet()",'n')+big('s-tbset','🌲 Timber &amp; voice quotes setup',"ftTimberSetup()",'n')]};
 window.ownerSect=function(k){if(k==='dash')return ownerHome();if(k==='sched')return ownerAs('Manager'),sched();
  if(k==='team'){if(OH0)OH0();view='osect';armBack(()=>ownerHome());const v=document.getElementById('vhome');if(v)v.remove();A.insertAdjacentHTML('afterbegin',nav('team'));window.scrollTo(0,0);return}

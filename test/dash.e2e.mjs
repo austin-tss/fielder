@@ -45,7 +45,7 @@ try {
   const L = await p.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight, bottom: document.getElementById('dgrid').getBoundingClientRect().bottom, tabs: [...document.querySelectorAll('#dnav button')].map((b) => b.textContent.trim()), pos: getComputedStyle(document.getElementById('dnav')).position }));
   if (L.sh > L.ih) console.log(await p.evaluate(() => [...document.querySelectorAll('body *')].map((e) => [e.tagName + '#' + e.id + '.' + e.className, Math.round(e.getBoundingClientRect().bottom), getComputedStyle(e).position]).sort((a, b) => b[1] - a[1]).slice(0, 6).concat([getComputedStyle(document.body).paddingBottom, getComputedStyle(A).paddingBottom, getComputedStyle(A).marginBottom, A.getBoundingClientRect().bottom])));
   if (L.sh > L.ih || L.bottom > L.ih - 70) fail('dashboard scrolls ' + JSON.stringify(L));
-  for (const t of ['Quotes', 'Schedule', 'Jobs / Crew', 'Invoices', 'Team & Time', 'Business tools', 'Settings']) if (!L.tabs.some((x) => x.includes(t))) fail('tab ' + t);
+  for (const t of ['Quotes', 'Schedule', 'Jobs / Crew', 'Invoices', 'Team & Time', 'Ask Timber', 'Settings']) if (!L.tabs.some((x) => x.includes(t))) fail('tab ' + t);
   if (L.pos !== 'sticky') fail('tab bar not sticky');
   const lab = await p.$eval('#dc-lab', (e) => e.innerHTML); if (!/pp pg/.test(lab) || !/7%/.test(lab) || !/\$1,500/.test(lab)) fail('labor card ' + lab);
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word on dashboard');
@@ -59,11 +59,16 @@ try {
     const st = await p.evaluate(() => ({ v: view, dg: !!document.getElementById('dgrid') })); if (st.dg) fail('card did not drill down: ' + id + ' ' + before);
   }
   // tabs: each page has the bar with Home (and the app Back/Home); Home returns to the dashboard
-  for (const k of ['quotes', 'jobs', 'inv', 'team', 'tools', 'set']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.evaluate((k) => document.getElementById('dn-' + k).click(), k); await w(150);
+  for (const k of ['quotes', 'jobs', 'inv', 'team', 'timber', 'set']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.evaluate((k) => document.getElementById('dn-' + k).click(), k); await w(150);
     if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
   // Team & Time keeps the old Owner tools (clock in/out, who is on, labor)
   await p.click('#dn-team'); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
-  await p.click('#dn-tools'); await p.waitForSelector('#ftcard'); await p.waitForSelector('#s-timber');
+  await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); for (const id of ['ft-storm', 'ft-qb', 'ft-equip', 's-lc', 's-pay', 's-coi2', 's-leads2']) if (!(await p.$('#tbqa #' + id))) fail('quick action ' + id);
+  if (await p.evaluate(() => /business tools/i.test(document.body.innerText))) fail('Business tools name still shown');
+  if (await p.$('#dtimber')) fail('separate Timber header button still there');
+  // Timber opens a quick action from chat
+  await p.type('#tbq', 'open payroll'); await p.click('#tbsend'); await p.waitForSelector('#prf', { timeout: 5000 });
+  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbqa');
   // (C) speed: tab switch and cached screens render well under 150 ms
   await p.evaluate(() => ownerHome()); await p.waitForSelector('#dgrid');
   const ms = await p.evaluate(async () => { const t = []; const m = (f) => { const a = performance.now(); f(); t.push(performance.now() - a); };
@@ -89,10 +94,13 @@ try {
   await shot(p, 'job-chips');
   await p.evaluate(() => ownerHome());
   // (E) Timber: chat + hands-free voice; exact numbers from the server; never the word AI
-  if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header lost Owner view after drill-down'); await p.waitForSelector('#dtimber'); await p.click('#dtimber'); await p.waitForSelector('#tbchat');
+  if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header lost Owner view after drill-down'); await p.waitForSelector('#dn-timber'); await p.click('#dn-timber'); await p.waitForSelector('#tbchat');
   await p.type('#tbq', 'labor today vs jobs'); await p.click('#tbsend');
   await p.waitForFunction(() => /Labor today is \$100 against \$1500/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word in Timber');
+  { const m = await p.evaluate(() => ({ emoji: /🎙|🎤/.test(document.body.innerHTML), fab: !!document.querySelector('#vhfab svg.fdmic'), seg: !!document.querySelector('#tbvoice svg.fdmic'), ring: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('stroke'), fill: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('fill'), sz: document.getElementById('vhfab')?.getBoundingClientRect().width }));
+    if (m.emoji || !m.fab || !m.seg || m.ring !== '#78a22f' || m.fill !== '#112337' || m.sz !== 56) fail('mic icon ' + JSON.stringify(m)); }
+  await shot(p, 'ask-timber');
   await shot(p, 'timber');
   await p.click('#tbvoice'); await p.waitForSelector('#tbmic'); { const r = await p.$eval('#tbmic', (e) => { const b = e.getBoundingClientRect(); return { pos: getComputedStyle(e).position, r: innerWidth - b.right, bt: innerHeight - b.bottom, w: b.width }; }); if (r.pos !== 'fixed' || r.r > 30 || r.bt > 30 || r.w > 80) fail('Timber mic not in the corner ' + JSON.stringify(r)); }
   if (await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => { const x = b.getBoundingClientRect(); return /🎙|🎤/.test(b.textContent) && x.width >= 100 && x.height >= 100 && b.offsetParent; }))) fail('centered big mic present'); await p.click('#tbmic'); await w(100);

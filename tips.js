@@ -19,7 +19,7 @@ const T=[
  {id:'a-emp',sel:'#row-emp',txt:'Add people and send them login codes.'},
  {id:'a-hours',sel:'[onclick^="openHours"]',txt:'See who is on the clock, fix a missed punch, export hours.'},
  {id:'ft-storm',sel:'#ftstormbar',txt:'Storm mode is on: new calls use the fast storm form and land in a queue, most dangerous first.'},
- {id:'ft-card',sel:'#ftcard',txt:'Business tools: storm calls, crew map, job profit, equipment, safety, reviews and QuickBooks. Or just say it.'},
+ {id:'ft-card',sel:'#ftcard',txt:'Ask Timber: questions about your numbers, plus quick buttons for storm calls, crew map, job profit, equipment, safety, reviews and QuickBooks. Or just say it.'},
  {id:'ft-set',sel:'#ft-set',txt:'Connect Stripe for online payments, Twilio for texts, and your Google review link here.'},
  {id:'ft-map',sel:'#ftmap',txt:'Where everyone last clocked in, out or finished a job. Red means more than half a mile from the job.'},
  {id:'ft-safety',sel:'#ft-safety',txt:'Do the safety checklist once a day. Job complete needs it first.'},
