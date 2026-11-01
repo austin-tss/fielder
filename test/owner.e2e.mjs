@@ -40,8 +40,8 @@ await say(p,'set jake pay to 25');await w(300);await p.evaluate(()=>ownerTeam())
 await say(p,'crew hours');await p.waitForFunction(()=>/hours/i.test(document.body.innerText)&&view==='hours');
 await p.close();
 // Admin: no pins/pay, no owner page; new Jake PIN logs in as Crew
-p=await open('6789');await p.waitForSelector('#vhmic');const el=await p.evaluate(()=>api({a:'empList'}));if(el.employees.some(u=>u.pin||u.payRate!=null))fail('admin sees pins');
+p=await open('6789');await p.waitForSelector('#app h2');const el=await p.evaluate(()=>api({a:'empList'}));if(el.employees.some(u=>u.pin||u.payRate!=null))fail('admin sees pins');
 if(await p.$('#ow-now'))fail('admin got owner page');const lb=await p.evaluate(()=>api({a:'labor'}).then(()=>'ok',e=>e.message));if(!/Only the Owner/.test(lb))fail('admin labor');await p.close();
-p=await open('4466');await p.waitForSelector('#vhmic');if(await p.evaluate(()=>role)!=='Crew')fail('jake role');await p.close();
+p=await open('4466');await p.waitForSelector('#app h2');if(await p.evaluate(()=>role)!=='Crew')fail('jake role');await p.close();
 console.log('owner e2e OK');
 }finally{await browser.close();server.close()}

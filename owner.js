@@ -26,8 +26,7 @@ function bar(){let b=document.getElementById('owbar');const show=isOwner()&&role
 window.ownerAs=function(r){if(!isOwner())return;role=sessionStorage.fdRole=r;view='';cur=null;editId='';render();bar();window.scrollTo(0,0)};
 window.ownerBack=function(){if(!isOwner())return;role=sessionStorage.fdRole='Owner';view='';cur=null;render();bar();window.scrollTo(0,0)};
 window.ownerHome=function(){view='';if(typeof armBack==='function')armBack(null);bar();
- A.innerHTML=`<div class="vh" id="vhome"><h2>Owner</h2><p class="sub">Tap and talk, or use the buttons below.</p><div class="vhw"><span class="p"></span><span class="p p2"></span><button id="vhmic" type="button" aria-label="Tap to talk" onclick="FDVH.listen()">${MIC}</button></div><div id="vhst">Tap the mic</div><div id="vhheard"></div>
- <div class="vhcmd"><b>Try saying:</b><ul style="margin:0;padding-left:20px"><li>“Clock in Jake” · “Clock out Jake”</li><li>“Who’s on the clock?”</li><li>“Labor cost today” · “yesterday” · “this week”</li><li>“Add employee Jake Limb” · “Team”</li><li>“View as crew” · “View as estimator” · “View as admin”</li></ul></div></div>
+ A.innerHTML=`<h2 style="margin:6px 0 12px">Owner</h2>
  <button class="btn huge n" id="custbtn" type="button" onclick="openCusts()" style="margin-bottom:12px">👥 Customers</button>
  <div class="card owc" id="ow-now"><h2>On the clock now</h2><p class="muted">Loading…</p></div>
  <div class="card owc" id="ow-lab"><h2>Labor today</h2><p class="muted">Loading…</p></div>
