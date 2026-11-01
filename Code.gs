@@ -454,7 +454,7 @@ function respUrl_(j,k){return ScriptApp.getService().getUrl()+'?a=respond&id='+e
 function quoteHtml_(j,photosHtml,logoSrc,baseFn){var copy=FDForm.quoteCopy(settings_(),j);var btn=function(k,t,c){return '<a href="'+baseFn(k)+'" style="display:block;margin:8px 0;padding:15px;background:'+c+';color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:16px;text-align:center">'+t+'</a>';};
   return head_('Estimate',j.est,logoSrc)+'<p style="font-size:16px">Dear '+esc_(j.name)+',</p><p style="line-height:1.6">'+bodyHtml_(copy.body)+'</p>'+
   meta_(j,'Estimate #',j.est)+custBlock_(j)+itemsTable_(j)+(photosHtml?'<p style="margin:18px 0 6px"><b style="color:'+NAVY+'">Site photos</b></p>'+photosHtml:'')+
-  '<div style="background:#f6f8f2;border-radius:10px;padding:16px;margin:20px 0"><p style="margin:0 0 4px;font-size:16px"><b style="color:'+NAVY+'">Ready to move forward? Tap one:</b></p><p style="margin:0 0 6px;color:#5b6168;font-size:13px">You will be asked for your preferred time window next.</p>'+
+  (typeof featSignBtn_==='function'?featSignBtn_(j):'')+'<div style="background:#f6f8f2;border-radius:10px;padding:16px;margin:20px 0"><p style="margin:0 0 4px;font-size:16px"><b style="color:'+NAVY+'">Ready to move forward? Tap one:</b></p><p style="margin:0 0 6px;color:#5b6168;font-size:13px">You will be asked for your preferred time window next.</p>'+
   btn('A','A) Approve &mdash; schedule my job',GREEN)+btn('B','B) Approve with changes',DG)+btn('C','C) Decline for now','#8a8f98')+btn('O','Other &mdash; send a question',NAVY)+'</div>'+
   '<p style="font-size:13px;color:#5b6168;line-height:1.6"><b>Terms:</b> '+TERMS.join(' ')+'</p>'+signHtml_(copy.sign)+foot_();}
 function pdfHtml_(j){return '<html><head><style>@page{margin:28px}body{font-family:Arial,Helvetica,sans-serif}</style></head><body>'+head_('Estimate',j.est,LOGO)+meta_(j,'Estimate #',j.est)+custBlock_(j)+itemsTable_(j)+
@@ -470,13 +470,13 @@ function recapHtml_(j,bh,ah,logoSrc){var r=j.response||{},av=availText_(r);
   return head_("Here's what we did",j.est,logoSrc)+'<p style="font-size:16px">Hi '+esc_(j.name)+',</p><p style="line-height:1.6">Your job at '+esc_(j.address)+' is complete. Here is a quick look at the work.</p>'+itemsTable_(j)+custBlock_(j)+
   (av?'<p><b style="color:'+NAVY+'">Scheduled per your preference:</b> '+esc_(av)+'</p>':'')+(j.crewNotes?'<p><b style="color:'+NAVY+'">Crew notes:</b> '+esc_(j.crewNotes)+'</p>':'')+
   '<h3 style="color:'+DG+'">Before</h3>'+(bh||'<p style="color:#8a8f98">No photos</p>')+'<h3 style="color:'+DG+'">After</h3>'+(ah||'<p style="color:#8a8f98">No photos</p>')+
-  '<p style="line-height:1.6">Thank you for choosing Fielder Tree Service. If you were happy with our work, we would be grateful if you passed our name along.</p>'+REFER+foot_();}
+  '<p style="line-height:1.6">Thank you for choosing Fielder Tree Service. If you were happy with our work, we would be grateful if you passed our name along.</p>'+REFER+(typeof ftPortalP_==='function'?ftPortalP_(j):'')+foot_();}
 function sendRecap_(j){mustEmail_(j);var ib=imgs_(j.crew.filter(function(p){return p.kind=='before'}),'b'),ia=imgs_(j.crew.filter(function(p){return p.kind=='after'}),'a'),inl={logo:logoBlob_()},k;
   for(k in ib.inl)inl[k]=ib.inl[k];for(k in ia.inl)inl[k]=ia.inl[k];
   mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:"Here's what we did - Fielder Tree Service",htmlBody:recapHtml_(j,ib.h,ia.h,'cid:logo'),inlineImages:inl});}
 function invoiceHtml_(j,logoSrc){var v=j.invoice,inv=String(j.est||j.id).replace('EST','INV');
   return head_('Invoice',inv,logoSrc)+'<p style="font-size:16px">Dear '+esc_(j.name)+',</p><p>Thank you for your business. Here is your invoice for the completed work.</p>'+meta_(j,'Invoice #',inv)+custBlock_(j)+itemsTable_(j)+
-  '<p style="font-size:18px;text-align:right"><b>Amount due: <span style="color:'+DG+'">'+esc_(v.amount)+'</span></b></p>'+(v.note?'<p>'+esc_(v.note)+'</p>':'')+'<p>Questions? Call '+CO.phone+' or email '+CO.email+'.</p>'+foot_();}
+  '<p style="font-size:18px;text-align:right"><b>Amount due: <span style="color:'+DG+'">'+esc_(v.amount)+'</span></b></p>'+(v.note?'<p>'+esc_(v.note)+'</p>':'')+(typeof featPayBtn_==='function'?featPayBtn_(j):'')+'<p>Questions? Call '+CO.phone+' or email '+CO.email+'.</p>'+foot_();}
 function sendInvoice_(j){mustEmail_(j);mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:'Invoice from Fielder Tree Service - '+j.invoice.amount,htmlBody:invoiceHtml_(j,'cid:logo'),inlineImages:{logo:logoBlob_()}});}
 var LABELS={A:'Approved',B:'Approved with changes',C:'Declined',O:'Question / other'};
 var SLOTS=['Weekdays 8-12','Weekdays 12-5','Weekends','Anytime'];
@@ -503,7 +503,7 @@ function get_(e){var p=(e&&e.parameter)||{};
   return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),customers:load_('customers.json'),settings:settings_()});}
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
-function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
+function doPost(e){try{return out_(typeof featPost_==='function'?featPost_(e):post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
 var KNOWN_={login:1,aiKeys:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
@@ -892,3 +892,207 @@ function importCustomers_(d){var rows=Array.isArray(d.rows)?d.rows:[];if(!rows.l
 
 // Owner-only, write-only setup for GEMINI_API_KEY / GOOGLE_PLACES_KEY (same names Miller uses). Values are never returned: set, present, missing or invalid.
 function aiKeys_(d){var P=PropertiesService.getScriptProperties(),r={};['GEMINI_API_KEY','GOOGLE_PLACES_KEY'].forEach(function(k){var v=String(d[k]||'').trim();if(v){if(!/^[A-Za-z0-9_\-]{20,80}$/.test(v)){r[k]='invalid';return}P.setProperty(k,v);r[k]='set'}else r[k]=prop_(k)?'present':'missing'});return {ok:true,keys:r};}
+
+// ===================== Fielder Field Desk: business features (parity2) =====================
+// Self-scheduling, reminders/on-the-way, Stripe payments, e-signature, crew GPS, job costing,
+// equipment + safety, reviews + yearly follow-ups, storm mode, QuickBooks export, customer portal.
+// Entry: featPost_(e) wraps post_(e). Everything customer-facing goes through mail_() (testTo_() only) and sendSms_() (TEST_PHONE only).
+var FT_SITE='https://ft.vnxt.app/';
+var FT_ACTS={fGet:1,fSet:1,fKeys:1,bookSend:1,onWay:1,remindNow:1,gpsMap:1,costAdd:1,costDel:1,costSummary:1,eqList:1,eqSave:1,eqDel:1,eqService:1,safetySave:1,safetyStatus:1,safetyReport:1,reviewSend:1,followList:1,followSend:1,stormAdd:1,stormList:1,stormSet:1,qbExport:1,portalLink:1,sigImg:1,fDemo:1};
+var FT_PUB={bookInfo:1,bookPick:1,signInfo:1,signSubmit:1,payStart:1,payConfirm:1,portalInfo:1};
+var FT_NEED={bookSend:['quotes','schedule'],onWay:['schedule','crew'],remindNow:['schedule'],gpsMap:['hours'],costAdd:['crew','quotes','projects'],costDel:['quotes','projects'],costSummary:['projects','invoices'],
+ eqList:['crew','schedule','hours'],eqSave:['schedule','hours'],eqDel:['hours'],eqService:['crew','schedule','hours'],safetySave:['crew','clock'],safetyStatus:['crew','clock','hours'],safetyReport:['hours'],
+ reviewSend:['projects','invoices'],followList:['projects','quotes'],followSend:['projects','quotes'],stormAdd:['quotes','schedule','crew'],stormList:['quotes','schedule','crew'],stormSet:['quotes','schedule'],
+ qbExport:['invoices'],portalLink:['quotes','projects','invoices','schedule'],sigImg:['quotes','projects','invoices'],fGet:[]};
+var FT_HAZ={house:{p:1,l:'Tree on house / structure'},line:{p:1,l:'On power line'},road:{p:2,l:'Blocking road'},car:{p:2,l:'On vehicle'},drive:{p:3,l:'Blocking driveway'},fence:{p:3,l:'On fence / shed'},hang:{p:4,l:'Hanging or leaning'},yard:{p:5,l:'Down in yard'}};
+var FT_SAFE=['ppe','saws','chipper','dropzone','lines','weather','firstaid','briefing'];
+function ftR_(d){return roleOf_(d)}
+function ftCan_(d,a){var r=roleOf_(d);if(!r)return false;if(r==='Owner')return true;var need=FT_NEED[a]||[];if(!need.length)return true;var e=empOf_(d),p=(e&&Array.isArray(e.perms)?e.perms:null)||FT_PERM_DEF_[r]||[];return need.some(function(x){return p.indexOf(x)>=0})}
+function ftCfg_(){var o={};try{o=loadObj_('feat.json')}catch(e){o={}}return o}
+function ftSaveCfg_(o){saveObj_(o,'feat.json')}
+function ftSecret_(){var P=PropertiesService.getScriptProperties(),s=P.getProperty('FEAT_SECRET');if(!s){s=Utilities.getUuid()+Utilities.getUuid();P.setProperty('FEAT_SECRET',s)}return s}
+function ftHex_(b){return b.map(function(x){return ('0'+(x&255).toString(16)).slice(-2)}).join('')}
+function ftTok_(id){return String(id)+'.'+ftHex_(Utilities.computeHmacSha256Signature('job:'+id,ftSecret_())).slice(0,32)}
+function ftJobOfTok_(t){t=String(t||'');var i=t.lastIndexOf('.');if(i<1)return null;var id=t.slice(0,i);if(ftTok_(id)!==t)return null;var j=findJob_(load_(),id);return j&&!j.archived?j:null}
+function ftLink_(page,j){return FT_SITE+page+'?t='+encodeURIComponent(ftTok_(j.id))}
+function ftBtn_(href,txt,c){return '<a href="'+href+'" style="display:block;margin:8px 0;padding:15px;background:'+(c||GREEN)+';color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:16px;text-align:center">'+txt+'</a>'}
+function ftPortalP_(j){return '<p style="margin:14px 0;font-size:14px">Your project page (quote, schedule, photos, invoice): <a href="'+ftLink_('portal.html',j)+'" style="color:'+DG+';font-weight:bold">open my project</a></p>'}
+// Hooks used by Code.gs email builders
+function featSignBtn_(j){try{return ftBtn_(ftLink_('sign.html',j),'✍ Review &amp; sign online (A / B / C)',NAVY)+ftPortalP_(j)}catch(e){return ''}}
+function featPayBtn_(j){try{return (ftStripeKey_()?ftBtn_(ftLink_('pay.html',j),'💳 Pay online (card or bank)',GREEN):'')+ftPortalP_(j)}catch(e){return ''}}
+function ftMail_(j,subj,inner){if(!validEmail(j.email))return {ok:false,err:'No customer email'};mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:subj,htmlBody:head_(subj,'',  'cid:logo')+'<p style="font-size:16px">Hi '+esc_(String(j.name||'there').split(' ')[0])+',</p>'+inner+ftPortalP_(j)+foot_(),inlineImages:{logo:logoBlob_()}});return {ok:true}}
+function ftSms_(j,body){var c=ftCfg_();if(!c.smsOn)return {skipped:'SMS off'};var r=sendSms_(j.phone,body);return r}
+function ftLog_(j,kind,extra){patchJob_(j.id,function(s){s.notices=s.notices||[];s.notices.push(Object.assign({kind:kind,at:new Date().toISOString()},extra||{}));if(s.notices.length>40)s.notices=s.notices.slice(-40)})}
+function ftYmd_(ms){return Utilities.formatDate(new Date(ms),CLOCK_TZ,'yyyy-MM-dd')}
+function ftHm_(s){var p=String(s||'0:0').split(':');return (+p[0])*60+(+p[1]||0)}
+function ftT12_(s){var m=ftHm_(s),h=Math.floor(m/60),mm=m%60;return ((h+11)%12+1)+(mm?':'+('0'+mm).slice(-2):'')+(h<12?' AM':' PM')}
+function ftStripeKey_(){return String(prop_('STRIPE_SECRET_KEY')||'')}
+function ftReviewUrl_(){return String(prop_('GOOGLE_REVIEW_URL')||ftCfg_().reviewUrl||'')}
+function ftStatus_(){var c=smsCfg_(),q={};try{q=qboPublic_()}catch(e){}var cfg=ftCfg_();
+ return {storm:!!cfg.storm,smsOn:!!cfg.smsOn,smsReady:!!(c.sid&&c.tok&&c.from),stripe:!!ftStripeKey_(),stripeMode:/^sk_live/.test(ftStripeKey_())?'live':(ftStripeKey_()?'test':''),
+  reviewUrl:ftReviewUrl_(),reviewDirect:!!ftReviewUrl_(),qbo:q,gemini:!!prop_('GEMINI_API_KEY'),site:FT_SITE}}
+
+function featPost_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return post_(e)}
+ if(d&&d.object==='event'&&d.type&&d.data)return ftStripeHook_(d);
+ if(!d||typeof d!=='object')return post_(e);
+ if(FT_PUB[d.a])return ftPublic_(d);
+ if(FT_ACTS[d.a]){if(!roleOf_(d))return {ok:false,err:'PIN required'};if(!ftCan_(d,d.a))return {ok:false,err:'You do not have permission for that. Ask the owner.'};ftSweep_();return ftStaff_(d)}
+ // Pre-checks on core actions
+ if(d.a=='finish'&&roleOf_(d)==='Crew'){var who=ftWho_(d);if(!ftSafeDone_(who))return {ok:false,needSafety:true,err:'SAFETY: Finish today’s safety checklist first, then tap Job complete again.'}}
+ var r=post_(e);
+ try{if(r&&r.ok!==false){
+  if((d.a=='clockIn'||d.a=='clockOut')&&d.gps)ftGpsRec_(d,d.a=='clockIn'?'in':'out',null);
+  if(d.a=='finish'){if(d.gps)ftGpsRec_(d,'done',d.id);var j=findJob_(load_(),d.id);if(j)ftReview_(j,true)}
+  if(d.a=='login'||d.a=='clockIn')ftSweep_();}}catch(x){Logger.log('feat post-hook: '+x)}
+ return r}
+
+// ---------- public (customer) actions: token = HMAC(job id) ----------
+function ftPublic_(d){var j=ftJobOfTok_(d.t);if(!j)return {ok:false,err:'This link is not valid. Please call '+CO.phone+'.'};
+ if(d.a=='portalInfo')return {ok:true,p:ftPortal_(j)};
+ if(d.a=='bookInfo')return {ok:true,name:j.name,address:j.address,booked:ftBooked_(j),slots:ftSlots_()};
+ if(d.a=='bookPick'){var L=lock_(10000);if(!L)return BUSY_;try{var free=ftSlots_().filter(function(s){return s.date===d.date&&s.slot===d.slot})[0];if(!free)return {ok:false,err:'That time was just taken. Please pick another.'};
+   var bl=load_('blocks.json');bl=bl.filter(function(b){return !(b.job==j.id&&b.src=='customer')});var b={id:newId_('B'),date:free.date,start:free.start,end:free.end,job:j.id,note:'Booked by customer',src:'customer'};bl.push(b);save_(bl,'blocks.json');
+   var js=load_(),jj=findJob_(js,j.id);jj.booked={date:b.date,start:b.start,end:b.end,at:new Date().toISOString()};save_(js,'jobs.json');j=jj}finally{unlock_(L)}
+  ftMail_(j,'You’re booked: '+prettyDate_(d.date)+' '+ftT12_(free.start),'<p>Thanks! Your tree work at <b>'+esc_(j.address)+'</b> is booked for <b>'+prettyDate_(d.date)+', '+ftT12_(free.start)+'–'+ftT12_(free.end)+'</b>. We’ll send a reminder the day before and a heads-up when the crew is on the way.</p>');
+  return {ok:true,booked:[{date:b.date,label:prettyDate_(b.date)+' · '+ftT12_(b.start)+'–'+ftT12_(b.end)}]}}
+ if(d.a=='signInfo'){return {ok:true,quote:ftQuoteFace_(j),sig:j.sig?{name:j.sig.name,choice:j.sig.choice,at:j.sig.at}:null}}
+ if(d.a=='signSubmit'){var ch=String(d.choice||'');if(!/^[ABC]$/.test(ch))return {ok:false,err:'Pick A, B or C.'};var nm=clip_(d.name,80);if(nm.length<2)return {ok:false,err:'Type your full name.'};
+  var sig=String(d.sig||'');if(!/^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(sig)||sig.length<800||sig.length>400000)return {ok:false,err:'Please sign in the box.'};
+  var blob=Utilities.newBlob(Utilities.base64Decode(sig.split(',')[1]),'image/png','signature-'+j.id+'.png'),f=folder_(j).createFile(blob);
+  var rec={name:nm,choice:ch,label:LABELS[ch],at:new Date().toISOString(),fileId:f.getId(),note:clip_(d.note,1000)};
+  var js2,j2;var L2=lock_(10000);if(!L2){trash_f_(f);return BUSY_}try{js2=load_();j2=findJob_(js2,j.id);j2.sig=rec;if(j.folderId&&!j2.folderId){j2.folderId=j.folderId;j2.folder=j.folder}respond_(j2,{ans:ch,text:rec.note||('Signed online by '+nm)});save_(js2)}finally{unlock_(L2)}
+  var pdf=Utilities.newBlob(ftSignedHtml_(j2,sig),'text/html','s.html').getAs('application/pdf').setName('Fielder Signed Estimate '+(j2.est||j2.id)+'.pdf');try{folder_(j2).createFile(pdf.copyBlob())}catch(x){}
+  mail_({to:j2.email||testTo_(),replyTo:CO.email,name:CO.name,subject:'Signed: Estimate '+(j2.est||'')+' - '+LABELS[ch],htmlBody:head_('Signed estimate',j2.est,'cid:logo')+'<p>Thank you, '+esc_(nm)+'. Your choice: <b>'+esc_(LABELS[ch])+'</b>, signed '+Utilities.formatDate(new Date(rec.at),CLOCK_TZ,'MMM d, yyyy h:mm a')+'.</p><p><img src="cid:sig" style="max-width:320px;border-bottom:2px solid #112337"></p>'+ftPortalP_(j2)+foot_(),inlineImages:{logo:logoBlob_(),sig:blob},attachments:[pdf]});
+  return {ok:true,sig:{name:nm,choice:ch,at:rec.at},bookUrl:(ch!='C'?ftLink_('book.html',j2):'')}}
+ if(d.a=='payStart'){var key=ftStripeKey_();if(!key)return {ok:false,inactive:true,err:'Online payment is not switched on yet. Please call '+CO.phone+' to pay by card.'};
+  if(!j.invoice)return {ok:false,err:'There is no invoice on this project yet.'};if(j.invoice.paid)return {ok:true,paid:true};
+  var amt=Math.round(num_(j.invoice.amount,total_(j.items))*100);if(!(amt>=50))return {ok:false,err:'Invoice amount is missing. Please call '+CO.phone+'.'};var tk=ftTok_(j.id);
+  var pl={'mode':'payment','payment_method_types[0]':'card','payment_method_types[1]':'us_bank_account','line_items[0][quantity]':'1','line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':String(amt),
+   'line_items[0][price_data][product_data][name]':'Invoice '+String(j.est||j.id).replace('EST','INV')+' - '+CO.name,'metadata[job]':j.id,'client_reference_id':j.id,
+   'success_url':FT_SITE+'pay.html?t='+encodeURIComponent(tk)+'&sid={CHECKOUT_SESSION_ID}','cancel_url':FT_SITE+'pay.html?t='+encodeURIComponent(tk)};if(validEmail(j.email))pl.customer_email=testTo_();
+  var res=UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions',{method:'post',payload:pl,muteHttpExceptions:true,headers:{Authorization:'Bearer '+key}}),o={};try{o=JSON.parse(res.getContentText())}catch(x){}
+  if(!o.url)return {ok:false,err:'Payment page could not open ('+((o.error&&o.error.message)||res.getResponseCode())+').'};return {ok:true,url:o.url}}
+ if(d.a=='payConfirm'){if(j.invoice&&j.invoice.paid)return {ok:true,paid:true};var s=ftStripeSession_(d.sid);if(s&&s.payment_status=='paid'&&(s.metadata||{}).job==j.id){ftMarkPaid_(j.id,s);return {ok:true,paid:true}}return {ok:true,paid:false,pending:!!s}}
+ return {ok:false,err:'Bad action'}}
+function pubTokSafe_(j){return j.pt||''}
+function trash_f_(f){try{f.setTrashed(true)}catch(e){}}
+function ftQuoteFace_(j){return {est:j.est||'',name:j.name||'',address:j.address||'',date:j.updated||j.created||'',items:(j.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}}),total:total_(j.items),custHtml:custBlock_(j),status:j.status||''}}
+function ftSignedHtml_(j,sig){return '<html><body style="font-family:Arial;color:#231f20"><h2 style="color:'+NAVY+'">'+CO.name+' - Signed Estimate '+esc_(j.est||'')+'</h2><p>'+esc_(j.name)+'<br>'+esc_(j.address)+'</p>'+itemsTable_(j)+'<p><b>Customer choice:</b> '+esc_(j.sig.label)+'</p>'+(j.sig.note?'<p><b>Note:</b> '+esc_(j.sig.note)+'</p>':'')+'<p><b>Signed by:</b> '+esc_(j.sig.name)+' on '+Utilities.formatDate(new Date(j.sig.at),CLOCK_TZ,'MMM d, yyyy h:mm a z')+'</p><img src="'+sig+'" style="width:300px;border-bottom:2px solid #112337"><p style="font-size:11px;color:#666">'+TERMS.join(' ')+'</p></body></html>'}
+function ftStripeSession_(sid){var key=ftStripeKey_();if(!key||!/^cs_[A-Za-z0-9_]+$/.test(String(sid||'')))return null;var r=UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions/'+sid,{muteHttpExceptions:true,headers:{Authorization:'Bearer '+key}});try{return JSON.parse(r.getContentText())}catch(e){return null}}
+function ftMarkPaid_(id,s){patchJobRetry_(id,function(x){x.invoice=x.invoice||{};x.invoice.paid=true;x.invoice.paidAt=new Date().toISOString();x.invoice.paidVia='Stripe '+((s.payment_method_types||[])[0]||'');x.invoice.stripe=s.id;x.status='invoiced'})}
+// Stripe webhook (checkout.session.completed): never trusts the body, re-reads the session from Stripe.
+function ftStripeHook_(ev){try{if(!/^checkout\.session\.(completed|async_payment_succeeded)$/.test(ev.type))return {ok:true,ignored:true};var s=ftStripeSession_(ev.data&&ev.data.object&&ev.data.object.id);if(s&&s.payment_status=='paid'&&s.metadata&&s.metadata.job)ftMarkPaid_(s.metadata.job,s);return {ok:true}}catch(e){return {ok:false}}}
+
+// ---------- scheduling ----------
+function ftSlots_(){var bl=load_('blocks.json'),out=[],now=Date.now(),SL=[['am','08:00','12:00'],['pm','12:30','16:30']];
+ for(var i=1;i<=14;i++){var k=ftYmd_(now+i*86400000),dow=new Date(k+'T12:00:00').getDay();if(dow===0)continue;
+  SL.forEach(function(s){var a=ftHm_(s[1]),b=ftHm_(s[2]);var busy=bl.some(function(x){return x.date===k&&ftHm_(x.start)<b&&ftHm_(x.end)>a});if(!busy)out.push({date:k,slot:s[0],start:s[1],end:s[2],label:prettyDate_(k)+' · '+(s[0]=='am'?'Morning 8–12':'Afternoon 12:30–4:30')})})}
+ return out}
+function ftBooked_(j){var b=load_('blocks.json').filter(function(x){return x.job==j.id&&x.date}).sort(function(a,b){return a.date<b.date?-1:1});return b.map(function(x){return {date:x.date,start:x.start,end:x.end,label:prettyDate_(x.date)+' · '+ftT12_(x.start)+'–'+ftT12_(x.end)}})}
+var FT_SWEEP_LOCK=false;
+function ftSweep_(){if(FT_SWEEP_LOCK)return;FT_SWEEP_LOCK=true;try{var P=PropertiesService.getScriptProperties(),today=ftYmd_(Date.now()),h=+Utilities.formatDate(new Date(),CLOCK_TZ,'H');if(h<7||P.getProperty('FEAT_SWEEP')===today)return;P.setProperty('FEAT_SWEEP',today);ftRemind_()}catch(e){Logger.log('sweep '+e)}finally{FT_SWEEP_LOCK=false}}
+function ftRemind_(){var tm=ftYmd_(Date.now()+86400000),bl=load_('blocks.json').filter(function(b){return b.date===tm&&b.job}),js=load_(),n=0,c=ftCfg_();c.remSent=c.remSent||{};
+ bl.forEach(function(b){if(c.remSent[b.id])return;var j=findJob_(js,b.job);if(!j||!validEmail(j.email))return;
+  ftMail_(j,'Reminder: tree work tomorrow, '+prettyDate_(b.date),'<p>Just a reminder: our crew is scheduled at <b>'+esc_(j.address)+'</b> tomorrow, <b>'+prettyDate_(b.date)+'</b>, starting about <b>'+ftT12_(b.start)+'</b>. Please make sure gates are unlocked and vehicles are clear of the work area.</p><p>Need to change it? Call '+CO.phone+'.</p>');
+  ftSms_(j,smsText_('install',j,prettyDate_(b.date)));c.remSent[b.id]=new Date().toISOString();n++});
+ var ks=Object.keys(c.remSent);if(ks.length>400)ks.slice(0,ks.length-400).forEach(function(k){delete c.remSent[k]});ftSaveCfg_(c);return n}
+
+// ---------- GPS ----------
+function ftWho_(d){var e=empOf_(d);if(e&&e.name&&!e.shared)return e.name;return clip_(String(d.who||'').replace(/[\u0000-\u001f<>]/g,''),60)||(e?e.name:'Crew')}
+function ftMi_(a,b){var R=3958.8,t=Math.PI/180,dl=(b.lat-a.lat)*t,dn=(b.lng-a.lng)*t,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(x))}
+function ftGeo_(addr){addr=String(addr||'').trim();if(!addr)return null;var g=loadObj_('geo.json');if(g[addr]!==undefined)return g[addr];var out=null;
+ try{var r=UrlFetchApp.fetch('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address='+encodeURIComponent(addr),{muteHttpExceptions:true}),m=JSON.parse(r.getContentText()).result.addressMatches;if(m&&m.length)out={lat:m[0].coordinates.y,lng:m[0].coordinates.x}}catch(e){}
+ g[addr]=out;saveObj_(g,'geo.json');return out}
+function ftGpsRec_(d,kind,jobId){var p=d.gps||{},lat=Number(p.lat),lng=Number(p.lng);if(!isFinite(lat)||!isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return;
+ var who=ftWho_(d),js=load_(),today=ftYmd_(Date.now()),cands=[];
+ if(jobId){var jj=findJob_(js,jobId);if(jj)cands=[jj]}else{load_('blocks.json').filter(function(b){return b.date===today&&b.job}).forEach(function(b){var x=findJob_(js,b.job);if(x)cands.push(x)})}
+ var best=null;cands.forEach(function(j){var g=ftGeo_(j.address);if(!g)return;var mi=ftMi_({lat:lat,lng:lng},g);if(!best||mi<best.mi)best={mi:mi,job:j.id,name:j.name}});
+ var rec={id:newId_('G-'),who:who,kind:kind,at:new Date().toISOString(),lat:lat,lng:lng,acc:Number(p.acc)||null,job:best?best.job:'',jobName:best?best.name:'',mi:best?Math.round(best.mi*100)/100:null,flag:!!(best&&best.mi>0.5&&kind=='in')};
+ var L=lock_(8000);if(!L)return;try{var l=load_('gps.json');l.push(rec);if(l.length>3000)l=l.slice(-3000);save_(l,'gps.json')}finally{unlock_(L)}return rec}
+
+// ---------- job costing ----------
+function ftCosting_(){var now=Date.now(),js=load_().filter(function(j){return !j.archived}),bl=load_('blocks.json'),ps=ftPunches_(now-400*86400000,now),rm=ftRateMap_(),byDay={},lab={};
+ bl.forEach(function(b){if(b.job&&b.date){(byDay[b.date]=byDay[b.date]||[]);if(byDay[b.date].indexOf(b.job)<0)byDay[b.date].push(b.job)}});
+ ps.forEach(function(p){var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():now,h=Math.max(0,e-s)/3600000,day=ftYmd_(s),rate=rm[clockKey_(p.who)]||0,list=p.job?[p.job]:(byDay[day]||[]);if(!list.length)return;
+  list.forEach(function(id){var x=lab[id]=lab[id]||{hours:0,cost:0,people:{}};x.hours+=h/list.length;x.cost+=h*rate/list.length;x.people[p.who]=1})});
+ return js.filter(function(j){return lab[j.id]||(j.costs&&j.costs.length)||/complete|invoiced/.test(j.status)}).map(function(j){var l=lab[j.id]||{hours:0,cost:0,people:{}},dump=0,mat=0;(j.costs||[]).forEach(function(c){if(c.kind=='dump')dump+=c.amt;else mat+=c.amt});
+  var quoted=num_(j.invoice&&j.invoice.amount,total_(j.items)),cost=l.cost+dump+mat,profit=quoted-cost;
+  return {id:j.id,est:j.est,name:j.name,status:j.status,quoted:quoted,laborHours:Math.round(l.hours*100)/100,labor:Math.round(l.cost*100)/100,dump:dump,materials:mat,cost:Math.round(cost*100)/100,profit:Math.round(profit*100)/100,margin:quoted?Math.round(profit/quoted*1000)/10:0,crew:Object.keys(l.people),costs:j.costs||[]}})}
+
+// ---------- safety ----------
+function ftSafeDone_(who){var t=ftYmd_(Date.now()),k=clockKey_(who);return load_('safety.json').some(function(s){return s.date===t&&(clockKey_(s.who)===k||(s.crew||[]).map(clockKey_).indexOf(k)>=0)})}
+
+// ---------- reviews ----------
+function ftReview_(j,auto){var c=ftCfg_();if(auto&&c.reviewAuto===false)return {skipped:'off'};if(j.reviewSent&&auto)return {skipped:'already'};
+ var url=ftReviewUrl_()||('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(CO.name+' '+CO.addr));
+ var r=ftMail_(j,'How did we do? - '+CO.name,'<p>Thanks for choosing '+CO.name+'! If you were happy with the work, a quick Google review helps a local business more than anything.</p>'+ftBtn_(url,'⭐ Leave a Google review',GREEN)+'<p>Anything we could do better? Just reply to this email.</p>');
+ if(r.ok)patchJob_(j.id,function(s){s.reviewSent=new Date().toISOString();s.reviewDirect=!!ftReviewUrl_()});return r}
+
+// ---------- staff actions ----------
+function ftStaff_(d){var me=roleOf_(d),own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
+ if(d.a=='fDemo'){if(!own)return {ok:false,err:'Owner only'};return ftDemo_(d)}
+ if(d.a=='fGet')return S({status:ftStatus_(),hazards:FT_HAZ});
+ if(d.a=='fSet'){if(!own)return {ok:false,err:'Only the Owner can change that.'};var c=ftCfg_();if('storm' in d)c.storm=!!d.storm;if('smsOn' in d)c.smsOn=!!d.smsOn;if('reviewAuto' in d)c.reviewAuto=!!d.reviewAuto;if('reviewUrl' in d){var u=clip_(d.reviewUrl,400);if(u&&!/^https:\/\//.test(u))return {ok:false,err:'Review link must start with https://'};c.reviewUrl=u}ftSaveCfg_(c);return S({status:ftStatus_()})}
+ if(d.a=='fKeys'){if(!own)return {ok:false,err:'Only the Owner can change that.'};var P=PropertiesService.getScriptProperties(),r={};
+  var v=String(d.STRIPE_SECRET_KEY||'').trim();if(v==='-'){P.deleteProperty('STRIPE_SECRET_KEY');r.STRIPE_SECRET_KEY='removed'}else if(v){if(!/^(sk|rk)_(test|live)_[A-Za-z0-9]{10,}$/.test(v))r.STRIPE_SECRET_KEY='invalid';else{P.setProperty('STRIPE_SECRET_KEY',v);r.STRIPE_SECRET_KEY='set'}}
+  ['TWILIO_SID','TWILIO_TOKEN','TWILIO_FROM','TEST_PHONE'].forEach(function(k){var x=String(d[k]||'').trim();if(x){P.setProperty(k,clip_(x,80));r[k]='set'}});return S({result:r,status:ftStatus_()})}
+ if(d.a=='portalLink'){var jp=findJob_(load_(),d.id);if(!jp)return {ok:false,err:'Job not found'};return S({url:ftLink_('portal.html',jp),sign:ftLink_('sign.html',jp),book:ftLink_('book.html',jp),pay:ftLink_('pay.html',jp)})}
+ if(d.a=='sigImg'){var js0=findJob_(load_(),d.id);if(!js0||!js0.sig)return {ok:false,err:'No signature'};var b=DriveApp.getFileById(js0.sig.fileId).getBlob();return S({data:'data:image/png;base64,'+Utilities.base64Encode(b.getBytes()),sig:js0.sig})}
+ if(d.a=='bookSend'){var jb=findJob_(load_(),d.id);if(!jb)return {ok:false,err:'Job not found'};var url=ftLink_('book.html',jb);
+  var m=ftMail_(jb,'Pick your work date - '+CO.name,'<p>Your job is ready to schedule. Tap below to pick an open morning or afternoon that works for you. It goes straight onto our calendar.</p>'+ftBtn_(url,'📅 Pick my date',GREEN));if(!m.ok)return {ok:false,err:'Add the customer email first.',url:url};ftLog_(jb,'bookLink');return S({url:url})}
+ if(d.a=='onWay'){var jo=findJob_(load_(),d.id);if(!jo)return {ok:false,err:'Job not found'};var mins=Math.max(5,Math.min(180,+d.mins||30));
+  var mo=ftMail_(jo,'Our crew is on the way','<p>Our crew is <b>on the way</b> to '+esc_(jo.address)+' and should arrive in about <b>'+mins+' minutes</b>. Please make sure gates are open and vehicles are clear.</p>');var so=ftSms_(jo,smsText_('crewway',jo));ftLog_(jo,'onway',{sms:so.ok?'sent':(so.skipped||'failed')});
+  return mo.ok?S({sms:so.ok?'sent':(so.skipped||'not sent')}):{ok:false,err:'Add the customer email first.'}}
+ if(d.a=='remindNow')return S({sent:ftRemind_()});
+ if(d.a=='gpsMap'){var l=load_('gps.json'),last={};l.forEach(function(g){if(!last[g.who]||g.at>last[g.who].at)last[g.who]=g});var since=Date.now()-14*86400000;
+  return S({last:Object.keys(last).map(function(k){return last[k]}),flags:l.filter(function(g){return g.flag&&new Date(g.at).getTime()>since}).slice(-50).reverse(),geo:loadObj_('geo.json')})}
+ if(d.a=='costAdd'){var amt=num_(d.amt,NaN);if(!(amt>0&&amt<100000))return {ok:false,err:'Enter the amount.'};var kind=d.kind=='dump'?'dump':'materials';var by=ftWho_(d);
+  var jc=patchJob_(d.id,function(s){s.costs=s.costs||[];s.costs.push({id:newId_('C-'),kind:kind,amt:Math.round(amt*100)/100,note:clip_(d.note,200),by:by,at:new Date().toISOString()})});return jc?S({job:jc}):BUSY_}
+ if(d.a=='costDel'){var jd=patchJob_(d.id,function(s){s.costs=(s.costs||[]).filter(function(c){return c.id!==d.cid})});return jd?S({job:jd}):BUSY_}
+ if(d.a=='costSummary'){var rows=ftCosting_();if(d.id)rows=rows.filter(function(x){return x.id==d.id});var t=rows.reduce(function(a,x){a.quoted+=x.quoted;a.cost+=x.cost;a.profit+=x.profit;return a},{quoted:0,cost:0,profit:0});t.margin=t.quoted?Math.round(t.profit/t.quoted*1000)/10:0;if(!own&&me!=='Admin'&&me!=='Manager')rows.forEach(function(x){x.labor=null;x.profit=null;x.margin=null});return S({jobs:rows,total:t})}
+ if(d.a=='eqList'){var eq=load_('equipment.json');return S({items:eq.map(ftEqDue_)})}
+ if(d.a=='eqSave'||d.a=='eqDel'||d.a=='eqService'){var L=lock_(8000);if(!L)return BUSY_;try{var eq2=load_('equipment.json'),x=eq2.filter(function(q){return q.id==d.id})[0];
+   if(d.a=='eqDel')eq2=eq2.filter(function(q){return q.id!=d.id});
+   else if(d.a=='eqService'){if(!x)return {ok:false,err:'Not found'};if('hours' in d&&d.hours!==''&&d.hours!=null)x.hours=Math.max(0,num_(d.hours,x.hours||0));if(!d.hoursOnly){x.lastSvcDate=ftYmd_(Date.now());x.lastSvcHours=x.hours||0;x.log=(x.log||[]).concat([{at:new Date().toISOString(),by:ftWho_(d),hours:x.hours||0,note:clip_(d.note,200)}]).slice(-30)}}
+   else{if(!x){x={id:newId_('E-')};eq2.push(x)}x.name=clip_(d.name,80)||'Equipment';x.type=clip_(d.type,40);x.hours=num_(d.hours,0);x.svcEveryHours=num_(d.svcEveryHours,0);x.svcEveryDays=num_(d.svcEveryDays,0);x.lastSvcDate=/^\d{4}-\d\d-\d\d$/.test(d.lastSvcDate||'')?d.lastSvcDate:(x.lastSvcDate||ftYmd_(Date.now()));x.lastSvcHours=num_(d.lastSvcHours,x.lastSvcHours||x.hours||0);x.notes=clip_(d.notes,300)}
+   save_(eq2,'equipment.json');return S({items:eq2.map(ftEqDue_)})}finally{unlock_(L)}}
+ if(d.a=='safetySave'){var it=d.items||{},miss=FT_SAFE.filter(function(k){return !it[k]});if(miss.length)return {ok:false,err:'Check every item before starting work.',missing:miss};var who=ftWho_(d);
+  var L3=lock_(8000);if(!L3)return BUSY_;try{var sl=load_('safety.json');sl.push({id:newId_('S-'),who:who,crew:(d.crew||[]).map(function(x){return clip_(x,60)}).slice(0,12),date:ftYmd_(Date.now()),at:new Date().toISOString(),items:FT_SAFE,hazards:clip_(d.hazards,400),job:clip_(d.job,60)});if(sl.length>3000)sl=sl.slice(-3000);save_(sl,'safety.json')}finally{unlock_(L3)}return S({done:true,who:who})}
+ if(d.a=='safetyStatus')return S({done:ftSafeDone_(ftWho_(d)),who:ftWho_(d)});
+ if(d.a=='safetyReport'){var days=Math.min(31,+d.days||7),sl2=load_('safety.json'),ps=ftPunches_(Date.now()-32*86400000,Date.now()),out=[];for(var i=0;i<days;i++){var k=ftYmd_(Date.now()-i*86400000),wk=[];ps.forEach(function(p){if(ftYmd_(new Date(p.in).getTime())===k&&wk.indexOf(p.who)<0)wk.push(p.who)});
+   var done=sl2.filter(function(s){return s.date===k});var people=wk.map(function(w){var kk=clockKey_(w),s=done.filter(function(s){return clockKey_(s.who)===kk||(s.crew||[]).map(clockKey_).indexOf(kk)>=0})[0];return {who:w,ok:!!s,at:s?s.at:''}});
+   out.push({day:k,people:people,lists:done.length,ok:people.filter(function(x){return x.ok}).length})}
+  var eqd=load_('equipment.json').map(ftEqDue_).filter(function(x){return x.due});return S({days:out,equipmentDue:eqd})}
+ if(d.a=='reviewSend'){var jr=findJob_(load_(),d.id);if(!jr)return {ok:false,err:'Job not found'};var rr=ftReview_(jr,false);return rr.ok?S({}):{ok:false,err:rr.err||'Not sent'}}
+ if(d.a=='followList'){var now=Date.now(),seen={},fl=[];load_().forEach(function(j){var f=j.finished||(j.status=='invoiced'||j.status=='complete'?j.updated||j.created:'');if(!f)return;var age=(now-new Date(f).getTime())/86400000;if(age<330||age>400)return;var k=customerKey_(j);if(seen[k])return;seen[k]=1;
+   fl.push({id:j.id,name:j.name,address:j.address,email:j.email,finished:f,months:Math.round(age/30.4*10)/10,service:(j.items&&j.items[0]&&j.items[0].title)||j.service||'',sent:j.followSent||''})});fl.sort(function(a,b){return a.finished<b.finished?-1:1});return S({items:fl})}
+ if(d.a=='followSend'){var ids=Array.isArray(d.ids)?d.ids.slice(0,100):[],n=0,js=load_();ids.forEach(function(id){var j=findJob_(js,id);if(!j||!validEmail(j.email))return;
+   var r=ftMail_(j,'Time for your yearly tree check? - '+CO.name,'<p>It’s been about a year since we worked at <b>'+esc_(j.address)+'</b>. Yearly trimming keeps trees healthy and storm-ready, especially before hurricane season.</p><p>Want a free estimate? Reply to this email or call '+CO.phone+'.</p>');if(r.ok){n++;patchJob_(j.id,function(s){s.followSent=new Date().toISOString()})}});return S({sent:n})}
+ if(d.a=='stormAdd'){var hz=FT_HAZ[d.hazard]?d.hazard:'yard',L4=lock_(8000);if(!L4)return BUSY_;try{var st=load_('storm.json'),it2={id:newId_('ST-'),at:new Date().toISOString(),name:clip_(d.name,120)||'Unknown caller',phone:clip_(d.phone,40),address:clip_(d.address,300),hazard:hz,prio:FT_HAZ[hz].p,notes:clip_(d.notes,1000),status:'open',by:ftWho_(d)};st.push(it2);save_(st,'storm.json');return S({item:it2,items:ftStormSort_(st)})}finally{unlock_(L4)}}
+ if(d.a=='stormList')return S({items:ftStormSort_(load_('storm.json')),storm:!!ftCfg_().storm});
+ if(d.a=='stormSet'){var L5=lock_(8000);if(!L5)return BUSY_;try{var st2=load_('storm.json'),s2=st2.filter(function(x){return x.id==d.id})[0];if(!s2)return {ok:false,err:'Not found'};if(/^(open|crew sent|done|dismissed)$/.test(d.status||''))s2.status=d.status;if(d.hazard&&FT_HAZ[d.hazard]){s2.hazard=d.hazard;s2.prio=FT_HAZ[d.hazard].p}s2.updated=new Date().toISOString();save_(st2,'storm.json');return S({items:ftStormSort_(st2)})}finally{unlock_(L5)}}
+ if(d.a=='qbExport'){var f0=d.from||'0000',t0=d.to||'9999',inv=[];load_().forEach(function(j){if(!j.invoice||!j.invoice.at)return;var dt=String(j.invoice.at).slice(0,10);if(dt<f0||dt>t0)return;
+   inv.push({no:String(j.est||j.id).replace('EST','INV'),date:dt,customer:j.name,email:j.email,address:j.address,amount:num_(j.invoice.amount,total_(j.items)),memo:(j.items||[]).map(function(i){return i.title}).join('; ').slice(0,200),paid:!!j.invoice.paid,paidAt:j.invoice.paidAt?String(j.invoice.paidAt).slice(0,10):'',paidVia:j.invoice.paidVia||'',items:(j.items||[]).map(function(i){return {title:i.title,price:num_(i.price,0)}})})});return S({invoices:inv,qbo:ftStatus_().qbo})}
+ return {ok:false,err:'Bad action'}}
+function customerKey_(j){var em=String(j.email||'').trim().toLowerCase();return em||(String(j.name||'').toLowerCase()+'|'+String(j.address||'').toLowerCase())}
+function ftStormSort_(l){return l.filter(function(x){return x.status!='dismissed'}).sort(function(a,b){var da=a.status=='done'?1:0,db=b.status=='done'?1:0;return da-db||a.prio-b.prio||(a.at<b.at?-1:1)})}
+function ftEqDue_(x){var o=JSON.parse(JSON.stringify(x)),why=[];if(x.svcEveryHours){var left=x.svcEveryHours-((x.hours||0)-(x.lastSvcHours||0));o.hoursLeft=Math.round(left*10)/10;if(left<=0)why.push('Service due by hours ('+Math.round(-left)+' h over)');else if(left<=10)why.push('Service soon: '+Math.round(left)+' h left')}
+ if(x.svcEveryDays&&x.lastSvcDate){var nd=new Date(x.lastSvcDate+'T12:00:00').getTime()+x.svcEveryDays*86400000,dl=Math.round((nd-Date.now())/86400000);o.nextDate=ftYmd_(nd);o.daysLeft=dl;if(dl<=0)why.push('Service due by date ('+(-dl)+' days over)');else if(dl<=7)why.push('Service soon: '+dl+' days')}
+ o.due=why.some(function(w){return /due/.test(w)});o.soon=!o.due&&why.length>0;o.why=why;return o}
+// ---------- customer portal ----------
+function ftPortal_(j){var v=j.invoice||null,ph=function(l){return (l||[]).filter(function(p){return p&&p.id}).slice(0,24).map(function(p){return {id:p.id,kind:p.kind||'quote'}})};
+ return {co:{name:CO.name,phone:CO.phone,email:CO.email},quote:ftQuoteFace_(j),status:j.status,response:j.response?{label:j.response.label,at:j.response.at}:null,sig:j.sig?{name:j.sig.name,label:j.sig.label,at:j.sig.at}:null,
+  schedule:ftBooked_(j),photos:ph(j.photos).concat(ph(j.crew)),finished:j.finished||'',
+  invoice:v?{no:String(j.est||j.id).replace('EST','INV'),amount:num_(v.amount,total_(j.items)),at:v.at,paid:!!v.paid,paidAt:v.paidAt||'',note:v.note||''}:null,
+  payOn:!!ftStripeKey_(),links:{sign:ftLink_('sign.html',j),book:ftLink_('book.html',j),pay:ftLink_('pay.html',j)}}}
+// Owner-only demo seeding (made-up data). Only touches the feature files and appends demo jobs.
+function ftDemo_(d){var o={};if(d.gps){save_(d.gps,'gps.json');o.gps=d.gps.length}if(d.geo){var g=loadObj_('geo.json');for(var k in d.geo)g[k]=d.geo[k];saveObj_(g,'geo.json');o.geo=1}
+ if(d.safety){save_(d.safety,'safety.json');o.safety=d.safety.length}if(d.equipment){save_(d.equipment,'equipment.json');o.eq=d.equipment.length}if(d.storm){save_(d.storm,'storm.json');o.storm=d.storm.length}
+ if(d.jobs||d.patch){var L=lock_(15000);if(!L)return BUSY_;try{var js=load_();(d.jobs||[]).forEach(function(j){if(!findJob_(js,j.id)){j.demo=true;js.push(j)}});(d.patch||[]).forEach(function(p){var j=findJob_(js,p.id);if(j)for(var k in p.set)j[k]=p.set[k]});save_(js);o.jobs=js.length}finally{unlock_(L)}}
+ return Object.assign({ok:true},o)}
+
+// ---------- Fielder shims (names Miller has that Fielder does not) ----------
+var FT_PERM_DEF_={Manager:['quotes','schedule','projects'],Crew:['crew','clock'],Admin:['invoices','hours','employees','projects']};
+function ftPunches_(a,b){try{return clockLoad_(clockNames_(a,b)).all}catch(e){return []}}
+function ftRateMap_(){var m={};emps_().forEach(function(u){if(u.name&&u.payRate!=null)m[clockKey_(u.name)]=Number(u.payRate)||0});return m}
+SMS_TPL.crewway='Hi {first}, {co} here: our crew is on the way to {addr} now. Please make sure gates are open and vehicles are clear. Questions: {phone}';

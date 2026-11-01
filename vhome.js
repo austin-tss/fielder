@@ -29,9 +29,9 @@ function when(t){const d=new Date();d.setHours(0,0,0,0);let m;if(/\btoday\b/.tes
  if((m=t.match(/\bthe (\d{1,2})(?:st|nd|rd|th)?\b/))){const x=new Date(d.getFullYear(),d.getMonth(),+m[2-1]);if(x<d)x.setMonth(x.getMonth()+1);return x}return null}
 const ORIG={mgr:window.mgr,crew:window.crew,admin:window.admin,aview:window.aview};
 window.aview=function(id){INVID=id;return ORIG.aview(id)};
-const HELP={Manager:['“New quote” (then just talk)','“New quote for John Smith”','“Quotes needed” · “Finished quotes”','“Schedule” or “Show today’s jobs”','“Open Smith” (a customer)','“My projects” · “Open settings”'],
- Crew:['“Show my jobs”','“Open Smith” (a job)','“Mark job complete”','“Clock in” · “Clock out”'],
- Admin:['“Show invoices”','“Open invoice Smith”','“Mark invoice paid” · “Send invoice”','“Employees” · “Crew hours”']};
+const HELP={Manager:['“New quote” (then just talk)','“New quote for John Smith”','“Quotes needed” · “Finished quotes”','“Schedule” or “Show today’s jobs”','“Open Smith” (a customer)','“My projects” · “Open settings”','“Storm call” · “Follow ups” · “Send booking link”'],
+ Crew:['“Show my jobs”','“Open Smith” (a job)','“Mark job complete”','“Clock in” · “Clock out”','“Safety checklist” · “On my way” · “Dump fee 60”'],
+ Admin:['“Show invoices”','“Open invoice Smith”','“Mark invoice paid” · “Send invoice”','“Employees” · “Crew hours”','“QuickBooks export” · “Crew map” · “Safety report”']};
 function home(r){if(mode()!=='voice')return ORIG[r]();INVID=null;fab();
  A.innerHTML=`<div class="vh" id="vhome"><h2>Tap and talk</h2><p class="sub">Say what you need. No buttons needed.</p><div class="vhw"><span class="p"></span><span class="p p2"></span><button id="vhmic" type="button" aria-label="Tap to talk" onclick="FDVH.listen()">${MIC}</button></div><div id="vhst">Tap the mic</div><div id="vhheard"></div>
  <div class="vhcmd"><b>Try saying:</b><ul style="margin:0;padding-left:20px">${(HELP[role]||[]).map(x=>'<li>'+x+'</li>').join('')}<li>“Go home” · “Use buttons”</li></ul></div>
@@ -55,6 +55,7 @@ function findJob(q,arr){q=norm(q).replace(/^(the|job|customer|invoice|project|fo
 function go(fn){if(typeof okToLeave==='function'&&!okToLeave())return false;fn();window.scrollTo(0,0);return true}
 function route(raw){const t=norm(raw);let m;
  const done=(msg)=>say(msg,raw);
+ if(window.FTV&&FTV(raw,x=>say(x,raw)))return;
  if(/^(go )?(back )?home$|^main (menu|screen)$|^start over$/.test(t)){go(navHome);return done('Home')}
  if(/\b(use )?(buttons|forms)( instead)?\b/.test(t)&&!/invoice/.test(t)){forms();return}
  if(/\bvoice mode\b/.test(t)){voice();return}

@@ -18,6 +18,18 @@ const T=[
  {id:'c-done',sel:'#jc',txt:'Done? Add after photos, then tap here. The office gets notified right away.'},
  {id:'a-emp',sel:'#row-emp',txt:'Add people and send them login codes.'},
  {id:'a-hours',sel:'[onclick^="openHours"]',txt:'See who is on the clock, fix a missed punch, export hours.'},
+ {id:'ft-storm',sel:'#ftstormbar',txt:'Storm mode is on: new calls use the fast storm form and land in a queue, most dangerous first.'},
+ {id:'ft-card',sel:'#ftcard',txt:'Business tools: storm calls, crew map, job profit, equipment, safety, reviews and QuickBooks. Or just say it.'},
+ {id:'ft-set',sel:'#ft-set',txt:'Connect Stripe for online payments, Twilio for texts, and your Google review link here.'},
+ {id:'ft-map',sel:'#ftmap',txt:'Where everyone last clocked in, out or finished a job. Red means more than half a mile from the job.'},
+ {id:'ft-safety',sel:'#ft-safety',txt:'Do the safety checklist once a day. Job complete needs it first.'},
+ {id:'ft-portal',sel:'#ftportal',txt:'Each customer gets a private project page: quote, signature, schedule, photos, invoice and Pay button.'},
+ {id:'ft-cost',sel:'#ftcost',txt:'Add dump fees and materials. Profit = quote minus labor and costs. Say “dump fee 60”.'},
+ {id:'ft-onway',sel:'#ftonway',txt:'Tap when you leave for the job. The customer gets a “crew on the way” notice.'},
+ {id:'ft-book',sel:'#ftbook',txt:'Email the customer a link to pick their own work date. It lands right on the schedule.'},
+ {id:'ft-follow',sel:'#ftflsend',txt:'Past customers from about a year ago. One tap emails them a yearly trimming reminder.'},
+ {id:'ft-qb',sel:'#ftqbiif',txt:'Download invoices and payments for QuickBooks. IIF for Desktop, CSV for Online.'},
+ {id:'ft-eq',sel:'#fteqadd',txt:'Add each chipper, saw and truck with a service interval. Red cards are due.'},
  {id:'a-inv',sel:'.job',role:'Admin',txt:'Tap an invoice to send it or mark it Paid.'}
 ];
 const on=()=>{try{return localStorage.fdTips==='on'||(!navigator.webdriver&&localStorage.fdTips!=='off')}catch(e){return false}};

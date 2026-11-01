@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { makeGas } from './gas-harness.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -270,6 +271,7 @@ function handleApi(req, res, body) {
     job.invoice.note = d.note || '';
     return send(res, 200, JSON.stringify({ ok: true, job }));
   }
+  if (FEAT && (FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
   send(res, 200, JSON.stringify({ ok: false, err: 'Bad action' }));
 }
 
@@ -357,3 +359,19 @@ export function labor(d, emps) {
 
 let LASTVQ = '';
 export const lastVQ = () => LASTVQ;
+
+// ---- parity2 business features: run the real Code.gs (in the in-memory Apps Script emulator) against the mock's jobs/blocks.
+// No network: geocoder, Stripe and Twilio are faked; email is only recorded (featOutbox).
+let FEAT = null;
+export const featOutbox = [];
+export function featOn(opts = {}) {
+  FEAT = makeGas({ props: opts.props || {}, fetch: opts.fetch || ((url) => (/census\.gov/.test(url) ? { code: 200, body: { result: { addressMatches: [{ coordinates: { x: -84.31, y: 30.479 } }] } } } : { code: 599, body: 'offline' })) });
+  FEAT.mails = featOutbox; FEAT.ctx.MailApp.sendEmail = (m) => featOutbox.push(m); return FEAT;
+}
+function featCall(d) {
+  FEAT.props.EMPLOYEES_JSON = JSON.stringify(employees);
+  FEAT.writeJson('jobs.json', jobs); FEAT.writeJson('blocks.json', blocks);
+  const r = FEAT.post(d);
+  const js = FEAT.readJson('jobs.json'); jobs.splice(0, jobs.length, ...js); blocks = FEAT.readJson('blocks.json');
+  return r;
+}
