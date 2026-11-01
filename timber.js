@@ -9,7 +9,7 @@ const st=document.createElement('style');st.textContent=`
 .tb .b.wait{opacity:.7;font-style:italic}.tb .b.setup{background:#fff7e6;border-color:#e0a030}
 .tb .sug{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}.tb .sug button{margin:0;text-align:left;min-height:48px;border-radius:12px;border:2px solid var(--line);background:#fff;font:inherit;font-size:16px;font-weight:700;color:#34460d;padding:8px 12px}
 .tb .ask{display:flex;gap:6px}.tb .ask input{flex:1;min-height:54px;font-size:17px;border-radius:12px;border:2px solid var(--line);padding:0 12px}.tb .ask button{margin:0;flex:0 0 88px;min-height:54px}
-.tb .vbig{display:block;margin:10px auto;width:150px;height:150px;border-radius:50%;border:6px solid #112337;background:#78a22f;color:#fff;font-size:56px}
+.tb .vbig{position:fixed;right:16px;bottom:16px;z-index:60;margin:0;width:64px;height:64px;min-height:0;padding:0;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(17,35,55,.3);background:#78a22f;color:#fff;font-size:26px}
 .tb .vbig.on{background:#b42318;animation:tbp 1.4s infinite}@keyframes tbp{50%{box-shadow:0 0 0 14px rgba(180,35,24,.18)}}
 .tb .vst{text-align:center;font-weight:800;font-size:18px;min-height:26px}`;document.head.appendChild(st);
 const SUG=['How much did we spend on labor yesterday and what did we bring in?','How many quotes were done yesterday?','Who’s on the clock?','Which jobs made the most money this month?'];
@@ -22,7 +22,7 @@ window.ftTimber=function(m){if(m)mode=sessionStorage.tbMode=m;if(mode==='chat')s
  const h=H(),own=role==='Owner'||sessionStorage.fdOwner==='1';
  A.innerHTML=`<div class="card tb">${role==='Owner'&&window.ftDashNav?ftDashNav('tools'):''}<h2 style="margin:0 0 4px">🌲 Timber</h2><p style="margin:0 0 8px;color:#5b6168">Ask about money, labor, quotes and jobs. Timber checks the real numbers.</p>
  <div class="seg"><button type="button" id="tbchat" class="${mode==='chat'?'on':''}" onclick="ftTimber('chat')">💬 Type</button><button type="button" id="tbvoice" class="${mode==='voice'?'on':''}" onclick="ftTimber('voice')">🎙 Talk</button></div>
- ${mode==='voice'?`<button type="button" class="vbig" id="tbmic" onclick="ftTimberMic()">🎙</button><div class="vst" id="tbvst">${SR?'Tap the mic and ask. Timber answers out loud, then listens again.':'This phone can’t listen here. Use Type.'}</div>`:''}
+ ${mode==='voice'?`<button type="button" class="vbig" id="tbmic" onclick="ftTimberMic()">🎙</button><div class="vst" id="tbvst">${SR?'Tap the corner mic and ask. Timber answers out loud, then listens again.':'This phone can’t listen here. Use Type.'}</div>`:''}
  <div class="msgs" id="tbmsgs"></div>
  ${h.length?'':`<div class="sug" id="tbsug">${SUG.map((s,i)=>`<button type="button" id="tbs${i}" onclick="ftTimberAsk(this.textContent)">${esc(s)}</button>`).join('')}</div>`}
  ${mode==='chat'?`<div class="ask"><input id="tbq" placeholder="Ask Timber…" enterkeyhint="send" onkeydown="if(event.key==='Enter')ftTimberAsk()"><button class="btn" type="button" id="tbsend" onclick="ftTimberAsk()">Ask</button></div>`:''}

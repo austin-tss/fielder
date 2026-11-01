@@ -19,7 +19,7 @@ body.vhf{padding-bottom:84px}#vhfab[hidden]{display:none}#vhfab svg{width:28px;h
 .vhs{display:flex;align-items:center;gap:12px;background:#f1f5ea;border:2px solid #78a22f;border-radius:16px;padding:10px 12px;margin:0 0 12px;cursor:pointer;width:100%;text-align:left;font:inherit;color:#112337}.vhs .m{flex:none;width:56px;height:56px;border-radius:50%;background:#78a22f;color:#fff;display:grid;place-items:center;animation:vhb 2s ease-in-out infinite}.vhs .m svg{width:30px;height:30px}.vhs b{display:block;font-size:18px}.vhs small{font-size:14px;color:#475569}.vhs.on .m{background:#112337;animation-duration:.8s}
 #vhtip{position:fixed;left:80px;right:80px;bottom:max(20px,env(safe-area-inset-bottom));z-index:59;background:#112337;color:#fff;border-radius:12px;padding:10px 12px;font-size:15px;text-align:center}
 @media (prefers-reduced-motion:reduce){.vhw .p,#vhmic,#vhfab.on{animation:none}}`;document.head.appendChild(css);
-const mode=()=>{try{return localStorage.fdHome||(navigator.webdriver?'forms':'voice')}catch(e){return 'voice'}};
+const mode=()=>'forms'; // No centered mic anywhere: home always opens to buttons; voice = corner mic only.
 const setMode=m=>{try{localStorage.fdHome=m}catch(e){}};
 let INVID=null,LISTEN=null,CTX='',CTXARG=null;const ctx=()=>document.getElementById('vhstrip')?CTX:'';
 const DOW=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'],MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
@@ -108,12 +108,12 @@ function route(raw){const t=norm(raw);let m;
  done('Not sure how to do that here. Try again, or use buttons.')}
 function done_(id){window.done(id)}
 function forms(){setMode('forms');const b=document.getElementById('vhfab');if(b)b.hidden=true;go(()=>{view='';render()});setTimeout(fab,50)}
-function voice(){setMode('voice');go(()=>{view='';render()})}
+function voice(){forms()}
 function addBack(){if(document.getElementById('vhback'))return;const b=document.createElement('button');b.id='vhback';b.type='button';b.className='btn n';b.style.cssText='margin-bottom:12px';b.innerHTML='🎙 Switch to voice mode';b.onclick=voice;A.prepend(b)}
 // In buttons mode, keep a one-tap way back to voice on each home screen.
 ['mgr','crew','admin'].forEach(r=>{const f=window[r];window[r]=function(){const x=f.apply(this,arguments);try{const o=document.getElementById('vhback');if(o)o.remove();setTimeout(fab,50)}catch(e){}return x}});
 const SHINT={sched:'“Schedule Smith for Tuesday” · “Next week” · “Today” · “Month view”',dayView:'“Schedule Smith” (this day) · “Back to calendar” · “Go home”',blk:'“Save” · “Cancel” · “Go home”'};
-['sched','dayView','blk'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);try{CTX=n;CTXARG=arguments[0];let ex='';try{ex=localStorage.fdHome||''}catch(e){}if(!document.getElementById('vhstrip')&&!(navigator.webdriver&&!ex)){const b=document.createElement('button');b.id='vhstrip';b.type='button';b.className='vhs';b.setAttribute('aria-label','Voice command');b.innerHTML='<span class="m">'+MIC+'</span><span><b>Tap and talk</b><small>'+SHINT[n]+'</small></span>';b.onclick=()=>listen();A.prepend(b)}}catch(e){}return x}});
+['sched','dayView','blk'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);try{CTX=n;CTXARG=arguments[0];let ex='';try{ex=localStorage.fdHome||''}catch(e){}if(!document.getElementById('vhstrip')&&!(navigator.webdriver&&!ex)){const b=document.createElement('button');b.id='vhstrip';b.type='button';b.hidden=true;b.tabIndex=-1;A.prepend(b)}}catch(e){}return x}});
 if(typeof window.selBar==='function'){const sb=window.selBar;window.selBar=function(){const x=sb.apply(this,arguments);fab();return x}}
 window.FDVH={listen,route,forms,voice,mode};
 })();

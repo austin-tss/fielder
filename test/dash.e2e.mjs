@@ -50,6 +50,7 @@ try {
   const lab = await p.$eval('#dc-lab', (e) => e.innerHTML); if (!/pp pg/.test(lab) || !/7%/.test(lab) || !/\$1,500/.test(lab)) fail('labor card ' + lab);
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word on dashboard');
   if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header not Owner view');
+  if (await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => { const x = b.getBoundingClientRect(); return /🎙|🎤/.test(b.textContent) && x.width >= 100 && x.height >= 100 && b.offsetParent; }))) fail('centered mic on dashboard');
   await shot(p, 'owner-dash');
   // every number drills down, and Home comes back to the dashboard
   for (const id of ['dc-lab', 'dc-wk', 'dc-mo', 'dc-open', 'dc-q', 'dc-appr', 'dc-close', 'dc-now', 'dc-jobs']) {
@@ -93,7 +94,8 @@ try {
   await p.waitForFunction(() => /Labor today is \$100 against \$1500/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word in Timber');
   await shot(p, 'timber');
-  await p.click('#tbvoice'); await p.waitForSelector('#tbmic'); await p.click('#tbmic'); await w(100);
+  await p.click('#tbvoice'); await p.waitForSelector('#tbmic'); { const r = await p.$eval('#tbmic', (e) => { const b = e.getBoundingClientRect(); return { pos: getComputedStyle(e).position, r: innerWidth - b.right, bt: innerHeight - b.bottom, w: b.width }; }); if (r.pos !== 'fixed' || r.r > 30 || r.bt > 30 || r.w > 80) fail('Timber mic not in the corner ' + JSON.stringify(r)); }
+  if (await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => { const x = b.getBoundingClientRect(); return /🎙|🎤/.test(b.textContent) && x.width >= 100 && x.height >= 100 && b.offsetParent; }))) fail('centered big mic present'); await p.click('#tbmic'); await w(100);
   await p.evaluate(() => FAKESR.at(-1).say('what was labor today'));
   await p.waitForFunction(() => SPOKE.some((t) => /\$100/.test(t)), { timeout: 8000 }).catch(async (e) => { console.log(await p.$eval('#tbmsgs', (x) => x.innerText), gemQ.length, JSON.stringify(gemQ.at(-1)?.contents.at(-1)).slice(0, 600)); throw e; });
   await p.waitForFunction(() => FAKESR.at(-1).live, { timeout: 4000 }); // listens again after talking back
