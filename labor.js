@@ -32,7 +32,7 @@ window.ftLaborCmp=async function(o,push){if(push)STACK.push(Object.assign({},S))
  const draw=r=>{if(view!=='ftlc')return;const T=r&&r.total,isH=S.vs==='hours';
   const seg=['day','week','month'].map(p=>`<button type="button" id="lp-${p}" class="${S.period===p?'on':''}" onclick="ftLaborCmp({period:'${p}'})">${p[0].toUpperCase()+p.slice(1)}</button>`).join('');
   const ch=(m,k,cur,id)=>Object.keys(m).map(x=>`<button type="button" id="${id}-${x}" class="${cur===x?'on':''}" onclick="ftLaborCmp({${k}:'${x}'})">${m[x]}</button>`).join('');
-  const crumb=(role==='Owner'&&window.ftDashNav?ftDashNav('team'):'')+`<div class="crumb"><a href="#" onclick="ownerHome();return false">Dashboard</a> › ${S.fkey?`<a href="#" onclick="ftLaborCmp({fby:'',fkey:''});return false">Labor compare</a> › ${esc(S.fkey)}`:'Labor compare'}</div>`;
+  const crumb=(role==='Owner'&&window.ftDashNav?ftDashNav('money'):'')+`<div class="crumb"><a href="#" onclick="ownerHome();return false">Dashboard</a> › ${S.fkey?`<a href="#" onclick="ftLaborCmp({fby:'',fkey:''});return false">Labor compare</a> › ${esc(S.fkey)}`:'Labor compare'}</div>`;
   let body='<p>Loading…</p>';
   if(T){const cmpTxt=isH?(T.hours.toFixed(1)+' h'):usd(T.cmp);
    body=`<div class="tot" id="lctot"><div><small>Labor</small><b>${usd(T.labor)}</b></div><div><small>${VS[S.vs]}</small><b>${cmpTxt}</b></div>

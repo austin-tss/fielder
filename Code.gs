@@ -481,7 +481,7 @@ function sendInvoice_(j){mustEmail_(j);mail_({to:j.email,replyTo:CO.email,name:C
 var LABELS={A:'Approved',B:'Approved with changes',C:'Declined',O:'Question / other'};
 var SLOTS=['Weekdays 8-12','Weekdays 12-5','Weekends','Anytime'];
 function respond_(j,p){if(p.ans=='A'||p.ans=='B')applyDiscount_(j);j.response={ans:p.ans,label:LABELS[p.ans]||p.ans,text:p.text||'',avail:p.avail||'',when:p.when||'',at:new Date().toISOString()};
-  j.status=(p.ans=='A'||p.ans=='B')?'approved':(p.ans=='C'?'declined':'reply');}
+  j.status=(p.ans=='A'||p.ans=='B')?'approved':(p.ans=='C'?'declined':'reply');if(typeof ftWon_==='function')ftWon_(j);}
 function page_(b){return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f6f1;font-family:Arial,sans-serif;color:#231f20}.w{max-width:520px;margin:0 auto;padding:18px}h2{color:'+NAVY+'}.s{display:block;width:100%;margin:8px 0;padding:18px;font-size:19px;font-weight:bold;border:3px solid '+NAVY+';background:#fff;color:'+NAVY+';border-radius:12px;text-align:center;cursor:pointer}input[type=radio]{display:none}input[type=radio]:checked+.s{background:'+GREEN+';border-color:'+GREEN+';color:#fff}textarea,input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:14px;border:2px solid #cfd6c4;border-radius:10px}.go{width:100%;padding:20px;font-size:21px;font-weight:bold;background:'+GREEN+';color:#fff;border:0;border-radius:12px;margin-top:14px}</style><div style="background:'+NAVY+';color:#fff;padding:14px 18px;font-weight:bold;font-size:18px">'+CO.name+'</div><div class="w">'+b+'</div>').setTitle('Fielder Tree Service').addMetaTag('viewport','width=device-width,initial-scale=1');}
 function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=radio name=avail id=s'+i+' value="'+s+'"'+(i==3?' checked':'')+'><label class=s for=s'+i+'>'+s+'</label>'}).join('');
   return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="'+ScriptApp.getService().getUrl()+'" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
@@ -551,7 +551,7 @@ function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}}
     if(d.a=='importCustomers')return R(importCustomers_(d));
     js=load_();
     if(d.a=='block'||d.a=='unblock'){var bl=load_('blocks.json');bl=bl.filter(function(b){return b.id!=d.block.id});
-      if(d.a=='block'){if(!d.block.id)d.block.id=newId_('B');bl.push(d.block);}save_(bl,'blocks.json');return R({ok:true,blocks:bl});}
+      if(d.a=='block'){if(!d.block.id)d.block.id=newId_('B');if(typeof ftCrewList_==='function')d.block.crew=ftCrewList_(d.block.crew);bl.push(d.block);}save_(bl,'blocks.json');if(typeof ftAssignSync_==='function')ftAssignSync_(bl);return R({ok:true,blocks:bl});}
     if(d.a=='create'){j=pre.job;j.est=estNo_();if(d.via=='text'){pubTok_(j);send=sendQuoteLink_;}else send=sendQuote_;js.unshift(j);}
     else{j=js.filter(function(x){return x.id==d.id})[0];if(!j)return R({ok:false,err:'Job not found'});
       if(d.a=='upload'){j.crew=(j.crew||[]).concat(pre.photos);if(pre.folderId&&!j.folderId){j.folder=pre.folder;j.folderId=pre.folderId;}
@@ -1138,7 +1138,7 @@ var FT2_ACTS={timber:1,laborDay:1,laborCmp:1,bundle:1,dash:1};
 var FT2_NEED={timber:['hours','invoices','schedule'],laborDay:['hours'],laborCmp:['hours'],bundle:[],dash:['__owner']};
 function ftAllPunches_(){var n=Date.now();return ftPunches_(n-400*86400000,n+86400000)}
 // One bundled read at sign-in: every read the person is allowed, each through the normal permission checks.
-function ft2Staff_(d,me){if(!FT2_ACTS[d.a])return null;var r3=ft3Staff_(d,me);if(r3)return r3;var own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
+function ft2Staff_(d,me){if(!FT2_ACTS[d.a])return null;var r3=ft3Staff_(d,me);if(r3)return r3;var r4=typeof ft4Staff_==='function'?ft4Staff_(d,me):null;if(r4)return r4;var own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
  if(d.a=='bundle'){var R=[],t0=Date.now();FT2_BUNDLE.concat([{a:'laborDay',date:ftYmd_(Date.now())},{a:'laborCmp',period:'day',date:ftYmd_(Date.now()),vs:'jobs',by:'job'}]).forEach(function(b){if(Date.now()-t0>20000)return;var q=Object.assign({},b,{pin:d.pin,who:d.who});if(q.a=='dash'&&!own)return;
    try{var r=featPost_({postData:{contents:JSON.stringify(q)}});if(r&&r.ok!==false)R.push({body:b,res:r})}catch(e){}});return S({items:R,ms:Date.now()-t0})}
  if(d.a=='laborDay')return S(ft2LaborDay_(d.date));
@@ -1174,7 +1174,7 @@ var FT2_BUNDLE=[{a:'fGet'},{a:'dash'},{a:'empList'},{a:'eqList'},{a:'stormList'}
 function ft2LaborDay_(day){day=/^\d{4}-\d\d-\d\d$/.test(day||'')?day:ftYmd_(Date.now());var tz=CLOCK_TZ,a=Utilities.parseDate(day+' 00:00',tz,'yyyy-MM-dd HH:mm').getTime(),b=a+86400000,now=Date.now();
  var js=load_(),bl=load_('blocks.json'),ps=ftAllPunches_(),rm=ftRateMap_(),days={},today=[];bl.forEach(function(x){if(!x.job)return;(days[x.job]=days[x.job]||{})[x.date]=1;if(x.date===day&&today.indexOf(x.job)<0)today.push(x.job)});
  var J={},un={hours:0,cost:0,people:{}};today.forEach(function(id){J[id]={hours:0,cost:0,people:{}}});
- ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&J[p.job]?[p.job]:today;
+ ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&J[p.job]?[p.job]:(typeof ftCrewJobs_==='function'?(FT_BLK_=bl,ftCrewJobs_(today,day,p.who)):today);
   if(!l.length){un.hours+=h;un.cost+=h*r;un.people[p.who]=1;return}l.forEach(function(id){var x=J[id];x.hours+=h/l.length;x.cost+=h*r/l.length;x.people[p.who]=1})});
  var r2=function(v){return Math.round(v*100)/100};var rows=today.map(function(id){var j=findJob_(js,id)||{name:'(deleted job)'},nd=Object.keys(days[id]||{}).length||1,price=num_(j.invoice&&j.invoice.amount,total_(j.items)),rev=price/nd,x=J[id];
   return {id:id,name:j.name,address:j.address,dayOf:Object.keys(days[id]).sort().indexOf(day)+1,days:nd,crew:Object.keys(x.people),hours:r2(x.hours),labor:r2(x.cost),revenue:r2(rev),pct:rev?Math.round(x.cost/rev*1000)/10:null}});
@@ -1196,7 +1196,7 @@ function ft2LaborCmp_(d){var period={day:1,week:1,month:1,range:1}[d.period]?d.p
  var U={},perDay={},inR={};R.days.forEach(function(x){inR[x]=1;perDay[x]={labor:0,cmp:0,hours:0}});
  var add=function(job,who,h,c,dy){var k=(job||'')+'|'+who;U[k]=U[k]||{job:job,who:who,h:0,c:0};U[k].h+=h;U[k].c+=c;perDay[dy].labor+=c;perDay[dy].hours+=h};
  R.days.forEach(function(dy){var a=Utilities.parseDate(dy+' 00:00',tz,'yyyy-MM-dd HH:mm').getTime(),b=a+86400000,tj=sched[dy]||[];
-  ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&tj.indexOf(p.job)>=0?[p.job]:tj;
+  ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&tj.indexOf(p.job)>=0?[p.job]:(typeof ftCrewJobs_==='function'?ftCrewJobs_(tj,dy,p.who):tj);
    if(!l.length)return add(null,p.who,h,h*r,dy);l.forEach(function(id){add(id,p.who,h/l.length,h*r/l.length,dy)})})});
  var price=function(j){return num_(j.invoice&&j.invoice.amount,total_(j.items))},V={},dayOf=function(t){return t?Utilities.formatDate(new Date(t),tz,'yyyy-MM-dd'):''};
  js.forEach(function(j){var v=0;if(vs=='jobs'){var nd=Object.keys(jd[j.id]||{}).length||1;R.days.forEach(function(dy){if((sched[dy]||[]).indexOf(j.id)>=0){v+=price(j)/nd;perDay[dy].cmp+=price(j)/nd}})}
@@ -1256,7 +1256,7 @@ function tbDecl_(){return Object.keys(TB_FUNCS).map(function(k){var F=TB_FUNCS[k
 function timber_(d){
  if(d.data){var o={};String(d.data).split(',').forEach(function(n){o[n]=tbRun_(n,d.args||{})});return {ok:true,data:o}}
  var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Timber needs setup. The Owner adds the Gemini key under Settings → Smart features.'};
- var q=String(d.q||'').slice(0,1000);if(!q)return {ok:false,err:'Ask Timber a question.'};
+ FT_DRAFT_=null;FT_OPEN_=null;FT_TBD_=d;var q=String(d.q||'').slice(0,1000);if(!q)return {ok:false,err:'Ask Timber a question.'};
  var hist=(Array.isArray(d.history)?d.history:[]).slice(-12).map(function(h){return {role:h.who=='me'?'user':'model',parts:[{text:String(h.text||'').slice(0,1500)}]}});
  var now=new Date(),sys='You are Timber, the business assistant inside the '+CO.name+' Field Desk app (Tallahassee, FL). Today is '+Utilities.formatDate(now,CLOCK_TZ,'EEEE yyyy-MM-dd h:mm a')+' ET. The person asking is the '+(roleOf_(d)||'user')+'. '+
   'Always get numbers by calling the functions; never guess or invent numbers. Weeks run Sunday to Saturday. "Yesterday" means the calendar day before today. Answer briefly (1-3 short sentences, plain words, no markdown, no tables) and lead with the numbers, in dollars rounded to whole dollars. Your answer may be read aloud. Never call yourself an AI, a model, or a bot; you are Timber.';
@@ -1266,7 +1266,7 @@ function timber_(d){
    payload:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:contents,tools:[{functionDeclarations:tbDecl_()}],generationConfig:{temperature:0.2}})});
   if(res.getResponseCode()!==200)return {ok:false,err:'Timber could not answer right now ('+res.getResponseCode()+'). Try again in a minute.'};
   var c=JSON.parse(res.getContentText()),parts=(((c.candidates||[])[0]||{}).content||{}).parts||[],calls=parts.filter(function(p){return p.functionCall});
-  if(!calls.length){var txt=parts.map(function(p){return p.text||''}).join('').trim().replace(/\bAI\b/g,'').replace(/[*#_`]/g,'');return {ok:true,answer:txt||'I could not find that.',used:used}}
+  if(!calls.length){var txt=parts.map(function(p){return p.text||''}).join('').trim().replace(/\bAI\b/g,'').replace(/[*#_`]/g,'');var rr={ok:true,answer:txt||'I could not find that.',used:used};if(typeof FT_DRAFT_!=='undefined'&&FT_DRAFT_&&(roleOf_(d)==='Owner'||roleOf_(d)==='Manager'))rr.draft=FT_DRAFT_;if(typeof FT_OPEN_!=='undefined'&&FT_OPEN_)rr.open=FT_OPEN_;return rr}
   contents.push({role:'model',parts:parts});
   contents.push({role:'user',parts:calls.map(function(p){used.push(p.functionCall.name);return {functionResponse:{name:p.functionCall.name,response:{result:tbRun_(p.functionCall.name,p.functionCall.args)}}}})})}
  return {ok:false,err:'Timber got stuck on that one. Try asking it a simpler way.'}}
@@ -1307,3 +1307,74 @@ function ft2Payroll_(from,to){var tz=CLOCK_TZ,f=from?Utilities.parseDate(from+' 
  ps.forEach(function(p){var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():now;s=Math.max(s,f);e=Math.min(e,t);if(e<=s)return;var wk=ftYmd_(clockWeekStart_(s)),k=p.who+'|'+wk,x=W[k]=W[k]||{who:p.who,week:wk,hours:0,open:false};x.hours+=(e-s)/3600000;if(!p.out)x.open=true});
  var rows=Object.keys(W).map(function(k){var x=W[k],r=rm[clockKey_(x.who)]||0,reg=Math.min(40,x.hours),ot=Math.max(0,x.hours-40);return {who:x.who,week:x.week,hours:Math.round(x.hours*100)/100,regular:Math.round(reg*100)/100,overtime:Math.round(ot*100)/100,rate:r,otRate:Math.round(r*1.5*100)/100,regPay:Math.round(reg*r*100)/100,otPay:Math.round(ot*r*1.5*100)/100,gross:Math.round((reg*r+ot*r*1.5)*100)/100,open:x.open,noRate:!r}}).sort(function(a,b){return a.week<b.week?-1:a.week>b.week?1:a.who.localeCompare(b.who)});
  return {from:ftYmd_(f),to:ftYmd_(t-60000),rows:rows,total:rows.reduce(function(a,x){a.hours+=x.hours;a.overtime+=x.overtime;a.gross+=x.gross;return a},{hours:0,overtime:0,gross:0})}}
+
+// ===================== Fielder Field Desk: batch 4 (won quote -> job, crew assignment) =====================
+// A quote that is accepted (customer link, staff, or bulk status) becomes a job exactly once: jobNo is set on the same
+// record, linked to the quote number, and lands Unscheduled. Assigned crew live on schedule blocks (block.crew) and on the job (job.assigned).
+function ftWon_(j){if(j.status!=='approved'&&j.status!=='complete'&&j.status!=='invoiced')return;if(j.jobNo)return;
+ var est=String(j.est||'');j.jobNo=/EST/.test(est)?est.replace('EST','JOB'):'FT-JOB-'+String(j.id||'');j.quoteEst=est;j.wonAt=new Date().toISOString();j.jobStatus='unscheduled';}
+function ftCrewList_(c){var names={};try{(JSON.parse(prop_('EMPLOYEES_JSON')||'[]')||[]).forEach(function(e){if(e&&e.name)names[String(e.name).trim().toLowerCase()]=String(e.name).trim()})}catch(e){}
+ return (Array.isArray(c)?c:[]).map(function(x){return String(x||'').trim()}).filter(function(x){return x&&x.length<=80}).map(function(x){return names[x.toLowerCase()]||x}).filter(function(x,i,a){return a.indexOf(x)===i}).slice(0,20)}
+// job.assigned = everyone on any of the job's blocks; jobStatus moves Unscheduled -> Scheduled once a block exists.
+function ftAssignSync_(bl){FT_BLK_=null;try{var by={};bl.forEach(function(b){if(!b.job)return;var x=by[b.job]=by[b.job]||{crew:[],n:0};x.n++;(b.crew||[]).forEach(function(c){if(x.crew.indexOf(c)<0)x.crew.push(c)})});
+ var L=lock_(20000);if(!L)return;try{var js=load_(),ch=false;js.forEach(function(j){var x=by[j.id];var a=x?x.crew:[];if(JSON.stringify(j.assigned||[])!==JSON.stringify(a)){j.assigned=a;ch=true}
+   if(j.jobNo){var st=x&&x.n?'scheduled':'unscheduled';if(j.status==='approved'&&j.jobStatus!==st){j.jobStatus=st;ch=true}}});if(ch)save_(js)}finally{L.releaseLock()}}catch(e){}}
+// Labor split: a person's hours on a day go to the jobs they are assigned to that day; else across all that day's jobs.
+var FT_BLK_=null;function ftCrewJobs_(tj,dy,who){if(!tj.length)return tj;if(!FT_BLK_)FT_BLK_=load_('blocks.json');var k=clockKey_(who);
+ var mine=FT_BLK_.filter(function(b){return b.date===dy&&tj.indexOf(b.job)>=0&&(b.crew||[]).some(function(c){return clockKey_(c)===k})}).map(function(b){return b.job}).filter(function(x,i,a){return a.indexOf(x)===i});
+ return mine.length?mine:tj}
+// assign: {id, crew:[names], date?} sets the crew on that job's blocks (that date, else today and later); Owner/Estimator/Admin.
+FT2_ACTS.assign=1;FT2_NEED.assign=['schedule','projects'];
+function ft4Staff_(d,me){if(d.a!=='assign')return null;if(me==='Crew')return {ok:false,err:'Only the Owner, Estimator or Admin can assign crew.'};
+ var crew=ftCrewList_(d.crew),bl=load_('blocks.json'),td=ftYmd_(Date.now()),n=0;bl.forEach(function(b){if(b.job!=d.id)return;if(d.date?b.date===d.date:b.date>=td){b.crew=crew;n++}});
+ if(!n){var j0=findJob_(load_(),d.id);if(!j0)return {ok:false,err:'Job not found'}}save_(bl,'blocks.json');ftAssignSync_(bl);return {ok:true,blocks:bl,changed:n,job:findJob_(load_(),d.id)}}
+// Timber: start a quote draft (nothing is saved or sent; the app opens it on the quote screen for review and Send).
+var FT_DRAFT_=null;
+TB_FUNCS.draftQuote={d:'Start a NEW quote/estimate draft for a customer when asked to create, write or make an estimate or quote. Nothing is saved or sent; the app opens the draft for review. items: one line per item as "title | price", e.g. "Cut down pines | 1400".',
+ p:{name:'customer full name',email:'customer email, if given',phone:'customer phone, if given',address:'job address, if given',items:'line items, one per line: title | price'},
+ f:function(a){var it=String(a.items||'').split(/\n|;/).map(function(l){var m=l.split('|');var t=String(m[0]||'').trim(),pr=Number(String(m[1]||'').replace(/[^\d.]/g,''));return t?{title:t.slice(0,200),detail:'',price:isFinite(pr)?Math.round(pr*100)/100:0}:null}).filter(Boolean).slice(0,20);
+  FT_DRAFT_={name:String(a.name||'').trim().slice(0,120),email:String(a.email||'').trim().slice(0,120),phone:String(a.phone||'').trim().slice(0,40),address:String(a.address||'').trim().slice(0,200),items:it};
+  return {ok:true,draft:FT_DRAFT_,note:'The draft is open for review. Tell the person to check it and tap Send. Do not say it was sent.'}}};
+// ===== Timber actions (Miller 7997e81): every action re-enters the normal request pipeline with the asker's own PIN,
+// so the same role/permission checks apply. Quotes are drafts (open for review, Send on tap); archive asks first.
+// TEST RUN: emails go through mail_() -> the test inbox. Reply carries open:{id,label} or draft for the app.
+var FT_TBD_=null,FT_OPEN_=null;
+function tbSub_(a,o){var base={};Object.keys(FT_TBD_||{}).forEach(function(k){if(k!=='q'&&k!=='history'&&k!=='data'&&k!=='args')base[k]=FT_TBD_[k]});
+ var r=featPost_({postData:{contents:JSON.stringify(Object.assign(base,o||{},{a:a}))}});return r&&typeof r.getContent==='function'?JSON.parse(r.getContent()):r}
+function tbJob_(q,acc){q=String(q||'').trim().toLowerCase();if(!q)return {err:'Which customer or job?'};var js=load_().filter(function(j){return !j.archived&&(!acc||/approved|complete|invoiced/.test(j.status))});
+ var ex=js.filter(function(j){return String(j.name||'').toLowerCase()===q||String(j.est||'').toLowerCase()===q||String(j.jobNo||'').toLowerCase()===q});
+ var m=ex.length?ex:js.filter(function(j){return String(j.name||'').toLowerCase().indexOf(q)>=0||String(j.address||'').toLowerCase().indexOf(q)>=0});
+ if(!m.length)return {err:'No job matches "'+q+'".'};if(m.length>1&&!ex.length){var nm={};m.forEach(function(j){nm[j.name]=1});if(Object.keys(nm).length>1)return {err:'More than one match: '+Object.keys(nm).slice(0,5).join(', ')+'. Which one?'}}
+ m.sort(function(a,b){return String(b.created||'').localeCompare(String(a.created||''))});return {job:m[0]}}
+function tbNames_(s){return String(s||'').split(/\s*(?:,|\band\b|&)\s*/i).map(function(x){return x.trim()}).filter(Boolean)}
+function tbDo_(acc,fn){return function(a){var f=tbJob_(a.customer,acc);if(f.err)return {ok:false,error:f.err};var r=fn(f.job,a);if(r&&r.ok!==false)FT_OPEN_={id:f.job.id,label:'Open '+f.job.name};return r}}
+var TBD_='Runs right away. ';
+TB_FUNCS.createQuote=TB_FUNCS.draftQuote;
+TB_FUNCS.setQuoteStatus={d:TBD_+'Mark a quote approved/accepted (it becomes a job), declined, or sent.',p:{customer:'customer name',status:'approved, declined or sent'},
+ f:tbDo_(false,function(j,a){var s=/accept|approv|won/i.test(a.status)?'approved':/declin|lost|reject/i.test(a.status)?'declined':'sent';var r=tbSub_('setStatus',{status:s,ids:[j.id]});return r.ok?{ok:true,done:j.name+' marked '+s}:{ok:false,error:r.err}})};
+TB_FUNCS.scheduleJob={d:TBD_+'Schedule or reschedule a job (replaces its existing schedule). date YYYY-MM-DD, start/end HH:MM 24h (default 08:00-17:00), optional crew names.',p:{customer:'customer name',date:'YYYY-MM-DD',start:'HH:MM',end:'HH:MM',crew:'crew names, comma separated (optional)'},
+ f:tbDo_(true,function(j,a){if(!/^\d{4}-\d\d-\d\d$/.test(a.date||''))return {ok:false,error:'Which date?'};var bl=load_('blocks.json').filter(function(b){return b.job==j.id}),crew=a.crew?tbNames_(a.crew):((bl[0]||{}).crew||[]);
+  bl.forEach(function(b){tbSub_('unblock',{block:{id:b.id}})});var r=tbSub_('block',{block:{id:'',date:a.date,start:/^\d\d:\d\d$/.test(a.start||'')?a.start:'08:00',end:/^\d\d:\d\d$/.test(a.end||'')?a.end:'17:00',job:j.id,note:'',crew:crew}});
+  return r.ok?{ok:true,done:j.name+' scheduled '+a.date+(crew.length?' with '+crew.join(', '):'')}:{ok:false,error:r.err}})};
+TB_FUNCS.assignCrew={d:TBD_+'Assign crew people to a job (sets the crew on its scheduled days).',p:{customer:'customer name',crew:'crew names, comma separated'},
+ f:tbDo_(true,function(j,a){var r=tbSub_('assign',{id:j.id,crew:tbNames_(a.crew)});return r.ok?{ok:true,done:'Assigned '+tbNames_(a.crew).join(', ')+' to '+j.name+(r.changed?'':' (not scheduled yet)')}:{ok:false,error:r.err}})};
+TB_FUNCS.completeJob={d:TBD_+'Mark a job complete; emails the customer the job recap.',p:{customer:'customer name',notes:'crew notes (optional)'},
+ f:tbDo_(true,function(j,a){var r=tbSub_('finish',{id:j.id,notes:String(a.notes||'')});return r.ok?{ok:true,done:j.name+' marked complete and recap sent'}:{ok:false,error:r.err}})};
+TB_FUNCS.sendRecap={d:TBD_+'Email the job recap to the customer again.',p:{customer:'customer name'},
+ f:tbDo_(true,function(j){var rl=roleOf_(FT_TBD_);if(rl!=='Owner'&&rl!=='Manager')return {ok:false,error:'That PIN cannot send recaps.'};try{sendRecap_(j)}catch(e){return {ok:false,error:String(e.message||e)}}return {ok:true,done:'Recap sent for '+j.name}})};
+TB_FUNCS.invoice={d:TBD_+'Create and email an invoice for a job. amount like $1200 (default: the job total).',p:{customer:'customer name',amount:'amount (optional)',note:'invoice note (optional)'},
+ f:tbDo_(true,function(j,a){var n=Number(String(a.amount||'').replace(/[^\d.]/g,''))||Number(j.total)||(j.items||[]).reduce(function(s,i){return s+(Number(i.price)||0)},0);var r=tbSub_('invoice',{id:j.id,amount:'$'+n.toFixed(2),note:String(a.note||'')});return r.ok?{ok:true,done:'Invoice for $'+n.toFixed(2)+' sent to '+j.name}:{ok:false,error:r.err}})};
+TB_FUNCS.markPaid={d:TBD_+'Mark a job\'s invoice Paid, or back to Open (unpaid).',p:{customer:'customer name',paid:'yes for Paid, no for Open'},
+ f:tbDo_(true,function(j,a){var p=!/^(no|open|unpaid|false)/i.test(String(a.paid||'yes'));var r=tbSub_('paid',{id:j.id,paid:p});return r.ok?{ok:true,done:j.name+' marked '+(p?'Paid':'Open')}:{ok:false,error:r.err}})};
+TB_FUNCS.addCustomer={d:TBD_+'Add a customer to the customer list.',p:{name:'full name',email:'email (optional)',phone:'phone (optional)',address:'address (optional)'},
+ f:function(a){if(!a.name)return {ok:false,error:'What is the customer\'s name?'};var r=tbSub_('importCustomers',{rows:[{name:a.name,email:a.email||'',phone:a.phone||'',address:a.address||''}]});return r.ok?{ok:true,done:(r.added?'Added ':'Already have ')+a.name}:{ok:false,error:r.err}}};
+TB_FUNCS.addNote={d:TBD_+'Add an internal note to a job (not shown to the customer).',p:{customer:'customer name',note:'the note'},
+ f:tbDo_(false,function(j,a){var rl=roleOf_(FT_TBD_);if(rl!=='Owner'&&rl!=='Manager')return {ok:false,error:'That PIN cannot add notes.'};var t=String(a.note||'').trim();if(!t)return {ok:false,error:'What should the note say?'};
+  var L=lock_(20000);if(!L)return {ok:false,error:'Busy, try again.'};try{var js=load_(),x=findJob_(js,j.id);x.internalNotes=clip_((x.internalNotes?x.internalNotes+'\n':'')+t,4000);save_(js)}finally{L.releaseLock()}return {ok:true,done:'Note added to '+j.name}})};
+TB_FUNCS.clockPerson={d:TBD_+'Clock a person in or out (Owner).',p:{who:'person name',action:'in or out'},
+ f:function(a){var out=/out/i.test(a.action||'');var r=tbSub_(out?'clockOut':'clockIn',{forWho:String(a.who||'')});return r.ok?{ok:true,done:a.who+' clocked '+(out?'out':'in')}:{ok:false,error:r.err}}};
+TB_FUNCS.changeSettings={d:TBD_+'Change settings: follow-up discount percent (1-50), quote email subject, body, sign-off, theme (classic or dark). Only give what changes.',p:{discountPct:'number (optional)',quoteSubject:'(optional)',quoteBody:'(optional)',quoteSign:'(optional)',theme:'classic or dark (optional)'},
+ f:function(a){var s=settings_(),o={quoteBody:s.quoteBody,quoteSubject:s.quoteSubject,quoteSign:s.quoteSign,theme:s.theme,discountPct:s.discountPct};['quoteBody','quoteSubject','quoteSign','theme','discountPct'].forEach(function(k){if(a[k]!=null&&String(a[k]).trim()!=='')o[k]=a[k]});
+  var r=tbSub_('settings',o);return r.ok?{ok:true,done:'Settings saved'}:{ok:false,error:r.err}}};
+TB_FUNCS.archiveJob={d:'Archive (remove) a job. ALWAYS ask the person "Archive NAME? Say yes to confirm." first and only call with confirmed=yes after they say yes.',p:{customer:'customer name',confirmed:'yes only after the person confirmed'},
+ f:tbDo_(false,function(j,a){if(!/^yes$/i.test(String(a.confirmed||'').trim()))return {ok:false,needConfirm:true,error:'Ask: Archive '+j.name+'? Say yes to confirm.'};var r=tbSub_('archive',{id:j.id});return r.ok?{ok:true,done:j.name+' archived'}:{ok:false,error:r.err}})};

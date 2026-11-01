@@ -12,11 +12,11 @@ const st=document.createElement('style');st.textContent=`
 .tb .vbig{position:fixed;right:16px;bottom:16px;z-index:60;margin:0;width:64px;height:64px;min-height:0;padding:0;border-radius:50%;border:0;box-shadow:0 2px 8px rgba(17,35,55,.3);background:transparent;color:#fff;font-size:26px}.tb .vbig .fdmic{width:64px;height:64px}
 .tb .vbig.on{background:transparent}@keyframes tbp{50%{box-shadow:0 0 0 14px rgba(180,35,24,.18)}}
 .tb .vst{text-align:center;font-weight:800;font-size:18px;min-height:26px}`;document.head.appendChild(st);
-const SUG=['How much did we spend on labor yesterday and what did we bring in?','How many quotes were done yesterday?','Who’s on the clock?','Which jobs made the most money this month?'];
+const SUG=['How much did we spend on labor yesterday and what did we bring in?','Make a quote for Pat Pine at 9 Pine St: remove two pines $1,400','Schedule Hartwell for Friday with Carlos and Tyler','Invoice the Whitaker job']
 const H=()=>{try{return JSON.parse(sessionStorage.tbHist||'[]')}catch(e){return []}},setH=h=>sessionStorage.tbHist=JSON.stringify(h.slice(-30));
 let mode=sessionStorage.tbMode||'chat',live=false,busy=false,rec=null,state='';
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function bubbles(){return H().map(m=>`<div class="b ${m.who==='me'?'me':'tm'}${m.setup?' setup':''}">${esc(m.text)}${m.setup&&(role==='Owner'||sessionStorage.fdOwner==='1')?`<br><button class="btn n" type="button" style="margin-top:8px;min-height:44px" onclick="ftTimberSetup&&ftTimberSetup()">Set it up</button>`:''}</div>`).join('')+(busy?'<div class="b tm wait" id="tbwait">Timber is checking the numbers…</div>':'')}
+function bubbles(){return H().map(m=>`<div class="b ${m.who==='me'?'me':'tm'}${m.setup?' setup':''}">${esc(m.text)}${m.open&&m.open.id?`<br><button class="btn n" type="button" style="margin-top:8px;min-height:44px" onclick="ftTimberOpen('${esc(m.open.id)}')">${esc(m.open.label||'Open')}</button>`:''}${m.setup&&(role==='Owner'||sessionStorage.fdOwner==='1')?`<br><button class="btn n" type="button" style="margin-top:8px;min-height:44px" onclick="ftTimberSetup&&ftTimberSetup()">Set it up</button>`:''}</div>`).join('')+(busy?'<div class="b tm wait" id="tbwait">Timber is checking the numbers…</div>':'')}
 function paint(){if(view!=='timber')return;const m=document.getElementById('tbmsgs');if(m){m.innerHTML=bubbles();const l=m.lastElementChild;if(l&&H().length>1)l.scrollIntoView({block:'nearest'})}const s=document.getElementById('tbvst');if(s)s.textContent=state;const v=document.getElementById('tbmic');if(v){v.classList.toggle('on',live);v.innerHTML=FDMIC(live)}}
 // Quick-action chips: the former tool buttons, by role. Timber also opens them from chat or voice.
 function tlist(){const own=role==='Owner'||sessionStorage.fdOwner==='1';return (window.ftTools?ftTools():[]).concat(own&&role==='Owner'&&window.ftOwnerTools?ftOwnerTools():[]).filter((x,i,a)=>a.findIndex(y=>y.id===x.id)===i)}
@@ -28,7 +28,7 @@ window.ftTimberTool=function(q){const t=String(q||'').toLowerCase();if(!/^(pleas
  const x=tlist().find(x=>SYN[x.id]&&new RegExp('\\b('+SYN[x.id]+')').test(t))||tlist().find(x=>t.includes(plain(x.l)));if(!x)return null;setTimeout(()=>{try{(new Function(x.fn))()}catch(e){}},0);return 'Opening '+plain(x.l).replace(/^\w/,c=>c.toUpperCase())+'.'};
 window.ftTimber=function(m){if(m)mode=sessionStorage.tbMode=m;if(mode==='chat')stopVoice();view='timber';if(typeof armBack==='function')armBack(()=>{stopVoice();(role==='Owner'||sessionStorage.fdOwner==='1')&&window.ownerHome?ownerHome():render()});window.scrollTo(0,0);
  const h=H(),own=role==='Owner'||sessionStorage.fdOwner==='1';
- A.innerHTML=`<div class="card tb">${role==='Owner'&&window.ftDashNav?ftDashNav('timber'):''}<h2 style="margin:0 0 4px">🌲 Ask Timber</h2><p style="margin:0 0 8px;color:#5b6168">Ask about money, labor, quotes and jobs. Timber checks the real numbers.</p>
+ A.innerHTML=`<div class="card tb">${role==='Owner'&&window.ftDashNav?ftDashNav('timber'):''}<h2 style="margin:0 0 4px">🌲 Ask Timber</h2><p id="tbx" style="margin:0 0 8px;color:#5b6168">Your business helper. Ask about jobs, money and crew, or tell it to make a quote, schedule a job or send an invoice. Type or tap Talk.</p>
  <div class="seg"><button type="button" id="tbchat" class="${mode==='chat'?'on':''}" onclick="ftTimber('chat')">💬 Type</button><button type="button" id="tbvoice" class="${mode==='voice'?'on':''}" onclick="ftTimber('voice')">${FDMIC()} Talk</button></div>
  ${mode==='voice'?`<button type="button" class="vbig" id="tbmic" onclick="ftTimberMic()" aria-label="Talk to Timber">${FDMIC()}</button><div class="vst" id="tbvst">${SR?'Tap the corner mic and ask. Timber answers out loud, then listens again.':'This phone can’t listen here. Use Type.'}</div>`:''}
  <div class="msgs" id="tbmsgs"></div>
@@ -37,8 +37,19 @@ window.ftTimber=function(m){if(m)mode=sessionStorage.tbMode=m;if(mode==='chat')s
  ${mode==='chat'?`<div class="ask"><input id="tbq" placeholder="Ask Timber…" enterkeyhint="send" onkeydown="if(event.key==='Enter')ftTimberAsk()"><button class="btn" type="button" id="tbsend" onclick="ftTimberAsk()">Ask</button></div>`:''}
  ${h.length?`<div class="sug" style="margin-top:10px"><button type="button" onclick="sessionStorage.tbHist='[]';ftTimber()">Start over</button></div>`:''}</div>`;paint()};
 window.ftTimberAsk=async function(q){q=String(q==null?(document.getElementById('tbq')||{}).value||'':q).trim();if(!q||busy)return;{const tool=ftTimberTool(q);if(tool){setH(H().concat([{who:'me',text:q},{who:'tm',text:tool}]));stopVoice();toast(tool);return tool}}const prev=H(),h=prev.concat([{who:'me',text:q}]);setH(h);busy=true;state='Thinking…';if(view!=='timber')ftTimber();else{const s=document.getElementById('tbsug');if(s)s.remove();const i=document.getElementById('tbq');if(i)i.value=''}paint();
- let ans,setup=false;try{const r=await api({a:'timber',q,history:prev.filter(m=>!m.setup).slice(-10)});ans=r.answer}catch(e){ans=String(e.message||e);setup=/needs setup/i.test(ans)}
- busy=false;setH(H().concat([{who:'tm',text:ans,setup}]));state='';paint();if(mode==='voice'&&live)speak(ans);return ans};
+ let ans,setup=false,dr=null,op=null;try{const r=await api({a:'timber',q,history:prev.filter(m=>!m.setup).slice(-10)});ans=r.answer;dr=r.draft||null;op=r.open||null}catch(e){ans=String(e.message||e);setup=/needs setup/i.test(ans)}
+ busy=false;setH(H().concat([{who:'tm',text:ans,setup,open:op}]));state='';paint();try{if(op&&window.refresh)refresh()}catch(e){}if(dr){stopVoice();setTimeout(()=>ftTimberDraft(dr),dr._delay||900);return ans}if(mode==='voice'&&live)speak(ans);return ans};
+// Timber quote draft: open it on the quote screen for review. Nothing is saved or sent until the user taps Send.
+window.ftTimberDraft=function(d){if(!d||typeof newq!=='function')return;const it=(d.items||[]).filter(i=>i&&i.title);
+ newq({name:d.name||'',email:d.email||'',phone:d.phone||'',address:d.address||'',quote:it.map(i=>i.title+(i.price?' $'+i.price:'')).join('\n')});
+ try{if(it.length&&typeof drawPv==='function'){IT=it.map(i=>({title:i.title,detail:i.detail||'',price:Number(i.price)||0}));drawPv()}}catch(e){}
+ const c=A.querySelector('.card');if(c)c.insertAdjacentHTML('afterbegin','<p id="tbdraft" style="margin:0 0 8px;padding:8px 12px;border-radius:10px;background:#eef4e4;font-weight:700;color:#34460d">🌲 Timber started this draft. Check it, then tap Send. Nothing has been sent.</p>');toast('Draft ready to review')};
+// Leaving Timber (Back, Home, nav, sign-out) erases the conversation.
+function wipe(){if(sessionStorage.tbHist&&sessionStorage.tbHist!=='[]')sessionStorage.tbHist='[]';stopVoice()}
+window.ftTimberClear=wipe;
+window.ftTimberOpen=function(id){stopVoice();const v=(role==='Admin'?window.aview:role==='Crew'?window.cview:window.mview);if(typeof v==='function')v(id)};
+try{new MutationObserver(()=>{if(!A.querySelector('.tb'))wipe()}).observe(A,{childList:true})}catch(e){}
+addEventListener('pagehide',wipe);
 function speak(t){state='Speaking…';paint();try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=1.02;u.onend=()=>{state='';if(live&&view==='timber')listen();else paint()};speechSynthesis.speak(u)}catch(e){if(live)listen()}}
 function listen(){if(!SR){toast('This phone can’t listen here. Use Type.');live=false;return paint()}if(busy)return;try{rec&&rec.abort()}catch(e){}rec=new SR();rec.lang='en-US';rec.interimResults=false;rec.maxAlternatives=1;let got=false;
  rec.onresult=e=>{got=true;const t=e.results[0][0].transcript;if(/^(stop|stop listening|that'?s all|goodbye|bye)\.?$/i.test(t.trim())){stopVoice();return}ftTimberAsk(t)};

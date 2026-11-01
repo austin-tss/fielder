@@ -30,8 +30,19 @@ const T=[
  {id:'ft-follow',sel:'#ftflsend',txt:'Past customers from about a year ago. One tap emails them a yearly trimming reminder.'},
  {id:'ft-qb',sel:'#ftqbiif',txt:'Download invoices and payments for QuickBooks. IIF for Desktop, CSV for Online.'},
  {id:'ft-eq',sel:'#fteqadd',txt:'Add each chipper, saw and truck with a service interval. Red cards are due.'},
- {id:'a-inv',sel:'.job',role:'Admin',txt:'Tap an invoice to send it or mark it Paid.'}
+ {id:'a-inv',sel:'.job',role:'Admin',txt:'Tap an invoice to send it or mark it Paid.'},
+ {id:'s-today',sel:'#s-today',txt:'Your job for today. Tap it for the address, scope and photos.'},
+ {id:'s-clock',sel:'#s-clock',txt:'Clock in when you start and out when you finish.'},
+ {id:'s-newq',sel:'#s-newq',txt:'Start a quote here. You can talk it through.'},
+ {id:'s-quotes',sel:'#s-quotes',txt:'Quotes you sent that are waiting on the customer.'},
+ {id:'s-inv',sel:'#s-inv',txt:'Invoices to send and the ones still unpaid.'},
+ {id:'s-pay',sel:'#s-pay',txt:'Payments: see what is paid and what is still open.'},
+ {id:'o-num',sel:'#dgrid',txt:'Your numbers for today. Tap any number to see what is behind it.'},
+ {id:'o-nav',sel:'#dnav',txt:'Quotes, Jobs, Money, Ask Timber and More are always here.'},
+ {id:'mic3',sel:'#vhfab:not([hidden])',txt:'Tap the mic on any page and just say what you need.'}
 ];
+// First run: at most 3 tips per role.
+const ALLOW={Crew:['s-today','s-clock','mic3'],Manager:['s-newq','s-quotes','mic3'],Admin:['s-inv','s-pay','mic3'],Owner:['o-num','o-nav','mic3']};
 const on=()=>{try{return localStorage.fdTips==='on'||(!navigator.webdriver&&localStorage.fdTips!=='off')}catch(e){return false}};
 const who=()=>'fdTips:'+(sessionStorage.fdName||role||'x');
 const seen=()=>{try{return JSON.parse(localStorage[who()]||'[]')}catch(e){return []}};
@@ -51,7 +62,7 @@ function show(t,el){close();CUR=t.id;el.classList.add('fdring');const b=document
  const br=b.getBoundingClientRect();b.style.setProperty('--ax',Math.max(14,Math.min(br.width-36,r.left+r.width/2-br.left-11))+'px');
  document.getElementById('fdtipok').onclick=()=>{mark(t.id);close();setTimeout(scan,250)}}
 function scan(){if(!on()||!role){close();return}const s=seen();if(CUR){const el=document.querySelector('.fdring');if(el&&vis(el))return;close()}
- for(const t of T){if(s.includes(t.id)||(t.role&&t.role!==role))continue;const el=document.querySelector(t.sel);if(vis(el)){show(t,el);return}}}
+ const al=ALLOW[sessionStorage.fdOwner==='1'?'Owner':role];for(const t of T){if(s.includes(t.id)||(t.role&&t.role!==role)||(al&&!al.includes(t.id)))continue;const el=document.querySelector(t.sel);if(vis(el)){show(t,el);return}}}
 window.fdTipsScan=scan;
 window.fdTipsReplay=function(){try{localStorage.removeItem(who());if(localStorage.fdTips==='off')localStorage.removeItem('fdTips');if(navigator.webdriver)localStorage.fdTips='on'}catch(e){}close();scan();if(!CUR)toast('No tips for this page')};
 function btn(){const out=document.getElementById('out');if(!out)return;let b=document.getElementById('tipsbtn');

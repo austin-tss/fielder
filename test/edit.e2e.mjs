@@ -141,6 +141,10 @@ try {
   await page.evaluate(() => document.getElementById('out').click());
   await waitText(page, 'Enter your PIN');
   await pressPin(page, '6789');
+  await waitText(page, 'Ready to invoice (1)');
+  const invTab = await page.evaluate(() => document.body.innerText.split('Invoices').pop());
+  if (invTab.includes('Finished Pine')) fail('Invoiced tab should only list jobs with an invoice');
+  await page.evaluate(() => document.getElementById('readyinv').click());
   await waitText(page, 'Finished Pine');
   await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Finished Pine')).click());
   await waitText(page, 'Save invoice');

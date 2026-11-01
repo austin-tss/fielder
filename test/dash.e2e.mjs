@@ -45,7 +45,7 @@ try {
   const L = await p.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight, bottom: document.getElementById('dgrid').getBoundingClientRect().bottom, tabs: [...document.querySelectorAll('#dnav button')].map((b) => b.textContent.trim()), pos: getComputedStyle(document.getElementById('dnav')).position }));
   if (L.sh > L.ih) console.log(await p.evaluate(() => [...document.querySelectorAll('body *')].map((e) => [e.tagName + '#' + e.id + '.' + e.className, Math.round(e.getBoundingClientRect().bottom), getComputedStyle(e).position]).sort((a, b) => b[1] - a[1]).slice(0, 6).concat([getComputedStyle(document.body).paddingBottom, getComputedStyle(A).paddingBottom, getComputedStyle(A).marginBottom, A.getBoundingClientRect().bottom])));
   if (L.sh > L.ih || L.bottom > L.ih - 70) fail('dashboard scrolls ' + JSON.stringify(L));
-  for (const t of ['Quotes', 'Schedule', 'Jobs / Crew', 'Invoices', 'Team & Time', 'Ask Timber', 'Settings']) if (!L.tabs.some((x) => x.includes(t))) fail('tab ' + t);
+  for (const t of ['Home', 'Quotes', 'Jobs', 'Money', 'Ask Timber', 'More']) if (!L.tabs.some((x) => x.includes(t))) fail('tab ' + t);
   if (L.pos !== 'sticky') fail('tab bar not sticky');
   const lab = await p.$eval('#dc-lab', (e) => e.innerHTML); if (!/pp pg/.test(lab) || !/7%/.test(lab) || !/\$1,500/.test(lab)) fail('labor card ' + lab);
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word on dashboard');
@@ -59,10 +59,10 @@ try {
     const st = await p.evaluate(() => ({ v: view, dg: !!document.getElementById('dgrid') })); if (st.dg) fail('card did not drill down: ' + id + ' ' + before);
   }
   // tabs: each page has the bar with Home (and the app Back/Home); Home returns to the dashboard
-  for (const k of ['quotes', 'jobs', 'inv', 'team', 'timber', 'set']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.evaluate((k) => document.getElementById('dn-' + k).click(), k); await w(150);
+  for (const k of ['quotes', 'jobs', 'money', 'timber', 'more']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.evaluate((k) => document.getElementById('dn-' + k).click(), k); await w(150);
     if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
   // Team & Time keeps the old Owner tools (clock in/out, who is on, labor)
-  await p.click('#dn-team'); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
+  await p.click('#dn-more'); await p.waitForSelector('#s-team'); await p.evaluate(() => document.getElementById('s-team').click()); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
   await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); for (const id of ['ft-storm', 'ft-qb', 'ft-equip', 's-lc', 's-pay', 's-coi2', 's-leads2']) if (!(await p.$('#tbqa #' + id))) fail('quick action ' + id);
   if (await p.evaluate(() => /business tools/i.test(document.body.innerText))) fail('Business tools name still shown');
   if (await p.$('#dtimber')) fail('separate Timber header button still there');
