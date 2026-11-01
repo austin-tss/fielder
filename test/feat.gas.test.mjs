@@ -177,8 +177,13 @@ test('job costing: punches x pay rate split across the day\'s jobs, plus costs; 
   const all = g.post({ a: 'costSummary', pin: OWN }); assert.ok(all.total.quoted >= 1600);
 });
 
-test('safety: crew cannot finish a job before today\'s 8-item checklist; enforced on the server', () => {
+test('safety off (default): crew can finish without the checklist (server gate follows Safety checks)', () => {
   const g = gas();
+  const f0 = g.post({ a: 'finish', pin: CREW, id: 'J1', who: 'Jake Saw', notes: 'done' });
+  assert.notEqual(f0.needSafety, true, JSON.stringify(f0));
+});
+test('safety: crew cannot finish a job before today\'s 8-item checklist; enforced on the server', () => {
+  const g = gas(); g.writeJson('feat.json', { on: { safety: true } });
   const f1 = g.post({ a: 'finish', pin: CREW, id: 'J1', who: 'Jake Saw', notes: 'done' });
   assert.equal(f1.ok, false); assert.equal(f1.needSafety, true);
   assert.equal(g.post({ a: 'safetySave', pin: CREW, items: { ppe: 1, saws: 1 } }).ok, false);

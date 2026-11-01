@@ -283,7 +283,7 @@ function handleApi(req, res, body) {
     job.invoice.note = d.note || '';
     return send(res, 200, JSON.stringify({ ok: true, job }));
   }
-  if (FEAT && (FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || FEAT.ctx.FT2_ACTS[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
+  if (FEAT && ((FEAT.ctx.FT5_LISTS_ && FEAT.ctx.FT5_LISTS_[d.a]) || FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || FEAT.ctx.FT2_ACTS[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
   send(res, 200, JSON.stringify({ ok: false, err: 'Bad action' }));
 }
 

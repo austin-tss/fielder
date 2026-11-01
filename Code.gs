@@ -825,7 +825,7 @@ function laborApi_(d){var now=Date.now(),re=/^\d{4}-\d{2}-\d{2}$/,to=re.test(d.t
 // ===== Voice quotes: Gemini sorts a spoken walk-through into customer, estimate, and crew-only parts. =====
 // Needs Script Property GEMINI_API_KEY. Nothing is saved or sent here; the app pre-fills the form for review.
 // Crew-only details are returned separately and the app puts them only in Internal notes (never on the estimate or email).
-var VOICE_MODEL='gemini-3.8-flash'; // gemini-2.5-flash now returns 404 for new keys
+var VOICE_MODEL='gemini-3.1-flash-lite'; // voice quote fill: fastest model that filled the JSON reliably (Miller tests 2026-11-01; checked against the key's model list) // gemini-2.5-flash now returns 404 for new keys
 function voiceSchema_(){var S={type:'STRING'},N={type:'NUMBER'};
   return {type:'OBJECT',properties:{
     transcript:S,
@@ -846,7 +846,7 @@ function voiceQuote_(d){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false
   if(text)parts.push({text:'Estimator notes:\n'+text});
   if(!audio&&!text)return {ok:false,err:'Say or type the quote first.'};
   var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+VOICE_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
-    payload:JSON.stringify({contents:[{role:'user',parts:parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseSchema:voiceSchema_()}})});
+    payload:JSON.stringify({contents:[{role:'user',parts:parts}],generationConfig:{temperature:0.2,responseMimeType:'application/json',responseSchema:voiceSchema_(),thinkingConfig:{thinkingLevel:'minimal'}}})});
   var code=res.getResponseCode(),body={};try{body=JSON.parse(res.getContentText()||'{}')}catch(e){}
   if(code<200||code>=300){Logger.log('Gemini '+code+' '+res.getContentText().slice(0,500));var gm='';try{gm=String((body.error||{}).message||'').slice(0,200)}catch(e3){}return {ok:false,err:'Gemini could not read that ('+code+(gm?': '+gm:'')+'). Try again or type the notes.'};}
   var out={};try{out=JSON.parse(body.candidates[0].content.parts.map(function(x){return x.text||''}).join(''))}catch(e2){return {ok:false,err:'Gemini answer was not readable. Try again.'};}
@@ -970,9 +970,10 @@ function featPost_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){retur
  if(d&&d.object==='event'&&d.type&&d.data)return ftStripeHook_(d);
  if(!d||typeof d!=='object')return post_(e);
  if(FT_PUB[d.a])return ftPublic_(d);
+ if(typeof FT5_LISTS_!=='undefined'&&FT5_LISTS_[d.a]){if(typeof seedEmps_==='function')seedEmps_();return ft5Lists_(d)}
  if(FT_ACTS[d.a]||(typeof FT2_ACTS!=='undefined'&&FT2_ACTS[d.a])){if(!roleOf_(d))return {ok:false,err:'PIN required'};if(!ftCan_(d,d.a))return {ok:false,err:'You do not have permission for that. Ask the owner.'};ftSweep_();return ftStaff_(d)}
  // Pre-checks on core actions
- if(d.a=='finish'&&roleOf_(d)==='Crew'){var who=ftWho_(d);if(!ftSafeDone_(who))return {ok:false,needSafety:true,err:'SAFETY: Finish today’s safety checklist first, then tap Job complete again.'}}
+ if(d.a=='finish'&&roleOf_(d)==='Crew'&&(ftCfg_().on||{}).safety){var who=ftWho_(d);if(!ftSafeDone_(who))return {ok:false,needSafety:true,err:'SAFETY: Finish today’s safety checklist first, then tap Job complete again.'}}
  var r=post_(e);
  try{if(r&&r.ok!==false){
   if((d.a=='clockIn'||d.a=='clockOut')&&d.gps)ftGpsRec_(d,d.a=='clockIn'?'in':'out',null);
@@ -1250,25 +1251,28 @@ var TB_FUNCS={
    return {from:f,to:t,jobs:l.slice(0,10)}}},
  dashboard:{d:'Snapshot: revenue this week/month, open invoices, quotes waiting, close rate, labor today, alerts.',p:{},f:function(){var d=ft2Dash_();return {invoicedWeek:d.invoicedWeek,paidWeek:d.paidWeek,invoicedMonth:d.invoicedMonth,unpaid:d.unpaid,openQuotes:d.openQuotes,closeRate:d.closeRate,closeN:d.closeN,laborToday:d.laborToday,laborVsJobsToday:d.laborCmp,onClock:d.onClock,todayJobs:d.todayJobs}}}
 };
-function tbRun_(name,args){var F=TB_FUNCS[name];if(!F)return {error:'unknown function '+name};try{return F.f(args||{})}catch(e){return {error:String(e)}}}
+function tbRun_(name,args){var F=TB_FUNCS[name];if(!F)return {error:'unknown function '+name};try{if(typeof TB_READ_!=='undefined'&&TB_READ_[name])return tbCached_(name,args,function(){return F.f(args||{})});return F.f(args||{})}catch(e){return {error:String(e)}}}
 function tbDecl_(){return Object.keys(TB_FUNCS).map(function(k){var F=TB_FUNCS[k],props={};Object.keys(F.p).forEach(function(p){props[p]={type:'STRING',description:F.p[p]}});
  return {name:k,description:F.d,parameters:Object.keys(props).length?{type:'OBJECT',properties:props}:{type:'OBJECT',properties:{}}}})}
 function timber_(d){
+ if(d.tts)return tbTts_(String(d.tts));
+ if(d.vnxt){FT_TBD_=d;var vr=tbVnxt_(d,d.vnxt);return vr.ok?{ok:true,answer:'Sent to the VNXT team.'}:vr}
  if(d.data){var o={};String(d.data).split(',').forEach(function(n){o[n]=tbRun_(n,d.args||{})});return {ok:true,data:o}}
  var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Timber needs setup. The Owner adds the Gemini key under Settings → Smart features.'};
- FT_DRAFT_=null;FT_OPEN_=null;FT_TBD_=d;var q=String(d.q||'').slice(0,1000);if(!q)return {ok:false,err:'Ask Timber a question.'};
+ FT_DRAFT_=null;FT_OPEN_=null;FT_OFFER_=null;FT_TBD_=d;var q=String(d.q||'').slice(0,1000);if(!q)return {ok:false,err:'Ask Timber a question.'};
  var hist=(Array.isArray(d.history)?d.history:[]).slice(-12).map(function(h){return {role:h.who=='me'?'user':'model',parts:[{text:String(h.text||'').slice(0,1500)}]}});
  var now=new Date(),sys='You are Timber, the business assistant inside the '+CO.name+' Field Desk app (Tallahassee, FL). Today is '+Utilities.formatDate(now,CLOCK_TZ,'EEEE yyyy-MM-dd h:mm a')+' ET. The person asking is the '+(roleOf_(d)||'user')+'. '+
-  'Always get numbers by calling the functions; never guess or invent numbers. Weeks run Sunday to Saturday. "Yesterday" means the calendar day before today. Answer briefly (1-3 short sentences, plain words, no markdown, no tables) and lead with the numbers, in dollars rounded to whole dollars. Your answer may be read aloud. Never call yourself an AI, a model, or a bot; you are Timber.';
- var contents=hist.concat([{role:'user',parts:[{text:q}]}]),used=[];
+  'Always get numbers by calling the functions; never guess or invent numbers. Weeks run Sunday to Saturday. "Yesterday" means the calendar day before today. Requests to order, buy or restock anything go to addSupply (reply exactly: Added ITEM to Supplies.). For spreadsheet requests call makeSpreadsheet and say the spreadsheet is ready. If no function can do what was asked, call cannotDo with the exact request, then say in ONE plain sentence that you cannot do that yet and ask: Want me to ask the VNXT team? If they then say yes, call askVnxt with the original request and reply exactly: Sent to the VNXT team. Never pretend you did something you could not do. Your answer may be read aloud. Answer briefly (1-3 short sentences, plain words, no markdown, no tables) and lead with the numbers, in dollars rounded to whole dollars. Your answer may be read aloud. Never call yourself an AI, a model, or a bot; you are Timber.';
+ var contents=hist.concat([{role:'user',parts:[{text:q}]}]),used=[],mdl=typeof FAST_MODEL!=='undefined'?FAST_MODEL:VOICE_MODEL,gc=Object.assign({temperature:0.2},typeof fastGen_==='function'?fastGen_(mdl):{}),decl=tbDecl_();
  for(var i=0;i<6;i++){
-  var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+VOICE_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
-   payload:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:contents,tools:[{functionDeclarations:tbDecl_()}],generationConfig:{temperature:0.2}})});
+  var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+mdl+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
+   payload:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:contents,tools:[{functionDeclarations:decl}],generationConfig:gc})});
+  if(res.getResponseCode()===400&&gc.thinkingConfig){delete gc.thinkingConfig;i--;continue}
   if(res.getResponseCode()!==200)return {ok:false,err:'Timber could not answer right now ('+res.getResponseCode()+'). Try again in a minute.'};
   var c=JSON.parse(res.getContentText()),parts=(((c.candidates||[])[0]||{}).content||{}).parts||[],calls=parts.filter(function(p){return p.functionCall});
-  if(!calls.length){var txt=parts.map(function(p){return p.text||''}).join('').trim().replace(/\bAI\b/g,'').replace(/[*#_`]/g,'');var rr={ok:true,answer:txt||'I could not find that.',used:used};if(typeof FT_DRAFT_!=='undefined'&&FT_DRAFT_&&(roleOf_(d)==='Owner'||roleOf_(d)==='Manager'))rr.draft=FT_DRAFT_;if(typeof FT_OPEN_!=='undefined'&&FT_OPEN_)rr.open=FT_OPEN_;return rr}
+  if(!calls.length){var txt=parts.map(function(p){return p.text||''}).join('').trim().replace(/\bAI\b/g,'').replace(/[*#_`]/g,'');var rr={ok:true,answer:txt||'I could not find that.',used:used};if(typeof FT_DRAFT_!=='undefined'&&FT_DRAFT_&&(roleOf_(d)==='Owner'||roleOf_(d)==='Manager'))rr.draft=FT_DRAFT_;if(typeof FT_OPEN_!=='undefined'&&FT_OPEN_)rr.open=FT_OPEN_;if(typeof FT_OFFER_!=='undefined'&&FT_OFFER_)rr.offer=FT_OFFER_;return rr}
   contents.push({role:'model',parts:parts});
-  contents.push({role:'user',parts:calls.map(function(p){used.push(p.functionCall.name);return {functionResponse:{name:p.functionCall.name,response:{result:tbRun_(p.functionCall.name,p.functionCall.args)}}}})})}
+  contents.push({role:'user',parts:calls.map(function(p){used.push(p.functionCall.name);var nm=p.functionCall.name,rs=tbRun_(nm,p.functionCall.args);if(typeof TB_READ_!=='undefined'&&!TB_READ_[nm]&&!/^(cannotDo|makeSpreadsheet|draftQuote|createQuote)$/.test(nm))tbBust_();return {functionResponse:{name:nm,response:{result:rs}}}})})}
  return {ok:false,err:'Timber got stuck on that one. Try asking it a simpler way.'}}
 
 // ===================== Fielder Field Desk: parity batch 3 (permits/HOA, 811, lead sources, payroll OT, COI, multi-day jobs) =====================
@@ -1378,3 +1382,68 @@ TB_FUNCS.changeSettings={d:TBD_+'Change settings: follow-up discount percent (1-
   var r=tbSub_('settings',o);return r.ok?{ok:true,done:'Settings saved'}:{ok:false,error:r.err}}};
 TB_FUNCS.archiveJob={d:'Archive (remove) a job. ALWAYS ask the person "Archive NAME? Say yes to confirm." first and only call with confirmed=yes after they say yes.',p:{customer:'customer name',confirmed:'yes only after the person confirmed'},
  f:tbDo_(false,function(j,a){if(!/^yes$/i.test(String(a.confirmed||'').trim()))return {ok:false,needConfirm:true,error:'Ask: Archive '+j.name+'? Say yes to confirm.'};var r=tbSub_('archive',{id:j.id});return r.ok?{ok:true,done:j.name+' archived'}:{ok:false,error:r.err}})};
+
+// ===================== Fielder Field Desk: batch 5 (Miller 918c4d0) =====================
+// Faster Gemini (models checked against the key's model list and timed 2026-11-01), cached Timber reads, spoken replies (Gemini TTS
+// fallback), spreadsheets (CSV saved to Drive), "Ask the VNXT team" (log + email austin@techsourcedsolutions.com only), Supplies list, VNXT requests list.
+var FAST_MODEL='gemini-3.5-flash-lite';
+function fastGen_(m){return {thinkingConfig:/^gemini-2\.5/.test(m)?{thinkingBudget:0}:{thinkingLevel:'minimal'}}}
+var TB_READ_={today:1,labor:1,revenue:1,quotes:1,jobs:1,onClock:1,invoices:1,topJobs:1,dashboard:1};
+function tbBust_(){try{CacheService.getScriptCache().put('tbv',String(Date.now()),21600)}catch(e){}}
+function tbCached_(name,args,fn){var c=null;try{c=CacheService.getScriptCache()}catch(e){}if(!c)return fn();var v=c.get('tbv')||'0',k='tb:'+v+':'+name+':'+JSON.stringify(args||{});if(k.length>240)return fn();
+ var h=c.get(k);if(h)try{return JSON.parse(h)}catch(e){}var r=fn();try{var s=JSON.stringify(r);if(s.length<90000)c.put(k,s,name=='onClock'||name=='today'?20:90)}catch(e){}return r}
+var FT_OFFER_=null;
+// Spoken replies fallback: Gemini TTS (WAV or 16-bit PCM 24 kHz); the app plays it.
+function tbTts_(t){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,err:'Timber needs setup.'};t=String(t||'').replace(/[*_#`]/g,'').slice(0,600);if(!t)return {ok:false,err:'Nothing to say.'};
+ var models=['gemini-3.8-flash-lite-tts','gemini-3.8-flash-tts','gemini-2.5-flash-preview-tts'];for(var i=0;i<models.length;i++){var r=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+models[i]+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
+  payload:JSON.stringify({contents:[{parts:[{text:'Say in a warm, friendly, natural voice: '+t}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Sulafat'}}}}})});
+  if(r.getResponseCode()!==200)continue;var c=JSON.parse(r.getContentText()),p=((((c.candidates||[])[0]||{}).content||{}).parts||[]).filter(function(x){return x.inlineData})[0];if(p)return {ok:true,audio:p.inlineData.data,mime:p.inlineData.mimeType}}
+ return {ok:false,err:'Voice is not available right now.'}}
+// ----- spreadsheets -----
+function tbCsv_(rows){return rows.map(function(r){return r.map(function(v){v=v==null?'':String(v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n')}
+function tbDay5_(s){return /^\d{4}-\d\d-\d\d$/.test(s||'')?s:ftYmd_(Date.now())}
+function tbIn5_(t,f,to){if(!t)return false;var x=Utilities.formatDate(new Date(t),CLOCK_TZ,'yyyy-MM-dd');return x>=f&&x<=to}
+function tbSheetRows_(a,role){var w=String(a.what||'jobs').toLowerCase(),f=tbDay5_(a.from||ftYmd_(Date.now()-30*864e5)),t=tbDay5_(a.to),js=tbJobs_(),bl=load_('blocks.json');
+ var need={jobs:['Owner','Manager','Admin'],quotes:['Owner','Manager'],invoices:['Owner','Manager','Admin'],customers:['Owner','Manager','Admin'],labor:['Owner','Admin','Manager']};
+ var k=/labor|payroll|hours/.test(w)?'labor':/invoice|paid|revenue/.test(w)?'invoices':/customer|client/.test(w)?'customers':/quote|estimate/.test(w)?'quotes':'jobs';
+ if(need[k].indexOf(role)<0)return {err:'Your role cannot export '+k+'.'};
+ var d8=function(s){return s?Utilities.formatDate(new Date(s),CLOCK_TZ,'yyyy-MM-dd'):''},days=function(j){return bl.filter(function(b){return b.job==j.id}).map(function(b){return b.date}).sort()};
+ if(k=='jobs'){var R=[['Job #','Customer','Address','Status','Scheduled','Crew','Total $','Invoiced $','Paid']];js.filter(function(j){return (!!j.wonAt||/approved|complete|invoiced/.test(j.status))&&(days(j).some(function(x){return x>=f&&x<=t})||tbIn5_(j.wonAt||j.created,f,t))}).forEach(function(j){var c={};(j.assigned||[]).forEach(function(n){c[n]=1});bl.filter(function(b){return b.job==j.id}).forEach(function(b){(b.crew||[]).forEach(function(n){c[n]=1})});R.push([j.jobNo||j.est||j.id,j.name,j.address,j.status,days(j).join(' '),Object.keys(c).join(', '),total_(j.items),j.invoice?j.invoice.amount:'',j.invoice&&j.invoice.paid?'yes':'no'])});return {k:k,rows:R,f:f,t:t}}
+ if(k=='quotes'){var Q=[['Estimate #','Customer','Email','Status','Created','Total $']];js.filter(function(j){return tbIn5_(j.created,f,t)}).forEach(function(j){Q.push([j.est||j.id,j.name,j.email,j.status==='sent'?'quote sent':j.status,d8(j.created),total_(j.items)])});return {k:k,rows:Q,f:f,t:t}}
+ if(k=='invoices'){var I=[['Customer','Invoiced','Amount $','Paid','Paid on']];js.filter(function(j){return j.invoice&&j.invoice.at&&tbIn5_(j.invoice.at,f,t)}).forEach(function(j){I.push([j.name,d8(j.invoice.at),tbPrice_(j),j.invoice.paid?'yes':'no',d8(j.invoice.paidAt)])});return {k:k,rows:I,f:f,t:t}}
+ if(k=='customers'){var C=[['Name','Email','Phone','Address']],seen={},cs=[];try{cs=load_('customers.json')}catch(e){}(Array.isArray(cs)?cs:[]).concat(js).forEach(function(c){var key=String(c.email||c.name||'').toLowerCase();if(!key||seen[key])return;seen[key]=1;C.push([c.name,c.email,c.phone,c.address])});return {k:k,rows:C,f:f,t:t}}
+ var per=/week/.test(String(a.by||w))?'week':/month/.test(String(a.by||w))?'month':'day',L=[[per=='day'?'Day':per=='week'?'Week of':'Month','Labor $','Hours','Job $ worked','Labor %']];
+ var r=ft2LaborCmp_({period:'range',from:f,to:t,vs:'jobs',by:'none'}),agg={};(r.series||[]).forEach(function(x){var dy=x.day;if(!dy)return;var key=per=='day'?dy:per=='month'?dy.slice(0,7):ftYmd_(clockWeekStart_(Utilities.parseDate(dy+' 12:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime()));var g=agg[key]=agg[key]||{l:0,h:0,c:0};g.l+=+x.labor||0;g.h+=+x.hours||0;g.c+=+x.cmp||0});
+ Object.keys(agg).sort().forEach(function(key){var g=agg[key];L.push([key,Math.round(g.l*100)/100,Math.round(g.h*100)/100,Math.round(g.c*100)/100,g.c?Math.round(g.l/g.c*1000)/10+'%':''])});return {k:k,rows:L,f:f,t:t}}
+TB_FUNCS.makeSpreadsheet={d:'Make a spreadsheet (CSV that opens in Excel/Numbers/Sheets) of business data: what = jobs | quotes | invoices | customers | labor (labor vs job $ by day/week/month). Default range: last 30 days.',p:{what:'jobs|quotes|invoices|customers|labor',from:'YYYY-MM-DD',to:'YYYY-MM-DD',by:'day|week|month (labor)'},
+ f:function(a){var x=tbSheetRows_(a,roleOf_(FT_TBD_||{}));if(x.err)return {ok:false,error:x.err};var csv=tbCsv_(x.rows),name='Fielder '+x.k+' '+x.f+' to '+x.t+'.csv',url='';
+  try{url=root_().createFile(Utilities.newBlob(csv,'text/csv',name)).getUrl()}catch(e){}
+  FT_OPEN_={csv:csv.length<400000?csv:'',name:name,url:url,label:'📊 Open spreadsheet'};return {ok:true,rows:x.rows.length-1,name:name,savedToDrive:!!url}}};
+// ----- Ask the VNXT team -----
+function tbVnxt_(d,req){req=clip_(String(req||''),2000);if(!req)return {ok:false,err:'Nothing to send.'};var role=roleOf_(d)||'?',e=empOf_(d),who=e&&e.name?e.name:role,at=Utilities.formatDate(new Date(),CLOCK_TZ,'yyyy-MM-dd h:mm a');
+ var L=[];try{L=load_('vnxt_requests.json')}catch(x){}if(!Array.isArray(L))L=[];L.push({id:newId_('V-'),status:'New',at:at,role:role,user:who,request:req});save_(L,'vnxt_requests.json');
+ try{var fo=root_(),it=fo.getFilesByName('VNXT requests.csv'),csv=tbCsv_([['Date','Role','User','Request']].concat(L.map(function(r){return [r.at,r.role,r.user,r.request]})));if(it.hasNext())it.next().setContent(csv);else fo.createFile(Utilities.newBlob(csv,'text/csv','VNXT requests.csv'))}catch(x){}
+ mail_({to:'austin@techsourcedsolutions.com',subject:'Fielder Tree: Timber request',body:'Date: '+at+'\nRole: '+role+'\nUser: '+who+'\n\nRequest:\n'+req});return {ok:true,sent:true}}
+TB_FUNCS.cannotDo={d:'Call this when you cannot do what was asked (no function fits). Pass the exact request. Then say plainly in ONE sentence that you cannot do that yet and ask if they want you to ask the VNXT team.',p:{request:'the exact request'},f:function(a){FT_OFFER_={request:String(a.request||'')};return {ok:true,offered:true}}};
+TB_FUNCS.askVnxt={d:'Send a request to the VNXT team (the people who build this app) after the person said yes to asking them. Pass the exact original request.',p:{request:'exact original request'},f:function(a){var r=tbVnxt_(FT_TBD_||{},a.request);return r.ok?{ok:true,sent:true,say:'Sent to the VNXT team.'}:{ok:false,error:r.err}}};
+// ----- Supplies list (any role adds; Owner/Admin change status) + VNXT requests (Owner) -----
+var SUP_ST=['Needed','Ordered','Got it'],VX_ST=['New','Working on it','Done'];
+function supLoad_(){var l=[];try{l=load_('supplies.json')}catch(e){}return Array.isArray(l)?l:[]}
+function supAdd_(d,a){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN required'};var item=clip_(String(a.item||'').trim(),120);if(!item)return {ok:false,err:'What item?'};
+ var e=empOf_(d),who=e&&e.name?e.name:(role==='Manager'?'Estimator':role==='Admin'?'Office':role);
+ var s={id:newId_('S-'),item:item,qty:clip_(a.qty,40),notes:clip_(a.notes,300),needBy:/^\d{4}-\d\d-\d\d$/.test(a.needBy||'')?a.needBy:'',store:clip_(a.store,80),who:who,role:role,status:'Needed',at:new Date().toISOString()};
+ var L=lock_(10000);if(!L)return BUSY_;try{var l=supLoad_();l.unshift(s);save_(l.slice(0,500),'supplies.json')}finally{unlock_(L)}
+ try{mail_({to:'austin@techsourcedsolutions.com',subject:'Fielder Tree: supply request - '+item,body:who+' added to Supplies: '+item+(s.qty?' ('+s.qty+')':'')+(s.store?' from '+s.store:'')+(s.needBy?', needed by '+s.needBy:'')+(s.notes?'\nNotes: '+s.notes:'')+'\n\nOpen the Field Desk > More > Supplies to mark it Ordered or Got it.'})}catch(x){}
+ return {ok:true,item:s}}
+var FT5_LISTS_={supList:1,supAdd:1,supStep:1,supArchive:1,vxList:1,vxStep:1,vxArchive:1};
+function ft5Lists_(d){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN required'};
+ if(d.a=='supList'){var l=supLoad_().filter(function(s){return !s.archived});return {ok:true,items:l,open:l.filter(function(s){return s.status!=='Got it'}).length}}
+ if(d.a=='supAdd')return supAdd_(d,d);
+ if(d.a=='supStep'||d.a=='supArchive'){if(role!=='Owner'&&role!=='Admin')return {ok:false,err:'Only the Owner or Office can change supplies.'};var L=lock_(10000);if(!L)return BUSY_;try{var l2=supLoad_(),s=l2.filter(function(x){return x.id==d.id})[0];if(!s)return {ok:false,err:'Not found'};
+   if(d.a=='supArchive')s.archived=true;else{s.status=SUP_ST[(SUP_ST.indexOf(s.status)+1)%SUP_ST.length];s.updated=new Date().toISOString()}save_(l2,'supplies.json');return {ok:true,item:s}}finally{unlock_(L)}}
+ if(role!=='Owner')return {ok:false,err:'Owner only.'};
+ var v=[];try{v=load_('vnxt_requests.json')}catch(e){}if(!Array.isArray(v))v=[];v.forEach(function(r,i){if(!r.id)r.id='V-'+i;if(!r.status)r.status='New'});
+ if(d.a=='vxList')return {ok:true,items:v.filter(function(r){return !r.archived}).reverse()};
+ var r=v.filter(function(x){return x.id==d.id})[0];if(!r)return {ok:false,err:'Not found'};if(d.a=='vxArchive')r.archived=true;else r.status=VX_ST[(VX_ST.indexOf(r.status)+1)%VX_ST.length];save_(v,'vnxt_requests.json');return {ok:true,item:r}}
+TB_FUNCS.addSupply={d:'Add an item to the Supplies list (anything to order, buy, pick up or restock: parts, chains, fuel, gear). Use this, NOT cannotDo, for any order/buy/supply request. The purchase itself is done by a person.',p:{item:'item name',qty:'optional quantity',notes:'optional size or notes',needBy:'optional YYYY-MM-DD',store:'optional store'},
+ f:function(a){var r=supAdd_(FT_TBD_||{},a);if(!r.ok)return {ok:false,error:r.err};FT_OPEN_={supplies:true,id:r.item.id,label:'Open Supplies'};return {ok:true,added:r.item.item,say:'Added '+r.item.item+' to Supplies.'}}};
