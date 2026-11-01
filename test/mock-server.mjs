@@ -96,7 +96,7 @@ function handleApi(req, res, body) {
   if (d.a === 'login') {
     const e = employees.find((u) => u.pin === String(d.pin || ''));
     const r = e ? e.role : ROLEPINS[String(d.pin || '')];
-    return send(res, 200, JSON.stringify(r ? { ok: true, role: r, name: e ? e.name : '' } : { ok: false, err: 'Wrong PIN' }));
+    return send(res, 200, JSON.stringify(r ? { ok: true, role: r, name: e ? e.name : '', perms: e && e.perms ? e.perms : null } : { ok: false, err: 'Wrong PIN' }));
   }
   if (d.a === 'labor') {
     if (ROLEPINS[String(d.pin || '')] !== 'Owner') return send(res, 200, JSON.stringify({ ok: false, err: 'Only the Owner can see labor cost.' }));
