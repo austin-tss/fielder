@@ -389,7 +389,7 @@ function can_(r,a){if(r==='Manager'||r==='Owner')return true;return !!(ROLE_CAN_
 // FORMJS_END
 function loadObj_(n){var r=root_(),it=r.getFilesByName(n);if(!it.hasNext())return {};var raw='';try{raw=it.next().getBlob().getDataAsString()||''}catch(e){return {}}if(!raw||raw==='[]')return {};try{var o=JSON.parse(raw);if(!o||typeof o!=='object'||Array.isArray(o))return {};return o}catch(e2){return {}}}
 function saveObj_(o,n){var r=root_(),it=r.getFilesByName(n),f=it.hasNext()?it.next():r.createFile(n,'{}','application/json');f.setContent(JSON.stringify(o))}
-function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic',qbo:qboPublic_(),voice:!!prop_('GEMINI_API_KEY'),placesKey:String(prop_('GOOGLE_PLACES_KEY')||'')}}
+function settings_(){var o={};try{o=loadObj_('settings.json')}catch(e){o={}}var form;try{form=FDForm.normalizeForm(o.form)}catch(e2){form=FDForm.normalizeForm(null)}return {discountPct:discPct_(o),form:form,quoteBody:String(o.quoteBody||''),quoteSubject:String(o.quoteSubject||''),quoteSign:String(o.quoteSign||''),theme:o.theme==='dark'?'dark':'classic',qbo:qboPublic_(),voice:!!prop_('GEMINI_API_KEY'),placesKey:String(prop_('GOOGLE_PLACES_KEY')||'')}}
 function bodyHtml_(body){if(body===FDForm.DEFAULT_BODY)return body;return FDForm.emailText(body)}
 function signHtml_(sign){if(sign===FDForm.DEFAULT_SIGN)return '<p>Sincerely,<br><b>'+CO.name+'</b></p>';return '<p>'+FDForm.emailText(sign)+'</p>'}
 function custBlock_(j){try{var form=settings_().form,face=FDForm.customerJob(j);return FDForm.specHtml(face,form)+FDForm.additionalNotesHtml(face,form)}catch(e){return ''}}
@@ -480,7 +480,7 @@ function invoiceHtml_(j,logoSrc){var v=j.invoice,inv=String(j.est||j.id).replace
 function sendInvoice_(j){mustEmail_(j);mail_({to:j.email,replyTo:CO.email,name:CO.name,subject:'Invoice from Fielder Tree Service - '+j.invoice.amount,htmlBody:invoiceHtml_(j,'cid:logo'),inlineImages:{logo:logoBlob_()}});}
 var LABELS={A:'Approved',B:'Approved with changes',C:'Declined',O:'Question / other'};
 var SLOTS=['Weekdays 8-12','Weekdays 12-5','Weekends','Anytime'];
-function respond_(j,p){j.response={ans:p.ans,label:LABELS[p.ans]||p.ans,text:p.text||'',avail:p.avail||'',when:p.when||'',at:new Date().toISOString()};
+function respond_(j,p){if(p.ans=='A'||p.ans=='B')applyDiscount_(j);j.response={ans:p.ans,label:LABELS[p.ans]||p.ans,text:p.text||'',avail:p.avail||'',when:p.when||'',at:new Date().toISOString()};
   j.status=(p.ans=='A'||p.ans=='B')?'approved':(p.ans=='C'?'declined':'reply');}
 function page_(b){return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f6f1;font-family:Arial,sans-serif;color:#231f20}.w{max-width:520px;margin:0 auto;padding:18px}h2{color:'+NAVY+'}.s{display:block;width:100%;margin:8px 0;padding:18px;font-size:19px;font-weight:bold;border:3px solid '+NAVY+';background:#fff;color:'+NAVY+';border-radius:12px;text-align:center;cursor:pointer}input[type=radio]{display:none}input[type=radio]:checked+.s{background:'+GREEN+';border-color:'+GREEN+';color:#fff}textarea,input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:14px;border:2px solid #cfd6c4;border-radius:10px}.go{width:100%;padding:20px;font-size:21px;font-weight:bold;background:'+GREEN+';color:#fff;border:0;border-radius:12px;margin-top:14px}</style><div style="background:'+NAVY+';color:#fff;padding:14px 18px;font-weight:bold;font-size:18px">'+CO.name+'</div><div class="w">'+b+'</div>').setTitle('Fielder Tree Service').addMetaTag('viewport','width=device-width,initial-scale=1');}
 function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=radio name=avail id=s'+i+' value="'+s+'"'+(i==3?' checked':'')+'><label class=s for=s'+i+'>'+s+'</label>'}).join('');
@@ -500,11 +500,11 @@ function get_(e){var p=(e&&e.parameter)||{};
     return page_('<h2 style="color:'+DG+'">Thank you!</h2><p style="font-size:17px">Your answer was received: <b>'+esc_(j.response.label)+'</b></p>'+(av?'<p>Preferred time: <b>'+esc_(av)+'</b></p>':'')+(j.response.text?'<p>Your note: '+esc_(j.response.text)+'</p>':'')+'<p>We will be in touch shortly to confirm. Questions? Call '+CO.phone+'.</p>');}
   if(p.a=='quotePublic')return out_(quotePublic_(p.t));
   if(!pinOk_(p))return out_({ok:false,err:'PIN required'});
-  return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),customers:load_('customers.json'),settings:settings_()});}
+  return out_({ok:true,root:root_().getUrl(),jobs:load_().filter(function(x){return !x.archived||p.archived=='1'}),blocks:load_('blocks.json'),customers:load_('customers.json'),settings:settings_(),caps:CAPS_});}
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
-var KNOWN_={login:1,aiKeys:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
+var KNOWN_={followUp:1,setStatus:1,login:1,aiKeys:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
@@ -522,6 +522,8 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
   if(d.a=='qnScan'){var added=scanQuoteEmails();return added<0?BUSY_:{ok:true,added:added};}
   if(d.a=='smsOnWay')return smsOnWay_(d);
   if(d.a=='sendQuoteText')return quoteText_(d);
+  if(d.a=='followUp')return followUp_(d);
+  if(d.a=='setStatus')return setStatus_(d);
   // Slow Drive work (photos) happens before the lock.
   var pre={};
   if(d.a=='create'&&d.via=='text'){var tr=textReady_();if(tr)return {ok:false,err:tr};if(!e164_(d.phone))return {ok:false,err:'Add the customer phone number to text the quote.'};if(d.email&&!validEmail(d.email))return {ok:false,err:'That email does not look right.'};}
@@ -543,7 +545,7 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
 // Runs while holding the lock: read, change, save. Returns {resp} or {job,send} (send runs after unlock).
 function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}};
     var v5=v5Api_(d);if(v5)return R(v5);
-    if(d.a=='settings'){var sr_=roleOf_(d);if(sr_!=='Manager'&&sr_!=='Owner')return R({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return R({ok:true,settings:settings_()})}
+    if(d.a=='settings'){var sr_=roleOf_(d);if(sr_!=='Manager'&&sr_!=='Owner')return R({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;if(d.discountPct!=null&&d.discountPct!==''){var dp_=Math.round(Number(d.discountPct));if(dp_>=1&&dp_<=50)curS.discountPct=dp_;}saveObj_(curS,'settings.json');return R({ok:true,settings:settings_()})}
     if(d.a=='feedback'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return R({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return R({ok:true})}
     if(d.a=='cedit'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return R({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return R({ok:true})}
     if(d.a=='importCustomers')return R(importCustomers_(d));
@@ -874,9 +876,41 @@ function quoteText_(d){var tr=textReady_();if(tr)return {ok:false,err:tr};
   return res.ok?{ok:true,job:j,link:quoteLink_(j)}:{ok:false,err:'Text not sent: '+res.err};}
 function byTok_(js,t){t=String(t||'');if(!/^[a-f0-9]{48,}$/i.test(t))return null;return js.filter(function(x){return x.pt===t&&!x.archived})[0]||null;}
 function quotePublic_(t){var j=byTok_(load_(),t);if(!j)return {ok:false,err:'This quote link is not valid. Please call '+CO.phone+'.'};
-  return {ok:true,co:CO,quote:{est:j.est||'',name:j.name||'',address:j.address||'',date:j.updated||j.created||'',items:(j.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}}),total:total_(j.items),custHtml:custBlock_(j),approved:j.status=='approved'||!!(j.response&&(j.response.ans=='A'||j.response.ans=='B')),status:j.status||''}};}
+  if(!j.openedAt){try{var oj=patchJob_(j.id,function(s){if(!s.openedAt)s.openedAt=new Date().toISOString();});if(oj)j=oj;}catch(e){}}
+  var dq_=discInfo_(j);
+  return {ok:true,co:CO,quote:{est:j.est||'',name:j.name||'',address:j.address||'',date:j.updated||j.created||'',items:(j.items||[]).map(function(i){return {title:i.title||'',detail:i.detail||'',price:i.price==null||i.price===''?null:Number(i.price)}}),total:total_(j.items),custHtml:custBlock_(j),approved:j.status=='approved'||!!(j.response&&(j.response.ans=='A'||j.response.ans=='B')),status:j.status||'',discount:dq_}};}
 function approvePublic_(d){var L=lock_(8000);if(!L)return BUSY_;try{var js=load_(),j=byTok_(js,d.t);if(!j)return {ok:false,err:'This quote link is not valid. Please call '+CO.phone+'.'};
   if(!(j.response&&(j.response.ans=='A'||j.response.ans=='B'))){respond_(j,{ans:'A',text:'Approved on the quote page'});save_(js);}return {ok:true};}finally{unlock_(L)}}
+
+// ===== Sent-quote follow-ups, bulk status, discount offer (TEST RUN: emails only to testTo_(), texts only to TEST_PHONE) =====
+var CAPS_=['followUp','setStatus','discount','opened'];
+var FU_STATUS_={sent:1,followup:1,approved:1,declined:1};
+function discPct_(o){var n=Math.round(Number(o&&o.discountPct));return n>=1&&n<=50?n:10;}
+function discInfo_(j){if(!j.discount)return null;var base=j.discount.applied?num_(j.discount.base,total_(j.items)):total_(j.items);var off=Math.round(base*j.discount.pct)/100;
+  return {pct:j.discount.pct,base:base,off:off,total:Math.round((base-off)*100)/100,applied:!!j.discount.applied};}
+// Adds a negative "X% off" line once, so the quote total and the invoice pre-filled from it both carry the discount.
+function applyDiscount_(j){if(!j.discount||j.discount.applied)return;var base=total_(j.items),off=Math.round(base*j.discount.pct)/100;if(!(off>0))return;
+  j.items=(j.items||[]).concat([{title:'Discount ('+j.discount.pct+'% off)',detail:'Follow-up offer',price:-off}]);j.total=total_(j.items);j.discount.applied=true;j.discount.base=base;j.discount.appliedAt=new Date().toISOString();}
+function money_(n){return '$'+Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function fuMsg_(j,disc){var first=String(j.name||'there').split(' ')[0],link=quoteLink_(j),di=discInfo_(j);
+  if(disc&&di)return 'Hi '+first+', just checking in on your estimate from '+CO.name+'. If you approve this week we can take '+di.pct+'% off, bringing it to '+money_(di.total)+' (was '+money_(di.base)+'). View and approve here: '+link+' Questions: '+CO.phone;
+  return 'Hi '+first+', just following up on your estimate from '+CO.name+'. You can view and approve it here: '+link+' Any questions, call or text '+CO.phone+'. Thank you!';}
+function followUp_(d){var rl=roleOf_(d);if(rl!=='Manager'&&rl!=='Owner'&&rl!=='Admin')return {ok:false,err:'That PIN cannot send follow-ups.'};
+  var via=d.via==='email'?'email':'text',disc=!!d.discount;if(via=='text'){var tr=textReady_();if(tr)return {ok:false,err:tr};}
+  var pct=discPct_(loadObj_('settings.json'));
+  var j=patchJob_(d.id,function(s){pubTok_(s);if(disc&&!(s.discount&&s.discount.applied))s.discount={pct:pct,at:new Date().toISOString()};});if(!j)return findJob_(load_(),d.id)?BUSY_:{ok:false,err:'Job not found'};
+  var body=fuMsg_(j,disc),res;
+  if(via=='text'){var c=smsCfg_(),to=e164_(j.phone);if(!to)return {ok:false,err:'Add the customer phone number first.'};
+    var r=UrlFetchApp.fetch('https://api.twilio.com/2010-04-01/Accounts/'+c.sid+'/Messages.json',{method:'post',muteHttpExceptions:true,headers:{Authorization:'Basic '+Utilities.base64Encode(c.sid+':'+c.tok)},payload:{To:e164_(c.testPhone),From:c.from,Body:'[TEST to '+to+'] '+body}});
+    res=r.getResponseCode()<300?{ok:true}:{ok:false,err:'Twilio said '+r.getResponseCode()};}
+  else{if(!validEmail(j.email))return {ok:false,err:'Add the customer email first.'};try{mail_({to:j.email,subject:(disc?'A '+pct+'% offer on your estimate':'Following up on your estimate')+' from '+CO.name,body:body});res={ok:true}}catch(x){res={ok:false,err:String(x&&x.message||x)}}}
+  var pj=patchJob_(j.id,function(s){if(via=='text')logSms_(s,disc?'followup-discount':'followup',res);if(res.ok){var at=new Date().toISOString();s.followUps=(s.followUps||[]).concat([{at:at,via:via,disc:disc}]).slice(-20);s.lastFollowUp=at;if(s.status=='sent'||s.status=='reply'||!s.status)s.status='followup';}});if(pj)j=pj;
+  return res.ok?{ok:true,job:j}:{ok:false,err:'Follow-up not sent: '+res.err};}
+function setStatus_(d){var rl=roleOf_(d);if(rl!=='Manager'&&rl!=='Owner'&&rl!=='Admin')return {ok:false,err:'That PIN cannot change quote status.'};
+  var st=String(d.status||''),ids=Array.isArray(d.ids)?d.ids.slice(0,200):[];if(!FU_STATUS_[st])return {ok:false,err:'Unknown status'};if(!ids.length)return {ok:false,err:'Pick at least one quote.'};
+  var L=lock_(20000);if(!L)return BUSY_;try{var js=load_(),n=0;ids.forEach(function(id){var j=findJob_(js,id);if(!j)return;
+    if(st=='approved')respond_(j,{ans:'A',text:'Marked approved in the app'});else if(st=='declined')respond_(j,{ans:'C',text:'Marked declined in the app'});else j.status=st;j.updated=new Date().toISOString();n++;});
+    save_(js);return {ok:true,changed:n,jobs:js.filter(function(x){return !x.archived})};}finally{unlock_(L)}}
 
 // CSV import: appends to customers.json. Skips rows with no name or a duplicate email/phone (existing jobs, customers, or earlier rows). Never emails or texts.
 function importCustomers_(d){var rows=Array.isArray(d.rows)?d.rows:[];if(!rows.length)return {ok:false,err:'No rows to import.'};if(rows.length>2000)return {ok:false,err:'Too many rows. Import 2000 at a time.'};
