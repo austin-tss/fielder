@@ -1138,7 +1138,7 @@ var FT2_ACTS={timber:1,laborDay:1,laborCmp:1,bundle:1,dash:1};
 var FT2_NEED={timber:['hours','invoices','schedule'],laborDay:['hours'],laborCmp:['hours'],bundle:[],dash:['__owner']};
 function ftAllPunches_(){var n=Date.now();return ftPunches_(n-400*86400000,n+86400000)}
 // One bundled read at sign-in: every read the person is allowed, each through the normal permission checks.
-function ft2Staff_(d,me){if(!FT2_ACTS[d.a])return null;var own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
+function ft2Staff_(d,me){if(!FT2_ACTS[d.a])return null;var r3=ft3Staff_(d,me);if(r3)return r3;var own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
  if(d.a=='bundle'){var R=[],t0=Date.now();FT2_BUNDLE.concat([{a:'laborDay',date:ftYmd_(Date.now())},{a:'laborCmp',period:'day',date:ftYmd_(Date.now()),vs:'jobs',by:'job'}]).forEach(function(b){if(Date.now()-t0>20000)return;var q=Object.assign({},b,{pin:d.pin,who:d.who});if(q.a=='dash'&&!own)return;
    try{var r=featPost_({postData:{contents:JSON.stringify(q)}});if(r&&r.ok!==false)R.push({body:b,res:r})}catch(e){}});return S({items:R,ms:Date.now()-t0})}
  if(d.a=='laborDay')return S(ft2LaborDay_(d.date));
@@ -1157,7 +1157,7 @@ function ft2Dash_(){var js=load_().filter(function(j){return !j.archived}),now=D
  var tp=Object.keys(todayPeople),miss=tp.filter(function(w){return !cov[clockKey_(w)]});
  var perm=js.filter(function(j){return (j.permit&&j.permit.needed&&!/approved|not needed/.test(j.permit.status))||(j.locate&&j.locate.needed&&j.locate.status!='clear'&&j.locate.clear>today)}).map(function(j){return j.name});
  var stumpNo811=appr.filter(function(j){return /stump/i.test(JSON.stringify(j.items||[]))&&!j.locate}).map(function(j){return j.name});
- var c={},storm=load_('storm.json').filter(function(x){return x.status=='open'}).length,cfg=ftCfg_();
+ var c=loadObj_('coi.json'),storm=load_('storm.json').filter(function(x){return x.status=='open'}).length,cfg=ftCfg_();
  var lr={};js.forEach(function(j){var s=j.source||'Unknown';lr[s]=(lr[s]||0)+(/approved|complete|invoiced/.test(j.status)?total_(j.items):0)});var top=Object.keys(lr).sort(function(a,b){return lr[b]-lr[a]})[0]||'';
  var cs=ftCosting_(),mq=cs.reduce(function(a,x){a.q+=x.quoted;a.p+=x.profit;return a},{q:0,p:0});
  var r2=function(v){return Math.round(v*100)/100};
@@ -1271,3 +1271,39 @@ function timber_(d){
   contents.push({role:'user',parts:calls.map(function(p){used.push(p.functionCall.name);return {functionResponse:{name:p.functionCall.name,response:{result:tbRun_(p.functionCall.name,p.functionCall.args)}}}})})}
  return {ok:false,err:'Timber got stuck on that one. Try asking it a simpler way.'}}
 
+// ===================== Fielder Field Desk: parity batch 3 (permits/HOA, 811, lead sources, payroll OT, COI, multi-day jobs) =====================
+// Ported from Miller v7 Features2.gs (no photo estimates). COI email goes through mail_() (TEST RUN routing).
+var FT3_ACTS={permitSet:1,locateSet:1,permList:1,setSource:1,leadReport:1,payroll:1,coiUpload:1,coiInfo:1,coiSend:1,progNote:1};
+var FT3_NEED={permitSet:['quotes','schedule','projects'],locateSet:['quotes','schedule','projects','crew'],permList:['quotes','schedule','projects','crew'],setSource:['quotes','projects'],leadReport:['quotes','projects','invoices'],
+ payroll:['hours'],coiUpload:['employees','invoices'],coiInfo:[],coiSend:['quotes','projects','invoices','schedule'],progNote:['crew','projects']};
+Object.keys(FT3_ACTS).forEach(function(k){FT2_ACTS[k]=1;FT2_NEED[k]=FT3_NEED[k]});
+FT2_BUNDLE.push({a:'coiInfo'},{a:'permList'},{a:'leadReport'});
+var LEAD_SRC=['Google','Referral','Facebook','Nextdoor','Yard sign','Truck sign','Repeat customer','Website','Storm call','Other'];
+function ft3Staff_(d,me){if(!FT3_ACTS[d.a])return null;var own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
+ if(d.a=='permitSet'||d.a=='locateSet'||d.a=='setSource'||d.a=='progNote'){var j=patchJob_(d.id,function(x){
+   if(d.a=='permitSet'){var p=d.permit||{};x.permit={needed:!!p.needed,type:/^(City permit|County permit|HOA approval|Both)$/.test(p.type)?p.type:'County permit',status:/^(not started|applied|approved|denied|not needed)$/.test(p.status)?p.status:'not started',number:clip_(p.number,60),contact:clip_(p.contact,120),notes:clip_(p.notes,400),updated:new Date().toISOString(),by:ftWho_(d)}}
+   if(d.a=='locateSet'){var l=d.locate||{};var called=/^\d{4}-\d\d-\d\d$/.test(l.called||'')?l.called:ftYmd_(Date.now());x.locate={needed:l.needed!==false,ticket:clip_(l.ticket,40),called:called,clear:ft2Clear_(called),expires:ft2AddDays_(called,28),status:/^(called|clear|conflict|not needed)$/.test(l.status)?l.status:'called',notes:clip_(l.notes,300),by:ftWho_(d)}}
+   if(d.a=='setSource')x.source=LEAD_SRC.indexOf(d.source)>=0?d.source:'Other';
+   if(d.a=='progNote'){x.progress=x.progress||[];var day=/^\d{4}-\d\d-\d\d$/.test(d.day||'')?d.day:ftYmd_(Date.now());x.progress=x.progress.filter(function(p){return p.day!==day});x.progress.push({day:day,note:clip_(d.note,1000),pct:Math.max(0,Math.min(100,+d.pct||0)),by:ftWho_(d),at:new Date().toISOString()});x.progress.sort(function(a,b){return a.day<b.day?-1:1})}});
+  return j?S({job:j}):{ok:false,err:'Job not found or busy. Try again.'}}
+ if(d.a=='permList'){var js=load_().filter(function(j){return !j.archived&&/sent|approved|complete/.test(j.status)});return S({items:js.filter(function(j){return j.permit||j.locate||/stump/i.test(JSON.stringify(j.items||[]))}).map(function(j){return {id:j.id,name:j.name,address:j.address,status:j.status,permit:j.permit||null,locate:j.locate||null,stump:/stump/i.test(JSON.stringify(j.items||[])),sched:ftBooked_(j).map(function(b){return b.date})}})})}
+ if(d.a=='leadReport'){var m={};load_().filter(function(j){return !j.archived}).forEach(function(j){var s=j.source||'Unknown',x=m[s]=m[s]||{source:s,leads:0,won:0,quoted:0,wonValue:0};x.leads++;var t=total_(j.items);x.quoted+=t;if(/approved|complete|invoiced/.test(j.status)){x.won++;x.wonValue+=num_(j.invoice&&j.invoice.amount,t)}});
+  var rows=Object.keys(m).map(function(k){var x=m[k];x.close=x.leads?Math.round(x.won/x.leads*100):0;return x}).sort(function(a,b){return b.wonValue-a.wonValue});return S({rows:rows,sources:LEAD_SRC})}
+ if(d.a=='payroll')return S(ft2Payroll_(d.from,d.to));
+ if(d.a=='coiInfo'){var c=loadObj_('coi.json');return S({coi:c.fileId?{name:c.name,expires:c.expires,uploaded:c.uploaded,insurer:c.insurer,daysLeft:c.expires?Math.round((new Date(c.expires+'T12:00:00')-Date.now())/86400000):null}:null})}
+ if(d.a=='coiUpload'){if(!own&&me!=='Admin')return {ok:false,err:'Only the Owner or Admin can upload the COI.'};var data=String(d.data||'');if(!/^data:application\/pdf;base64,/.test(data)||data.length>12000000)return {ok:false,err:'Pick a PDF under 8 MB.'};
+  var fo=root_(),it=fo.getFoldersByName('COI'),cf=it.hasNext()?it.next():fo.createFolder('COI');var f=cf.createFile(Utilities.newBlob(Utilities.base64Decode(data.split(',')[1]),'application/pdf',clip_(d.name,100)||'Certificate of Insurance.pdf'));
+  var old=loadObj_('coi.json');saveObj_({fileId:f.getId(),name:f.getName(),expires:/^\d{4}-\d\d-\d\d$/.test(d.expires||'')?d.expires:'',insurer:clip_(d.insurer,120),uploaded:new Date().toISOString(),prev:old.fileId||''},'coi.json');return S({name:f.getName()})}
+ if(d.a=='coiSend'){var c2=loadObj_('coi.json');if(!c2.fileId)return {ok:false,err:'Upload the COI first (Owner → Insurance).'};if(!validEmail(d.to))return {ok:false,err:'Enter the email to send it to.'};var jj=d.id?findJob_(load_(),d.id):null;
+  var blob=DriveApp.getFileById(c2.fileId).getBlob().setName(CO.name+' - Certificate of Insurance.pdf');
+  mail_({to:String(d.to).trim(),replyTo:CO.email,name:CO.name,subject:'Certificate of Insurance - '+CO.name+(jj?' - '+jj.address:''),htmlBody:head_('Certificate of Insurance','','cid:logo')+'<p>Hello'+(d.toName?' '+esc_(d.toName):'')+',</p><p>Attached is our current Certificate of Insurance'+(jj?' for tree work at <b>'+esc_(jj.address)+'</b> ('+esc_(jj.name)+')':'')+'.'+(c2.expires?' It is valid through '+esc_(c2.expires)+'.':'')+'</p>'+(d.note?'<p>'+esc_(clip_(d.note,600))+'</p>':'')+'<p>Questions? Call '+CO.phone+'.</p>'+foot_(),inlineImages:{logo:logoBlob_()},attachments:[blob]});
+  if(jj)ftLog_(jj,'coi',{to:String(d.to).trim()});return S({sent:true})}
+ return null}
+function ft2AddDays_(k,n){return ftYmd_(new Date(k+'T12:00:00').getTime()+n*86400000)}
+// Sunshine 811 (FL): wait 2 full business days after the call; digging can start the next business day.
+function ft2Clear_(k){var d=new Date(k+'T12:00:00'),n=0;while(n<3){d.setDate(d.getDate()+1);var w=d.getDay();if(w!==0&&w!==6)n++}return ftYmd_(d.getTime())}
+function ft2Payroll_(from,to){var tz=CLOCK_TZ,f=from?Utilities.parseDate(from+' 00:00',tz,'yyyy-MM-dd HH:mm').getTime():clockWeekStart_(Date.now())-7*86400000,t=to?Utilities.parseDate(to+' 23:59',tz,'yyyy-MM-dd HH:mm').getTime()+60000:f+7*86400000;
+ var ps=ftPunches_(f-86400000,t),rm=ftRateMap_(),now=Date.now(),W={};
+ ps.forEach(function(p){var s=new Date(p.in).getTime(),e=p.out?new Date(p.out).getTime():now;s=Math.max(s,f);e=Math.min(e,t);if(e<=s)return;var wk=ftYmd_(clockWeekStart_(s)),k=p.who+'|'+wk,x=W[k]=W[k]||{who:p.who,week:wk,hours:0,open:false};x.hours+=(e-s)/3600000;if(!p.out)x.open=true});
+ var rows=Object.keys(W).map(function(k){var x=W[k],r=rm[clockKey_(x.who)]||0,reg=Math.min(40,x.hours),ot=Math.max(0,x.hours-40);return {who:x.who,week:x.week,hours:Math.round(x.hours*100)/100,regular:Math.round(reg*100)/100,overtime:Math.round(ot*100)/100,rate:r,otRate:Math.round(r*1.5*100)/100,regPay:Math.round(reg*r*100)/100,otPay:Math.round(ot*r*1.5*100)/100,gross:Math.round((reg*r+ot*r*1.5)*100)/100,open:x.open,noRate:!r}}).sort(function(a,b){return a.week<b.week?-1:a.week>b.week?1:a.who.localeCompare(b.who)});
+ return {from:ftYmd_(f),to:ftYmd_(t-60000),rows:rows,total:rows.reduce(function(a,x){a.hours+=x.hours;a.overtime+=x.overtime;a.gross+=x.gross;return a},{hours:0,overtime:0,gross:0})}}

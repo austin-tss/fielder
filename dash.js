@@ -20,6 +20,9 @@ let DASH=null;
 const isO=()=>role==='Owner';
 function alerts(d){const a=[];if(d.storm&&d.storm.on)a.push('🌀 Storm mode ON · '+d.storm.open+' open storm call(s)');else if(d.storm&&d.storm.open)a.push('🌀 '+d.storm.open+' open storm call(s)');
  if(d.safety&&d.safety.missing.length)a.push('🦺 No safety checklist today: '+d.safety.missing.join(', '));if(d.equipmentDue&&d.equipmentDue.length)a.push('🛠 Service overdue: '+d.equipmentDue.join(', '));
+ if(d.stumpNo811&&d.stumpNo811.length)a.push('🚧 Stump job without 811 ticket: '+d.stumpNo811.join(', '));if(d.permits&&d.permits.length)a.push('📋 Permit/locate pending: '+d.permits.join(', '));
+ if(d.coi&&d.coi.daysLeft!=null&&d.coi.daysLeft<=30)a.push('📄 Insurance certificate '+(d.coi.daysLeft<0?'EXPIRED':'expires in '+d.coi.daysLeft+' days'));
+ const wx=window.FTWX;if(wx&&d.next7){const jd=new Set(d.next7.filter(x=>x.jobs.length).map(x=>x.day));wx.days.filter(x=>x.alerts.length&&jd.has(x.day)).slice(0,2).forEach(x=>a.push('⛈ '+new Date(x.day+'T12:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'})+' (jobs booked): '+x.alerts.join(', ')))}
  if(d.toSchedule&&d.toSchedule.length)a.push('📅 Approved, not scheduled: '+d.toSchedule.join(', '));return a}
 const card=(id,label,val,sub,fn,cls)=>`<button type="button" class="dc ${cls||''}" id="${id}" onclick="${fn}"><small>${label}</small><b>${val}</b>${sub?`<span>${sub}</span>`:''}</button>`;
 // Labor card: labor $ vs that day's job $, % green under 30, amber 30-45, red over 45.
@@ -41,10 +44,10 @@ window.ownerHome=async function(){if(!isO()&&sessionStorage.fdOwner==='1'){if(ty
 const big=(id,l,fn,cls)=>`<button class="btn huge ${cls||''}" id="${id}" type="button" onclick="${fn}">${l}</button>`;
 const asM=fn=>`ownerAs('Manager');${fn}`;
 const SECT={
- quotes:['📝 Quotes',()=>big('s-newq','+ New customer quote',asM('newq()'))+big('s-out','📨 Outstanding quotes',asM("window.openOutstanding?openOutstanding():ftJobs('sent')"),'n')+big('s-qn','📥 Quotes needed',asM('qn()'),'n')+big('s-fq','📁 All projects (filter by status)',"ftJobs('all')",'n')+big('s-cust','👥 Customers',"openCusts()",'n')],
- jobs:['🌳 Jobs / Crew',()=>big('s-alljobs','📁 All jobs (filter by status)',"ftJobs('all')")+big('s-crew','🌳 Crew view',"ownerAs('Crew')",'n')+big('s-map','🗺 Crew map',"ftMap()",'n')+big('s-profit','📈 Job profit',"ftProfit()",'n')+big('s-safe','🦺 Safety compliance',"ftSafeRep()",'n')+big('s-eq','🛠 Equipment',"ftEquip()",'n')],
- inv:['💵 Invoices',()=>big('s-inv','💵 Invoices (send, mark paid)',"ownerAs('Admin')")+big('s-open','📬 Open invoices',"ftJobs('invoiced')",'n')+big('s-paid','✅ Paid',"ftJobs('paid')",'n')+big('s-qb','📒 QuickBooks export',"ftQB()",'n')],
- tools:['🧰 Business tools',()=>big('s-timber','🌲 Ask Timber',"ftTimber()")+big('s-lc','💲 Labor compare',"ftLaborCmp()",'n')+(window.ftGrid?ftGrid():'')],
+ quotes:['📝 Quotes',()=>big('s-newq','+ New customer quote',asM('newq()'))+big('s-out','📨 Outstanding quotes',asM("window.openOutstanding?openOutstanding():ftJobs('sent')"),'n')+big('s-qn','📥 Quotes needed',asM('qn()'),'n')+big('s-fq','📁 All projects (filter by status)',"ftJobs('all')",'n')+big('s-cust','👥 Customers',"openCusts()",'n')+big('s-leads','📊 Lead sources',"ftLeads()",'n')],
+ jobs:['🌳 Jobs / Crew',()=>big('s-alljobs','📁 All jobs (filter by status)',"ftJobs('all')")+big('s-crew','🌳 Crew view',"ownerAs('Crew')",'n')+big('s-map','🗺 Crew map',"ftMap()",'n')+big('s-profit','📈 Job profit',"ftProfit()",'n')+big('s-safe','🦺 Safety compliance',"ftSafeRep()",'n')+big('s-eq','🛠 Equipment',"ftEquip()",'n')+big('s-permits','📋 Permits, HOA &amp; 811',"ftPermits()",'n')+big('s-wx','⛅ 7-day weather',"ftWx()",'n')],
+ inv:['💵 Invoices',()=>big('s-inv','💵 Invoices (send, mark paid)',"ownerAs('Admin')")+big('s-open','📬 Open invoices',"ftJobs('invoiced')",'n')+big('s-paid','✅ Paid',"ftJobs('paid')",'n')+big('s-qb','📒 QuickBooks export',"ftQB()",'n')+big('s-coi','📄 Insurance certificate (COI)',"ftCOI()",'n')],
+ tools:['🧰 Business tools',()=>big('s-timber','🌲 Ask Timber',"ftTimber()")+big('s-lc','💲 Labor compare',"ftLaborCmp()",'n')+big('s-pay','🧾 Payroll &amp; overtime',"ftPayroll()",'n')+big('s-leads2','📊 Lead sources',"ftLeads()",'n')+big('s-permits2','📋 Permits, HOA &amp; 811',"ftPermits()",'n')+big('s-wx2','⛅ 7-day weather',"ftWx()",'n')+big('s-coi2','📄 Send COI',"ftCOI()",'n')+(window.ftGrid?ftGrid():'')],
  set:['⚙️ Settings',()=>big('s-form','📝 Quote form, prices &amp; wording',"openSet()")+big('ft-set','💳 Payments, texts &amp; reviews',"ftSet()",'n')+big('s-tbset','🌲 Timber &amp; voice quotes setup',"ftTimberSetup()",'n')]};
 window.ownerSect=function(k){if(k==='dash')return ownerHome();if(k==='sched')return ownerAs('Manager'),sched();
  if(k==='team'){if(OH0)OH0();view='osect';armBack(()=>ownerHome());const v=document.getElementById('vhome');if(v)v.remove();A.insertAdjacentHTML('afterbegin',nav('team'));window.scrollTo(0,0);return}

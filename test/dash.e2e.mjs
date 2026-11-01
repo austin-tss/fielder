@@ -55,12 +55,12 @@ try {
   // every number drills down, and Home comes back to the dashboard
   for (const id of ['dc-lab', 'dc-wk', 'dc-mo', 'dc-open', 'dc-q', 'dc-appr', 'dc-close', 'dc-now', 'dc-jobs']) {
     await p.evaluate(() => ownerHome()); await p.waitForSelector('#' + id, { timeout: 5000 });
-    const before = await p.evaluate(() => A.innerHTML.length); await p.click('#' + id); await w(250);
+    const before = await p.evaluate(() => A.innerHTML.length); await p.evaluate((id) => document.getElementById(id).click(), id); await w(250);
     const st = await p.evaluate(() => ({ v: view, dg: !!document.getElementById('dgrid') })); if (st.dg) fail('card did not drill down: ' + id + ' ' + before);
   }
   // tabs: each page has the bar with Home (and the app Back/Home); Home returns to the dashboard
-  for (const k of ['quotes', 'jobs', 'inv', 'team', 'tools', 'set']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.click('#dn-' + k); await w(150);
-    if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.click('#dn-dash'); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
+  for (const k of ['quotes', 'jobs', 'inv', 'team', 'tools', 'set']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.evaluate((k) => document.getElementById('dn-' + k).click(), k); await w(150);
+    if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
   // Team & Time keeps the old Owner tools (clock in/out, who is on, labor)
   await p.click('#dn-team'); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
   await p.click('#dn-tools'); await p.waitForSelector('#ftcard'); await p.waitForSelector('#s-timber');

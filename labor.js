@@ -56,7 +56,7 @@ window.ftOpenJob=function(id){if(role==='Owner'||sessionStorage.fdOwner==='1'){i
 window.ftLaborDay=function(day){ftLaborCmp({period:'day',date:day||ymd(new Date()),vs:'jobs',by:'job',fby:'',fkey:''})};
 // voice: "labor vs collected this month by crew", "labor yesterday", "labor this week"
 const V0=window.FTV2;window.FTV2=function(t){t=String(t||'').toLowerCase();
- if(/^(show )?(the )?labou?r\b|labou?r (compare|vs|versus|against|for|today|yesterday|this|last|by)/.test(t)&&role!=='Crew'&&!/clock|pay ?rate/.test(t)){
+ if(/^(show )?(the )?labou?r\b|labou?r (compare|vs|versus|against|for|today|yesterday|this|last|by)/.test(t)&&role!=='Crew'&&!/clock|pay ?rate|labou?r costs?\b/.test(t)){
   const o={fby:'',fkey:''},d=new Date();
   if(/month/.test(t))o.period='month';else if(/week/.test(t))o.period='week';else o.period='day';
   if(/yesterday/.test(t))d.setDate(d.getDate()-1);if(/last (week)/.test(t))d.setDate(d.getDate()-7);if(/last month/.test(t)){d.setDate(1);d.setMonth(d.getMonth()-1)}o.date=ymd(d);

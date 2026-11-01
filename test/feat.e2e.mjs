@@ -24,6 +24,8 @@ const shot = (p, n) => p.screenshot({ path: '/workspace/fielder-parity2-' + n + 
 try {
   // Owner: Business tools card, keys screen that never shows keys back, storm mode by voice
   let o = await open('4321');
+  // Owner home is the numbers dashboard; the Business tools card lives on its tab
+  await o.waitForSelector('#dnav', { timeout: 10000 }); await o.click('#dn-tools');
   await o.waitForSelector('#ftcard', { timeout: 10000 }); await shot(o, 'owner-tools');
   for (const id of ['ft-storm', 'ft-follow', 'ft-profit', 'ft-map', 'ft-saferep', 'ft-qb', 'ft-equip', 'ft-set']) if (!(await o.$('#' + id))) fail('owner card missing ' + id);
   await o.evaluate(() => ftSet()); await o.waitForSelector('#ftsk', { timeout: 8000 });

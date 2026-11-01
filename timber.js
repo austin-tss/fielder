@@ -39,7 +39,8 @@ function stopVoice(){live=false;state='';try{rec&&rec.abort()}catch(e){}try{spee
 window.ftTimberMic=function(){live=!live;if(live)listen();else{stopVoice();paint()}};
 // nav tab, and an entry on Manager/Admin homes
 const OS=window.ownerSect;window.ownerSect=function(k){if(k==='timber')return ftTimber();return OS?OS.apply(this,arguments):undefined};
-['mgr','admin'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);setTimeout(()=>{if(sessionStorage.fdOwner==='1'||document.getElementById('tbentry')||(view!==''&&view!=='home'&&view!=='mgr'&&view!=='admin'))return;const c=A.querySelector('.card');if(!c)return;const b=document.createElement('button');b.type='button';b.id='tbentry';b.className='btn huge';b.innerHTML='🌲 Ask Timber';b.onclick=()=>ftTimber();c.parentNode.insertBefore(b,c.nextSibling)},60);return x}});
+['mgr','admin'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);const c0=A.querySelector('.card');setTimeout(()=>{if(sessionStorage.fdOwner==='1'||document.getElementById('tbentry')||(view!==''&&view!=='home'&&view!=='mgr'&&view!=='admin'))return;const c=A.querySelector('.card');if(!c||c!==c0||!c.isConnected)return; // only on the home that was just drawn (never inside a form)
+ const b=document.createElement('button');b.type='button';b.id='tbentry';b.className='btn huge';b.innerHTML='🌲 Ask Timber';b.onclick=()=>ftTimber();c.parentNode.insertBefore(b,c.nextSibling)},60);return x}});
 // voice: "timber", "ask timber how much …"
 const V0=window.FTV2;window.FTV2=function(t){t=String(t||'');const m=t.match(/^(?:hey |ask |open )?timber[,.]?\s*(.*)$/i);if(m&&role!=='Crew'&&role!=='Estimator'){if(m[1])ftTimberAsk(m[1]);else ftTimber();return 'Timber'}return V0?V0(t):false};
 })();

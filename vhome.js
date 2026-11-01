@@ -44,7 +44,7 @@ new MutationObserver(()=>fab()).observe(document.getElementById('app')||document
 function say(t,heard){const s=document.getElementById('vhst');if(s){s.textContent=t;const h=document.getElementById('vhheard');if(h)h.textContent=heard?'“'+heard+'”':''}else{let tip=document.getElementById('vhtip');if(!tip){tip=document.createElement('div');tip.id='vhtip';document.body.appendChild(tip)}tip.textContent=t+(heard?' “'+heard+'”':'');clearTimeout(say.t);say.t=setTimeout(()=>tip.remove(),3500)}}
 function ui(on){const h=document.getElementById('vhome');if(h)h.classList.toggle('on',on);const f=document.getElementById('vhfab');if(f)f.classList.toggle('on',on);const g=document.getElementById('vhstrip');if(g)g.classList.toggle('on',on)}
 function listen(){if(LISTEN){LISTEN.stop();return}const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){say('Voice isn’t supported in this browser. Use buttons instead.');return}
- const r=new SR();LISTEN=r;r.lang='en-US';r.interimResults=false;r.continuous=false;let got='';ui(true);say('Listening…');if(window.FDVoice)FDVoice.buzz(30);
+ const r=new SR();LISTEN=r;r.lang=(window.FTLANG&&FTLANG())||'en-US';r.interimResults=false;r.continuous=false;let got='';ui(true);say('Listening…');if(window.FDVoice)FDVoice.buzz(30);
  r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal!==false)got+=' '+e.results[i][0].transcript;got=got.trim();if(got){try{r.stop()}catch(x){}}};
  r.onerror=e=>{if(e&&/not-allowed|service-not-allowed/.test(e.error))say('Microphone blocked. Allow mic access, or use buttons.')};
  r.onend=()=>{LISTEN=null;ui(false);if(got)(window.FDVH&&FDVH.route||route)(got);else if(!/blocked/.test((document.getElementById('vhst')||{}).textContent||''))say('Didn’t catch that. Tap and try again.')};
@@ -53,7 +53,7 @@ const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9' ]+/g,' ').replace(/
 function findJob(q,arr){q=norm(q).replace(/^(the|job|customer|invoice|project|for)\s+/,'');if(!q)return null;arr=arr||jobs;
  return arr.find(j=>norm(j.name)===q)||arr.find(j=>norm(j.name).includes(q))||arr.find(j=>q.split(' ').some(w=>w.length>2&&norm(j.name).split(' ').includes(w)))||arr.find(j=>String(j.id).toLowerCase()===q.replace(/ /g,''))}
 function go(fn){if(typeof okToLeave==='function'&&!okToLeave())return false;fn();window.scrollTo(0,0);return true}
-function route(raw){const t=norm(raw);let m;
+function route(raw){if(window.FTX){raw=FTX(raw);if(raw==='__noop')return}const t=norm(raw);let m;
  const done=(msg)=>say(msg,raw);
  if(window.FTV2){const r2=FTV2(norm(raw));if(r2){say(r2,raw);return}}
  if(window.FTV&&FTV(raw,x=>say(x,raw)))return;

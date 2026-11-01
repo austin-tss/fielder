@@ -31,7 +31,7 @@ window.ftOptimistic=optimistic;
 async function prefetch(){if(!role||!myPin())return;try{busy(1);const r=await RAW({a:'bundle'});(r.items||[]).forEach(x=>put(k(x.body),x.res))}catch(e){}finally{busy(-1)}}
 window.fdPrefetch=prefetch;window.fdCacheBust=bust;
 // Keep the Apps Script warm (a harmless public read, never a PIN check).
-function warm(){if(document.hidden||typeof API==='undefined'||!API)return;fetch(API+(API.indexOf('?')<0?'?':'&')+'a=quotePublic&t=warm').catch(()=>{})}
+function warm(){if(document.hidden||typeof API==='undefined'||!API)return;fetch(API+(API.indexOf('?')<0?'?':'&')+'a=quotePublic&t=warm',{cache:'no-store'}).catch(()=>{})}
 setTimeout(warm,2500);setInterval(warm,4*60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)warm()});
 // Prefetch everything once per sign-in, and again on app open.
 let lastRole='';setInterval(()=>{if(role&&role!==lastRole&&sessionStorage.fdPin){lastRole=role;if(!sessionStorage.fdPf){sessionStorage.fdPf='1';prefetch()}}if(!role){lastRole='';sessionStorage.removeItem('mtPf')}},300);
@@ -42,4 +42,6 @@ const hd=()=>{const h=document.getElementById('topstick')||document.querySelecto
 hd();addEventListener('resize',hd);addEventListener('load',()=>{hd();scrollTo(0,0)});
 let lastV=null;const top0=()=>{hd();const v=typeof view!=='undefined'?view:null;if(v!==lastV){lastV=v;scrollTo(0,0)}};
 const app=document.getElementById('app');if(app)new MutationObserver(top0).observe(app,{childList:true});
+// Sign-out clears the read cache (shared phones; and the next sign-in must really reach the server).
+if(typeof window.logout==='function'){const LO0=window.logout;window.logout=function(){MEM={};try{Object.keys(localStorage).filter(z=>z.indexOf(LSK)===0||z==='fdDash').forEach(z=>localStorage.removeItem(z))}catch(e){}sessionStorage.removeItem('fdPf');return LO0.apply(this,arguments)}}
 })();

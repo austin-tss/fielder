@@ -11,7 +11,9 @@ async function open(pin,pre){const p=await browser.newPage();await p.setViewport
  await p.goto(base+'/?api='+encodeURIComponent(base+'/exec'),{waitUntil:'networkidle0'});
  for(const d of pin)await p.evaluate(d=>[...document.querySelectorAll('.pin button')].find(b=>b.textContent===d).click(),d);return p}
 try{
-let p=await open(OWNER);await p.waitForSelector('#ow-now');
+// Owner home is the numbers dashboard now; the Owner clock tools live on the Team & Time tab.
+const team=async(p)=>{await p.waitForSelector('#dnav,#ow-now',{timeout:30000});if(!(await p.$('#ow-now')))await p.evaluate(()=>ownerSect('team'));await p.waitForSelector('#ow-now')};
+let p=await open(OWNER);await team(p);
 await p.evaluate(()=>{FDVH.listen();FAKESR.at(-1).say('clock in Zebulon Nobody')});await w(800);
 const n=await p.evaluate(()=>api({a:'clockList'}).then(r=>(r.now||[]).length));if(n!==0)fail('stray name punched '+n);
 if(await p.$eval('#gear',e=>e.hidden))fail('owner gear hidden');
