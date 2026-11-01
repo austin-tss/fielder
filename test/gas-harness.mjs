@@ -36,6 +36,11 @@ export function makeGas(opts = {}) {
     const map = { yyyy: p.year, MMMM: MON[M - 1], MMM: MON[M - 1].slice(0, 3), MM: String(M).padStart(2, '0'), dd: String(p.day).padStart(2, '0'), d: String(+p.day), EEE: p.weekday,
       HH: String(H).padStart(2, '0'), H: String(H), hh: String((H + 11) % 12 + 1).padStart(2, '0'), h: String((H + 11) % 12 + 1), mm: p.minute, ss: p.second, a: H < 12 ? 'AM' : 'PM', z: p.timeZoneName, u: String(({ Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 })[p.weekday]) };
     return fmt.replace(/yyyy|MMMM|MMM|MM|dd|d|EEE|HH|H|hh|h|mm|ss|a|z|u/g, (t) => map[t]); }
+  // 'yyyy-MM-dd[ HH:mm[:ss]]' read as wall time in tz (like Apps Script Utilities.parseDate)
+  function parseDate(str, tz) { const m = String(str).match(/^(\d{4})-(\d\d)-(\d\d)(?:[ T](\d\d):(\d\d)(?::(\d\d))?)?$/); if (!m) return new Date(str);
+    const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+    const off = (ms) => { const p = tzParts(new Date(ms), tz); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - ms; };
+    let t = guess - off(guess); t = guess - off(t); return new Date(t); }
   const routes = opts.fetch || (() => ({ code: 200, body: '{}' }));
   const G = {
     console, JSON, Math, Date, Object, Array, String, Number, RegExp, Error, isFinite, isNaN, parseInt, parseFloat, encodeURIComponent, decodeURIComponent, escape, unescape,
@@ -50,7 +55,7 @@ export function makeGas(opts = {}) {
       computeHmacSha256Signature: (v, k) => Array.from(crypto.createHmac('sha256', String(k)).update(String(v)).digest()).map((x) => (x > 127 ? x - 256 : x)),
       base64Encode: (d) => toBytes(d).toString('base64'), base64Decode: (s) => Array.from(Buffer.from(String(s), 'base64')).map((x) => (x > 127 ? x - 256 : x)),
       base64EncodeWebSafe: (d) => toBytes(d).toString('base64url'), newBlob: (d, m, n) => blob(toBytes(d), m, n),
-      parseDate: (s) => new Date(s), Charset: { UTF_8: 'UTF-8' } },
+      parseDate: (s, tz) => parseDate(s, tz), Charset: { UTF_8: 'UTF-8' } },
     UrlFetchApp: { fetch: (url, o) => { fetches.push({ url, o: o || {} }); const r = routes(url, o || {}) || { code: 404, body: '' }; return { getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) }; } },
     MailApp: { sendEmail: (m) => { mails.push(m); }, getRemainingDailyQuota: () => 100 },
     GmailApp: { search: () => [], getUserLabelByName: () => null, createLabel: () => ({}) },

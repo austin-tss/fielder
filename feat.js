@@ -32,13 +32,14 @@ function grid(){const r=role,own=isOwn(),s=S();const b=[];
  if(r==='Owner'){add('ft-sched','📅 Schedule','ownerDo(\'Manager\',\'sched\')');add('ft-set','⚙️ Payments, texts, reviews','ftSet()')}
  if(r==='Manager'&&!own)add('ft-remind','🔔 Send tomorrow’s reminders','ftRemind()');
  return `<div class="card" id="ftcard"><h2>Business tools</h2><div class="ftgrid">${b.join('')}</div></div>`}
+window.ftGrid=()=>grid();
 function stormBar(){return S().storm&&(role==='Owner'||role==='Manager'||role==='Crew')?`<div class="ftstorm" id="ftstormbar">🌀 STORM MODE ON<button type="button" onclick="ftStormNew()">+ Storm call</button></div>`:''}
-function inject(){if(!role||document.getElementById('ftcard'))return;if(['Owner','Manager','Crew','Admin'].indexOf(role)<0)return;
+function inject(){if(!role||document.getElementById('ftcard')||document.getElementById('dnav'))return;if(['Owner','Manager','Crew','Admin'].indexOf(role)<0)return;
  const home=document.getElementById('vhome')||document.getElementById('ownow')||document.getElementById('ow-now')||document.getElementById('jl');if(!home)return;
  A.insertAdjacentHTML('beforeend',grid());if(stormBar())A.insertAdjacentHTML('afterbegin',stormBar())}
 ['mgr','crew','admin','ownerHome'].forEach(n=>{const f=window[n];if(typeof f!=='function')return;window[n]=function(){const x=f.apply(this,arguments);try{inject();st().then(()=>{const c=document.getElementById('ftcard');if(c){c.outerHTML=grid()}else inject();if(stormBar()&&!document.getElementById('ftstormbar')&&(document.getElementById('vhome')||document.getElementById('ownow')||document.getElementById('ow-now')||document.getElementById('jl')))A.insertAdjacentHTML('afterbegin',stormBar())});if(role==='Crew')pos(6000)}catch(e){}return x}});
 // Fielder's role homes are drawn by internal calls too, so also watch the app area and add the card whenever a home screen appears.
-try{let busy=false;new MutationObserver(()=>{if(busy||document.getElementById('ftcard'))return;if(!(document.getElementById('vhome')||document.getElementById('ow-now')||document.getElementById('jl')))return;busy=true;try{inject();st().then(()=>{const c=document.getElementById('ftcard');if(c)c.outerHTML=grid();const sb=document.getElementById('ftstormbar');if(!sb&&stormBar())A.insertAdjacentHTML('afterbegin',stormBar())})}finally{busy=false}}).observe(A,{childList:true})}catch(e){}
+try{let busy=false;new MutationObserver(()=>{if(busy||document.getElementById('ftcard')||document.getElementById('dnav'))return;if(!(document.getElementById('vhome')||document.getElementById('ow-now')||document.getElementById('jl')))return;busy=true;try{inject();st().then(()=>{const c=document.getElementById('ftcard');if(c)c.outerHTML=grid();const sb=document.getElementById('ftstormbar');if(!sb&&stormBar())A.insertAdjacentHTML('afterbegin',stormBar())})}finally{busy=false}}).observe(A,{childList:true})}catch(e){}
 function back(fn){armBack(fn||(()=>{view='';render()}));window.scrollTo(0,0)}
 // ---------- job cards ----------
 let CUR=null;window.ftCur=()=>CUR;

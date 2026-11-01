@@ -55,6 +55,7 @@ function findJob(q,arr){q=norm(q).replace(/^(the|job|customer|invoice|project|fo
 function go(fn){if(typeof okToLeave==='function'&&!okToLeave())return false;fn();window.scrollTo(0,0);return true}
 function route(raw){const t=norm(raw);let m;
  const done=(msg)=>say(msg,raw);
+ if(window.FTV2){const r2=FTV2(norm(raw));if(r2){say(r2,raw);return}}
  if(window.FTV&&FTV(raw,x=>say(x,raw)))return;
  if(/^(go )?(back )?home$|^main (menu|screen)$|^start over$/.test(t)){go(navHome);return done('Home')}
  if(/\b(use )?(buttons|forms)( instead)?\b/.test(t)&&!/invoice/.test(t)){forms();return}

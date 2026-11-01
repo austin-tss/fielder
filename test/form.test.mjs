@@ -123,6 +123,6 @@ test('Code.gs stays live, embeds the form, and strips internal notes before cust
   assert.ok(gs.includes('if(d.send)send=sendQuote_'));
   assert.equal(FD.specHtml({ phone2: 'SECRET-PHONE2', contact2: 'SECRET-CONTACT', service: 'Pruning' }, FD.normalizeForm(null)).includes('SECRET-PHONE2'), false);
   assert.ok(html.includes('id="back"'));
-  assert.ok(html.includes('id="rephome"'));
+  assert.ok(html.includes('id="repcard"') && html.includes('function openRep()') && /setScreen[\s\S]*openRep\(\)/.test(html)); // account rep moved into Settings (main f12573f)
   assert.ok(html.includes('Edit customer'));
 });

@@ -283,7 +283,7 @@ function handleApi(req, res, body) {
     job.invoice.note = d.note || '';
     return send(res, 200, JSON.stringify({ ok: true, job }));
   }
-  if (FEAT && (FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
+  if (FEAT && (FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || FEAT.ctx.FT2_ACTS[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
   send(res, 200, JSON.stringify({ ok: false, err: 'Bad action' }));
 }
 
@@ -376,6 +376,7 @@ let CAPS = ['followUp', 'setStatus', 'discount', 'opened'];
 export function setCaps(c) { CAPS = c; }
 function applyDisc(j) { const base = (j.items || []).reduce((a, i) => a + (+i.price || 0), 0), off = Math.round(base * j.discount.pct) / 100; j.items = (j.items || []).concat([{ title: 'Discount (' + j.discount.pct + '% off)', price: -off }]); j.total = base - off; j.discount.applied = true; }
 export { jobs as mockJobs };
+export { employees as mockEmployees };
 // ---- parity2 business features: run the real Code.gs (in the in-memory Apps Script emulator) against the mock's jobs/blocks.
 // No network: geocoder, Stripe and Twilio are faked; email is only recorded (featOutbox).
 let FEAT = null;

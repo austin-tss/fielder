@@ -941,7 +941,7 @@ var FT_NEED={bookSend:['quotes','schedule'],onWay:['schedule','crew'],remindNow:
 var FT_HAZ={house:{p:1,l:'Tree on house / structure'},line:{p:1,l:'On power line'},road:{p:2,l:'Blocking road'},car:{p:2,l:'On vehicle'},drive:{p:3,l:'Blocking driveway'},fence:{p:3,l:'On fence / shed'},hang:{p:4,l:'Hanging or leaning'},yard:{p:5,l:'Down in yard'}};
 var FT_SAFE=['ppe','saws','chipper','dropzone','lines','weather','firstaid','briefing'];
 function ftR_(d){return roleOf_(d)}
-function ftCan_(d,a){var r=roleOf_(d);if(!r)return false;if(r==='Owner')return true;var need=FT_NEED[a]||[];if(!need.length)return true;var e=empOf_(d),p=(e&&Array.isArray(e.perms)?e.perms:null)||FT_PERM_DEF_[r]||[];return need.some(function(x){return p.indexOf(x)>=0})}
+function ftCan_(d,a){var r=roleOf_(d);if(!r)return false;if(r==='Owner')return true;var need=FT_NEED[a]||(typeof FT2_NEED!=='undefined'&&FT2_NEED[a])||[];if(!need.length)return true;var e=empOf_(d),p=(e&&Array.isArray(e.perms)?e.perms:null)||FT_PERM_DEF_[r]||[];return need.some(function(x){return p.indexOf(x)>=0})}
 function ftCfg_(){var o={};try{o=loadObj_('feat.json')}catch(e){o={}}return o}
 function ftSaveCfg_(o){saveObj_(o,'feat.json')}
 function ftSecret_(){var P=PropertiesService.getScriptProperties(),s=P.getProperty('FEAT_SECRET');if(!s){s=Utilities.getUuid()+Utilities.getUuid();P.setProperty('FEAT_SECRET',s)}return s}
@@ -970,7 +970,7 @@ function featPost_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){retur
  if(d&&d.object==='event'&&d.type&&d.data)return ftStripeHook_(d);
  if(!d||typeof d!=='object')return post_(e);
  if(FT_PUB[d.a])return ftPublic_(d);
- if(FT_ACTS[d.a]){if(!roleOf_(d))return {ok:false,err:'PIN required'};if(!ftCan_(d,d.a))return {ok:false,err:'You do not have permission for that. Ask the owner.'};ftSweep_();return ftStaff_(d)}
+ if(FT_ACTS[d.a]||(typeof FT2_ACTS!=='undefined'&&FT2_ACTS[d.a])){if(!roleOf_(d))return {ok:false,err:'PIN required'};if(!ftCan_(d,d.a))return {ok:false,err:'You do not have permission for that. Ask the owner.'};ftSweep_();return ftStaff_(d)}
  // Pre-checks on core actions
  if(d.a=='finish'&&roleOf_(d)==='Crew'){var who=ftWho_(d);if(!ftSafeDone_(who))return {ok:false,needSafety:true,err:'SAFETY: Finish today’s safety checklist first, then tap Job complete again.'}}
  var r=post_(e);
@@ -1064,6 +1064,7 @@ function ftReview_(j,auto){var c=ftCfg_();if(auto&&c.reviewAuto===false)return {
 
 // ---------- staff actions ----------
 function ftStaff_(d){var me=roleOf_(d),own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
+ if(typeof ft2Staff_==='function'){var r2=ft2Staff_(d,me);if(r2)return r2}
  if(d.a=='fDemo'){if(!own)return {ok:false,err:'Owner only'};return ftDemo_(d)}
  if(d.a=='fGet')return S({status:ftStatus_(),hazards:FT_HAZ});
  if(d.a=='fSet'){if(!own)return {ok:false,err:'Only the Owner can change that.'};var c=ftCfg_();if('storm' in d)c.storm=!!d.storm;if('smsOn' in d)c.smsOn=!!d.smsOn;if('reviewAuto' in d)c.reviewAuto=!!d.reviewAuto;if('reviewUrl' in d){var u=clip_(d.reviewUrl,400);if(u&&!/^https:\/\//.test(u))return {ok:false,err:'Review link must start with https://'};c.reviewUrl=u}ftSaveCfg_(c);return S({status:ftStatus_()})}
@@ -1130,3 +1131,143 @@ var FT_PERM_DEF_={Manager:['quotes','schedule','projects'],Crew:['crew','clock']
 function ftPunches_(a,b){try{return clockLoad_(clockNames_(a,b)).all}catch(e){return []}}
 function ftRateMap_(){var m={};emps_().forEach(function(u){if(u.name&&u.payRate!=null)m[clockKey_(u.name)]=Number(u.payRate)||0});return m}
 SMS_TPL.crewway='Hi {first}, {co} here: our crew is on the way to {addr} now. Please make sure gates are open and vehicles are clear. Questions: {phone}';
+
+// ===================== Fielder Field Desk: parity batch 2 (Owner dashboard, Labor compare, Timber, speed) =====================
+// Ported from Miller v7 (e99cdbd); only the dashboard, labor and Timber parts (no photo estimates, permits, payroll or COI).
+var FT2_ACTS={timber:1,laborDay:1,laborCmp:1,bundle:1,dash:1};
+var FT2_NEED={timber:['hours','invoices','schedule'],laborDay:['hours'],laborCmp:['hours'],bundle:[],dash:['__owner']};
+function ftAllPunches_(){var n=Date.now();return ftPunches_(n-400*86400000,n+86400000)}
+// One bundled read at sign-in: every read the person is allowed, each through the normal permission checks.
+function ft2Staff_(d,me){if(!FT2_ACTS[d.a])return null;var own=me==='Owner',S=function(o){return Object.assign({ok:true},o||{})};
+ if(d.a=='bundle'){var R=[],t0=Date.now();FT2_BUNDLE.concat([{a:'laborDay',date:ftYmd_(Date.now())},{a:'laborCmp',period:'day',date:ftYmd_(Date.now()),vs:'jobs',by:'job'}]).forEach(function(b){if(Date.now()-t0>20000)return;var q=Object.assign({},b,{pin:d.pin,who:d.who});if(q.a=='dash'&&!own)return;
+   try{var r=featPost_({postData:{contents:JSON.stringify(q)}});if(r&&r.ok!==false)R.push({body:b,res:r})}catch(e){}});return S({items:R,ms:Date.now()-t0})}
+ if(d.a=='laborDay')return S(ft2LaborDay_(d.date));
+ if(d.a=='laborCmp')return S(ft2LaborCmp_(d));
+ if(d.a=='timber'){if(d.data&&!own)return {ok:false,err:'Owner only'};return S(timber_(d))}
+ if(d.a=='dash'){if(!own)return {ok:false,err:'Owner only'};return S(ft2Dash_())}
+ return null}
+function ft2Dash_(){var js=load_().filter(function(j){return !j.archived}),now=Date.now(),today=ftYmd_(now),wk0=clockWeekStart_(now),ps=ftAllPunches_(),rm=ftRateMap_(),bl=load_('blocks.json');
+ var on=ps.filter(function(p){return !p.out}),lab=0;ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),clockDayStart_(now)),e=p.out?new Date(p.out).getTime():now;if(e>s)lab+=(e-s)/3600000*(rm[clockKey_(p.who)]||0)});
+ var inv=js.filter(function(j){return j.invoice&&j.invoice.at}),amt=function(j){return num_(j.invoice.amount,total_(j.items))};
+ var unpaid=inv.filter(function(j){return !j.invoice.paid}),paidWk=inv.filter(function(j){return j.invoice.paid&&new Date(j.invoice.paidAt||0).getTime()>=wk0}),invWk=inv.filter(function(j){return new Date(j.invoice.at).getTime()>=wk0});
+ var sent=js.filter(function(j){return j.status=='sent'}),appr=js.filter(function(j){return j.status=='approved'}),sched={};bl.forEach(function(b){if(b.job)sched[b.job]=1});
+ var next7=[];for(var i=0;i<7;i++){var k=ftYmd_(now+i*86400000);next7.push({day:k,jobs:bl.filter(function(b){return b.date===k&&b.job}).map(function(b){var j=findJob_(js,b.job);return j?j.name:''}).filter(String)})}
+ var eqDue=load_('equipment.json').map(ftEqDue_).filter(function(x){return x.due}).map(function(x){return x.name});
+ var sl=load_('safety.json').filter(function(s){return s.date===today}),cov={};sl.forEach(function(s){cov[clockKey_(s.who)]=1;(s.crew||[]).forEach(function(c){cov[clockKey_(c)]=1})});var todayPeople={};ps.forEach(function(p){if(ftYmd_(new Date(p.in).getTime())===today)todayPeople[p.who]=1});
+ var tp=Object.keys(todayPeople),miss=tp.filter(function(w){return !cov[clockKey_(w)]});
+ var perm=js.filter(function(j){return (j.permit&&j.permit.needed&&!/approved|not needed/.test(j.permit.status))||(j.locate&&j.locate.needed&&j.locate.status!='clear'&&j.locate.clear>today)}).map(function(j){return j.name});
+ var stumpNo811=appr.filter(function(j){return /stump/i.test(JSON.stringify(j.items||[]))&&!j.locate}).map(function(j){return j.name});
+ var c={},storm=load_('storm.json').filter(function(x){return x.status=='open'}).length,cfg=ftCfg_();
+ var lr={};js.forEach(function(j){var s=j.source||'Unknown';lr[s]=(lr[s]||0)+(/approved|complete|invoiced/.test(j.status)?total_(j.items):0)});var top=Object.keys(lr).sort(function(a,b){return lr[b]-lr[a]})[0]||'';
+ var cs=ftCosting_(),mq=cs.reduce(function(a,x){a.q+=x.quoted;a.p+=x.profit;return a},{q:0,p:0});
+ var r2=function(v){return Math.round(v*100)/100};
+ var m0=Utilities.parseDate(Utilities.formatDate(new Date(now),CLOCK_TZ,'yyyy-MM-01')+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime(),invMo=inv.filter(function(j){return new Date(j.invoice.at).getTime()>=m0});
+ var d90=now-90*86400000,dec=js.filter(function(j){return new Date(j.created||0).getTime()>=d90&&/sent|approved|complete|invoiced|declined/.test(j.status)}),won=dec.filter(function(j){return /approved|complete|invoiced/.test(j.status)});
+ var todayJobs=bl.filter(function(b){return b.date===today&&b.job}).map(function(b){var j=findJob_(js,b.job);return j?{id:j.id,name:j.name,start:b.start}:null}).filter(Boolean);
+ return {invoicedMonth:r2(invMo.reduce(function(a,j){return a+amt(j)},0)),closeRate:dec.length?Math.round(won.length/dec.length*100):0,closeN:won.length+'/'+dec.length,todayJobs:todayJobs,today:today,onClock:on.map(function(p){return p.who}),laborToday:r2(lab),laborCmp:(function(){try{var c=ft2LaborCmp_({period:'day',vs:'jobs',by:'none'});return c.total}catch(e){return null}})(),unpaid:{count:unpaid.length,total:r2(unpaid.reduce(function(a,j){return a+amt(j)},0))},invoicedWeek:r2(invWk.reduce(function(a,j){return a+amt(j)},0)),paidWeek:r2(paidWk.reduce(function(a,j){return a+amt(j)},0)),
+  openQuotes:{count:sent.length,total:r2(sent.reduce(function(a,j){return a+total_(j.items)},0))},toSchedule:appr.filter(function(j){return !sched[j.id]}).map(function(j){return j.name}),approved:{count:appr.length,total:r2(appr.reduce(function(a,j){return a+total_(j.items)},0))},next7:next7,
+  equipmentDue:eqDue,safety:{people:tp.length,missing:miss},permits:perm,stumpNo811:stumpNo811,coi:c.fileId?{expires:c.expires,daysLeft:c.expires?Math.round((new Date(c.expires+'T12:00:00')-now)/86400000):null}:null,storm:{on:!!cfg.storm,open:storm},topSource:top,margin:mq.q?Math.round(mq.p/mq.q*1000)/10:0}}
+
+var FT2_BUNDLE=[{a:'fGet'},{a:'dash'},{a:'empList'},{a:'eqList'},{a:'stormList'},{a:'costSummary'},{a:'followList'},{a:'safetyReport',days:7},{a:'gpsMap'},{a:'qnList'}];
+
+// Labor vs jobs for one day: punches x pay rate split across that day's scheduled jobs; revenue = job price / its scheduled days.
+function ft2LaborDay_(day){day=/^\d{4}-\d\d-\d\d$/.test(day||'')?day:ftYmd_(Date.now());var tz=CLOCK_TZ,a=Utilities.parseDate(day+' 00:00',tz,'yyyy-MM-dd HH:mm').getTime(),b=a+86400000,now=Date.now();
+ var js=load_(),bl=load_('blocks.json'),ps=ftAllPunches_(),rm=ftRateMap_(),days={},today=[];bl.forEach(function(x){if(!x.job)return;(days[x.job]=days[x.job]||{})[x.date]=1;if(x.date===day&&today.indexOf(x.job)<0)today.push(x.job)});
+ var J={},un={hours:0,cost:0,people:{}};today.forEach(function(id){J[id]={hours:0,cost:0,people:{}}});
+ ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&J[p.job]?[p.job]:today;
+  if(!l.length){un.hours+=h;un.cost+=h*r;un.people[p.who]=1;return}l.forEach(function(id){var x=J[id];x.hours+=h/l.length;x.cost+=h*r/l.length;x.people[p.who]=1})});
+ var r2=function(v){return Math.round(v*100)/100};var rows=today.map(function(id){var j=findJob_(js,id)||{name:'(deleted job)'},nd=Object.keys(days[id]||{}).length||1,price=num_(j.invoice&&j.invoice.amount,total_(j.items)),rev=price/nd,x=J[id];
+  return {id:id,name:j.name,address:j.address,dayOf:Object.keys(days[id]).sort().indexOf(day)+1,days:nd,crew:Object.keys(x.people),hours:r2(x.hours),labor:r2(x.cost),revenue:r2(rev),pct:rev?Math.round(x.cost/rev*1000)/10:null}});
+ var tl=rows.reduce(function(s,x){return s+x.labor},0)+un.cost,tr=rows.reduce(function(s,x){return s+x.revenue},0);
+ return {date:day,jobs:rows,unassigned:{hours:r2(un.hours),labor:r2(un.cost),people:Object.keys(un.people)},total:{labor:r2(tl),revenue:r2(tr),pct:tr?Math.round(tl/tr*1000)/10:null,hours:r2(rows.reduce(function(s,x){return s+x.hours},0)+un.hours)}}}
+
+// ---- Labor compare: labor $ vs any measure, by day/week/month, broken down any way ----
+function ft2Range_(period,day){var tz=CLOCK_TZ,d=Utilities.parseDate(day+' 12:00',tz,'yyyy-MM-dd HH:mm'),s,e,lab;
+ if(period=='range'&&arguments[2]){var t0=arguments[2],t1=arguments[3]>=t0?arguments[3]:t0;s=Utilities.parseDate(t0+' 12:00',tz,'yyyy-MM-dd HH:mm');e=new Date(Utilities.parseDate(t1+' 12:00',tz,'yyyy-MM-dd HH:mm').getTime()+86400000)}else
+ if(period=='week'){var w=Number(Utilities.formatDate(d,tz,'u'))%7;s=new Date(d.getTime()-w*86400000);e=new Date(s.getTime()+7*86400000)}
+ else if(period=='month'){var ym=day.slice(0,7);s=Utilities.parseDate(ym+'-01 12:00',tz,'yyyy-MM-dd HH:mm');var m=Number(ym.slice(5)),y=Number(ym.slice(0,4));e=Utilities.parseDate((m==12?(y+1)+'-01':y+'-'+('0'+(m+1)).slice(-2))+'-01 12:00',tz,'yyyy-MM-dd HH:mm')}
+ else{s=d;e=new Date(d.getTime()+86400000)}
+ var days=[];for(var t=s.getTime();t<e.getTime()-3600000;t+=86400000)days.push(Utilities.formatDate(new Date(t),tz,'yyyy-MM-dd'));
+ return {days:days,from:days[0],to:days[days.length-1]}}
+function ft2LaborCmp_(d){var period={day:1,week:1,month:1,range:1}[d.period]?d.period:'day',day=/^\d{4}-\d\d-\d\d$/.test(d.date||'')?d.date:ftYmd_(Date.now());
+ var vs={jobs:1,invoiced:1,collected:1,quoted:1,hours:1}[d.vs]?d.vs:'jobs',by={none:1,job:1,crew:1,customer:1,source:1,service:1}[d.by]?d.by:'none';
+ var R=ft2Range_(period,period=='range'?d.from:day,d.from,d.to),tz=CLOCK_TZ,now=Date.now(),js=load_(),bl=load_('blocks.json'),ps=ftAllPunches_(),rm=ftRateMap_(),sched={},jd={};
+ bl.forEach(function(x){if(!x.job||!x.date)return;(jd[x.job]=jd[x.job]||{})[x.date]=1;(sched[x.date]=sched[x.date]||[]);if(sched[x.date].indexOf(x.job)<0)sched[x.date].push(x.job)});
+ var U={},perDay={},inR={};R.days.forEach(function(x){inR[x]=1;perDay[x]={labor:0,cmp:0,hours:0}});
+ var add=function(job,who,h,c,dy){var k=(job||'')+'|'+who;U[k]=U[k]||{job:job,who:who,h:0,c:0};U[k].h+=h;U[k].c+=c;perDay[dy].labor+=c;perDay[dy].hours+=h};
+ R.days.forEach(function(dy){var a=Utilities.parseDate(dy+' 00:00',tz,'yyyy-MM-dd HH:mm').getTime(),b=a+86400000,tj=sched[dy]||[];
+  ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&tj.indexOf(p.job)>=0?[p.job]:tj;
+   if(!l.length)return add(null,p.who,h,h*r,dy);l.forEach(function(id){add(id,p.who,h/l.length,h*r/l.length,dy)})})});
+ var price=function(j){return num_(j.invoice&&j.invoice.amount,total_(j.items))},V={},dayOf=function(t){return t?Utilities.formatDate(new Date(t),tz,'yyyy-MM-dd'):''};
+ js.forEach(function(j){var v=0;if(vs=='jobs'){var nd=Object.keys(jd[j.id]||{}).length||1;R.days.forEach(function(dy){if((sched[dy]||[]).indexOf(j.id)>=0){v+=price(j)/nd;perDay[dy].cmp+=price(j)/nd}})}
+  else if(vs=='invoiced'){var dd=j.invoice&&dayOf(j.invoice.at);if(dd&&inR[dd]){v=price(j);perDay[dd].cmp+=v}}
+  else if(vs=='collected'){var pd=j.invoice&&j.invoice.paid&&dayOf(j.invoice.paidAt||j.invoice.at);if(pd&&inR[pd]){v=price(j);perDay[pd].cmp+=v}}
+  else if(vs=='quoted'){var qd=dayOf(j.created);if(qd&&inR[qd]){v=total_(j.items);perDay[qd].cmp+=v}}
+  if(v)V[j.id]=v});
+ if(vs=='hours')R.days.forEach(function(dy){perDay[dy].cmp=perDay[dy].hours});
+ var J={};js.forEach(function(j){J[j.id]=j});
+ var gkb=function(by,job,who){var j=job&&J[job];if(by=='none')return 'All';if(by=='crew')return who||'(no labor logged)';if(!job)return 'Unassigned labor';if(!j)return '(deleted job)';
+  return by=='job'?j.name:by=='customer'?(j.name||'').trim():by=='source'?(j.source||'Not set'):(j.service||'Other')},gk=function(job,who){return gkb(by,job,who)};
+ var fb={job:1,crew:1,customer:1,source:1,service:1}[d.fby]?d.fby:'',fk=String(d.fkey||'');
+ if(fb){Object.keys(U).forEach(function(k){if(gkb(fb,U[k].job,U[k].who)!==fk)delete U[k]});if(fb=='crew'){var keep={};Object.keys(U).forEach(function(k){if(U[k].job)keep[U[k].job]=1});Object.keys(V).forEach(function(id){if(!keep[id])delete V[id]})}else Object.keys(V).forEach(function(id){if(gkb(fb,id,'')!==fk)delete V[id]})}
+ var G={},g=function(k){return G[k]=G[k]||{key:k,labor:0,hours:0,cmp:0,people:{}}};
+ Object.keys(U).forEach(function(k){var u=U[k],x=g(gk(u.job,u.who));if(by=='job'&&u.job)x.id=u.job;x.labor+=u.c;x.hours+=u.h;x.people[u.who]=1;if(vs=='hours')x.cmp+=u.h});
+ if(vs!='hours'){var jh={};Object.keys(U).forEach(function(k){var u=U[k];if(u.job)jh[u.job]=(jh[u.job]||0)+u.h});
+  Object.keys(V).forEach(function(id){if(by=='crew'){var any=false;Object.keys(U).forEach(function(k){var u=U[k];if(u.job==id&&jh[id]){g(u.who).cmp+=V[id]*u.h/jh[id];any=true}});if(!any)g('(no labor logged)').cmp+=V[id]}else{var y=g(gk(id,''));y.cmp+=V[id];if(by=='job')y.id=id}})}
+ var r2=function(v){return Math.round(v*100)/100},pc=function(l,c){return vs!='hours'&&c?Math.round(l/c*1000)/10:null};
+ var rows=Object.keys(G).map(function(k){var x=G[k];return {key:k,id:x.id||'',labor:r2(x.labor),hours:r2(x.hours),cmp:r2(x.cmp),pct:pc(x.labor,x.cmp),perHr:x.hours?r2((vs=='hours'?x.labor:x.cmp)/x.hours):null,crew:Object.keys(x.people)}}).sort(function(a,b){return (b.labor+b.cmp)-(a.labor+a.cmp)});
+ var T={labor:0,hours:0,cmp:0};rows.forEach(function(x){T.labor+=x.labor;T.hours+=x.hours;T.cmp+=x.cmp});
+ var un=0;Object.keys(U).forEach(function(k){if(!U[k].job)un+=U[k].h});
+ return {ok:true,fby:fb,fkey:fk,period:period,date:day,from:R.from,to:R.to,vs:vs,by:by,rows:by=='none'?[]:rows,
+  series:R.days.map(function(dy){var p=perDay[dy];return {day:dy,labor:r2(p.labor),cmp:r2(p.cmp),hours:r2(p.hours)}}),
+  total:{labor:r2(T.labor),hours:r2(T.hours),cmp:r2(T.cmp),pct:pc(T.labor,T.cmp),perHr:T.hours?r2((vs=='hours'?T.labor:T.cmp)/T.hours):null,unassignedHours:r2(un)}}}
+
+// Timber: the Field Desk business assistant. Answers from exact numbers via server-side data functions.
+function tbDay_(s){return /^\d{4}-\d\d-\d\d$/.test(s||'')?s:ftYmd_(Date.now())}
+function tbIn_(t,from,to){if(!t)return false;var d=Utilities.formatDate(new Date(t),CLOCK_TZ,'yyyy-MM-dd');return d>=from&&d<=to}
+function tbJobs_(){return load_().filter(function(j){return !j.archived})}
+function tbPrice_(j){return num_(j.invoice&&j.invoice.amount,total_(j.items))}
+var TB_FUNCS={
+ today:{d:'Today\'s date, weekday and time in Tallahassee (ET).',p:{},f:function(){var n=new Date();return {date:ftYmd_(n.getTime()),weekday:Utilities.formatDate(n,CLOCK_TZ,'EEEE'),time:Utilities.formatDate(n,CLOCK_TZ,'h:mm a')}}},
+ labor:{d:'Labor cost and hours between two dates (inclusive), with job $ worked, labor %, and breakdown. by: job, crew, customer, source, service or none.',p:{from:'YYYY-MM-DD',to:'YYYY-MM-DD',by:'job|crew|customer|source|service|none',compare:'jobs|invoiced|collected|quoted|hours'},
+  f:function(a){var r=ft2LaborCmp_({period:'range',from:tbDay_(a.from),to:tbDay_(a.to||a.from),vs:a.compare||'jobs',by:a.by||'job'});return {from:r.from,to:r.to,compare:r.vs,total:r.total,rows:(r.rows||[]).slice(0,15)}}},
+ revenue:{d:'Revenue between two dates: invoiced $ (by invoice date) and collected $ (by paid date), with the invoices.',p:{from:'YYYY-MM-DD',to:'YYYY-MM-DD'},
+  f:function(a){var f=tbDay_(a.from),t=tbDay_(a.to||a.from),inv=[],col=[];tbJobs_().forEach(function(j){if(!j.invoice)return;var v=tbPrice_(j);if(tbIn_(j.invoice.at,f,t))inv.push({customer:j.name,amount:v,paid:!!j.invoice.paid});if(j.invoice.paid&&tbIn_(j.invoice.paidAt||j.invoice.at,f,t))col.push({customer:j.name,amount:v,via:j.invoice.paidVia||''})});
+   var s=function(l){return Math.round(l.reduce(function(x,y){return x+y.amount},0)*100)/100};return {from:f,to:t,invoiced:s(inv),invoicedCount:inv.length,collected:s(col),collectedCount:col.length,invoices:inv,payments:col}}},
+ quotes:{d:'Quotes created between two dates: count, total $, and each quote with status.',p:{from:'YYYY-MM-DD',to:'YYYY-MM-DD'},
+  f:function(a){var f=tbDay_(a.from),t=tbDay_(a.to||a.from),l=tbJobs_().filter(function(j){return tbIn_(j.created,f,t)}).map(function(j){return {customer:j.name,service:j.service||'',total:total_(j.items),status:j.status||'',estimator:j.estimator||j.by||''}});
+   return {from:f,to:t,count:l.length,total:Math.round(l.reduce(function(x,y){return x+y.total},0)*100)/100,quotes:l}}},
+ jobs:{d:'Jobs, optionally filtered by status (draft, sent, approved, invoiced, declined) and/or scheduled date range.',p:{status:'optional',from:'optional YYYY-MM-DD',to:'optional YYYY-MM-DD'},
+  f:function(a){var bl=load_('blocks.json'),l=tbJobs_().filter(function(j){return !j.archived&&(!a.status||String(j.status||'').toLowerCase()==String(a.status).toLowerCase())}).map(function(j){var days=bl.filter(function(b){return b.job==j.id&&b.date}).map(function(b){return b.date}).sort();return {customer:j.name,address:j.address,service:j.service||'',status:j.status||'',price:tbPrice_(j),scheduled:days,source:j.source||''}});
+   if(a.from){var f=tbDay_(a.from),t=tbDay_(a.to||a.from);l=l.filter(function(x){return x.scheduled.some(function(d){return d>=f&&d<=t})})}return {count:l.length,jobs:l.slice(0,40)}}},
+ onClock:{d:'Who is clocked in right now, since when, and their cost so far.',p:{},f:function(){var rm=ftRateMap_(),now=Date.now();return {people:ftAllPunches_().filter(function(p){return !p.out}).map(function(p){var h=(now-new Date(p.in).getTime())/3600000;return {who:p.who,since:Utilities.formatDate(new Date(p.in),CLOCK_TZ,'h:mm a'),hours:Math.round(h*100)/100,costSoFar:Math.round(h*(rm[clockKey_(p.who)]||0)*100)/100}})}}},
+ invoices:{d:'Invoices: unpaid (open, with age in days) or paid.',p:{status:'unpaid|paid|all'},
+  f:function(a){var st={paid:1,all:1}[a.status]?a.status:'unpaid',now=Date.now(),l=tbJobs_().filter(function(j){return !j.archived&&j.invoice&&(st=='all'||(st=='paid')==!!j.invoice.paid)}).map(function(j){return {customer:j.name,amount:tbPrice_(j),invoiced:j.invoice.at?ftYmd_(new Date(j.invoice.at).getTime()):'',paid:!!j.invoice.paid,paidAt:j.invoice.paidAt||'',ageDays:j.invoice.at?Math.floor((now-new Date(j.invoice.at).getTime())/864e5):null}});
+   return {status:st,count:l.length,total:Math.round(l.reduce(function(x,y){return x+y.amount},0)*100)/100,invoices:l}}},
+ topJobs:{d:'Jobs ranked by money between two dates: revenue (invoiced in range, else job $ worked), labor cost, and profit after labor.',p:{from:'YYYY-MM-DD',to:'YYYY-MM-DD'},
+  f:function(a){var f=tbDay_(a.from),t=tbDay_(a.to||a.from),lab=ft2LaborCmp_({period:'range',from:f,to:t,vs:'jobs',by:'job'}),L={};(lab.rows||[]).forEach(function(r){if(r.id)L[r.id]=r});
+   var l=tbJobs_().map(function(j){var inv=j.invoice&&tbIn_(j.invoice.at,f,t)?tbPrice_(j):0,w=L[j.id]?L[j.id].cmp:0,rev=inv||w,lc=L[j.id]?L[j.id].labor:0;return {customer:j.name,service:j.service||'',revenue:Math.round(rev*100)/100,labor:lc,profitAfterLabor:Math.round((rev-lc)*100)/100,basis:inv?'invoiced':'job $ worked'}}).filter(function(x){return x.revenue||x.labor}).sort(function(x,y){return y.revenue-x.revenue});
+   return {from:f,to:t,jobs:l.slice(0,10)}}},
+ dashboard:{d:'Snapshot: revenue this week/month, open invoices, quotes waiting, close rate, labor today, alerts.',p:{},f:function(){var d=ft2Dash_();return {invoicedWeek:d.invoicedWeek,paidWeek:d.paidWeek,invoicedMonth:d.invoicedMonth,unpaid:d.unpaid,openQuotes:d.openQuotes,closeRate:d.closeRate,closeN:d.closeN,laborToday:d.laborToday,laborVsJobsToday:d.laborCmp,onClock:d.onClock,todayJobs:d.todayJobs}}}
+};
+function tbRun_(name,args){var F=TB_FUNCS[name];if(!F)return {error:'unknown function '+name};try{return F.f(args||{})}catch(e){return {error:String(e)}}}
+function tbDecl_(){return Object.keys(TB_FUNCS).map(function(k){var F=TB_FUNCS[k],props={};Object.keys(F.p).forEach(function(p){props[p]={type:'STRING',description:F.p[p]}});
+ return {name:k,description:F.d,parameters:Object.keys(props).length?{type:'OBJECT',properties:props}:{type:'OBJECT',properties:{}}}})}
+function timber_(d){
+ if(d.data){var o={};String(d.data).split(',').forEach(function(n){o[n]=tbRun_(n,d.args||{})});return {ok:true,data:o}}
+ var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Timber needs setup. The Owner adds the Gemini key under Settings → Smart features.'};
+ var q=String(d.q||'').slice(0,1000);if(!q)return {ok:false,err:'Ask Timber a question.'};
+ var hist=(Array.isArray(d.history)?d.history:[]).slice(-12).map(function(h){return {role:h.who=='me'?'user':'model',parts:[{text:String(h.text||'').slice(0,1500)}]}});
+ var now=new Date(),sys='You are Timber, the business assistant inside the '+CO.name+' Field Desk app (Tallahassee, FL). Today is '+Utilities.formatDate(now,CLOCK_TZ,'EEEE yyyy-MM-dd h:mm a')+' ET. The person asking is the '+(roleOf_(d)||'user')+'. '+
+  'Always get numbers by calling the functions; never guess or invent numbers. Weeks run Sunday to Saturday. "Yesterday" means the calendar day before today. Answer briefly (1-3 short sentences, plain words, no markdown, no tables) and lead with the numbers, in dollars rounded to whole dollars. Your answer may be read aloud. Never call yourself an AI, a model, or a bot; you are Timber.';
+ var contents=hist.concat([{role:'user',parts:[{text:q}]}]),used=[];
+ for(var i=0;i<6;i++){
+  var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+VOICE_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
+   payload:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:contents,tools:[{functionDeclarations:tbDecl_()}],generationConfig:{temperature:0.2}})});
+  if(res.getResponseCode()!==200)return {ok:false,err:'Timber could not answer right now ('+res.getResponseCode()+'). Try again in a minute.'};
+  var c=JSON.parse(res.getContentText()),parts=(((c.candidates||[])[0]||{}).content||{}).parts||[],calls=parts.filter(function(p){return p.functionCall});
+  if(!calls.length){var txt=parts.map(function(p){return p.text||''}).join('').trim().replace(/\bAI\b/g,'').replace(/[*#_`]/g,'');return {ok:true,answer:txt||'I could not find that.',used:used}}
+  contents.push({role:'model',parts:parts});
+  contents.push({role:'user',parts:calls.map(function(p){used.push(p.functionCall.name);return {functionResponse:{name:p.functionCall.name,response:{result:tbRun_(p.functionCall.name,p.functionCall.args)}}}})})}
+ return {ok:false,err:'Timber got stuck on that one. Try asking it a simpler way.'}}
+

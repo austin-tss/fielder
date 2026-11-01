@@ -1,8 +1,8 @@
 // Fielder Field Desk service worker: caches the app shell only.
 // Never touches API calls (Apps Script /exec, ?a=, pin=), other sites, or anything that is not a GET.
 // Bump VERSION on each release; old caches are deleted when the new worker activates.
-const VERSION = 'fd-shell-2026-11-01-parity2';
-const SHELL = ['./', 'index.html', 'form.js', 'v5.js', 'csv.js', 'flags.js', 'voice.js', 'clock.js', 'vhome.js', 'gps.js', 'quotes.js', 'owner.js', 'tips.js', 'feat.js', 'book.html', 'pay.html', 'sign.html', 'portal.html', 'logo.png', 'logo.svg', 'mark.svg', 'manifest.webmanifest',
+const VERSION = 'fd-shell-2026-11-01-parity3';
+const SHELL = ['./', 'index.html', 'form.js', 'v5.js', 'csv.js', 'flags.js', 'voice.js', 'clock.js', 'vhome.js', 'gps.js', 'quotes.js', 'owner.js', 'tips.js', 'feat.js', 'dash.js', 'labor.js', 'timber.js', 'perf.js', 'book.html', 'pay.html', 'sign.html', 'portal.html', 'logo.png', 'logo.svg', 'mark.svg', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
