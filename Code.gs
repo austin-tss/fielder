@@ -27,11 +27,13 @@ function validEmail(e){return /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(String(e|
 
 // Quote form settings live in settings.json. Existing jobs.json rows still load if these fields are absent.
 // Redeploy this web app after updating this file. Action "settings" does not send mail.
-// Role PINs come from Script Properties PIN_MANAGER / PIN_CREW / PIN_ADMIN, falling back to the original values.
-function pins_(){var p=PropertiesService.getScriptProperties();return {Manager:String(p.getProperty('PIN_MANAGER')||'1234'),Crew:String(p.getProperty('PIN_CREW')||'0123'),Admin:String(p.getProperty('PIN_ADMIN')||'6789')};}
+// Role PINs come from Script Properties PIN_MANAGER / PIN_CREW / PIN_ADMIN / PIN_OWNER, falling back to the original values.
+// The Owner fallback placeholder below is swapped for the real PIN only in the deployed copy (never committed).
+function pins_(){var p=PropertiesService.getScriptProperties(),m={Manager:String(p.getProperty('PIN_MANAGER')||'1234'),Crew:String(p.getProperty('PIN_CREW')||'0123'),Admin:String(p.getProperty('PIN_ADMIN')||'6789'),Owner:String(p.getProperty('PIN_OWNER')||OWNER_PIN_FALLBACK_)},o=m;if(!/^\d{4,8}$/.test(o.Owner))delete o.Owner;return o;}
+var OWNER_PIN_FALLBACK_='__OWNER_PIN__';
 // ---- Employees: Script Property EMPLOYEES_JSON = [{"id","name","email","role","pin","created"}] (same design as AIO's USERS_JSON).
 // role is the internal key (Manager = Estimator on screen, Crew, Admin). Role PINs above keep working so nobody is locked out.
-var EMP_ROLES={Manager:1,Crew:1,Admin:1};
+var EMP_ROLES={Manager:1,Crew:1,Admin:1,Owner:1};
 function emps_(){var raw=prop_('EMPLOYEES_JSON');if(!raw)return [];try{var u=JSON.parse(raw);return Array.isArray(u)?u.filter(function(x){return x&&x.pin&&EMP_ROLES[x.role]}):[]}catch(e){return []}}
 function saveEmps_(l){PropertiesService.getScriptProperties().setProperty('EMPLOYEES_JSON',JSON.stringify(l));}
 function empOf_(d){var p=String(d&&d.pin||'');if(!p)return null;return emps_().filter(function(u){return String(u.pin)===p})[0]||null;}
@@ -43,7 +45,7 @@ function roleOf_(d){var p=String(d&&d.pin||'');if(!p)return '';if(locked_out_())
 var FORM_PIN_=null;
 function pinOk_(d){return !!roleOf_(d);}
 var ROLE_CAN_={Crew:{upload:1,finish:1,smsOnWay:1,feedback:1},Admin:{invoice:1,paid:1,iedit:1,feedback:1,archive:1,importCustomers:1}};
-function can_(r,a){if(r==='Manager')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN_[r][a]);}
+function can_(r,a){if(r==='Manager'||r==='Owner')return true;return !!(ROLE_CAN_[r]&&ROLE_CAN_[r][a]);}
 // FORMJS_START
 /* Quote form editor model. Tree service wording only.
    The same rules are duplicated in Code.gs (Apps Script cannot load this file).
@@ -502,17 +504,19 @@ function get_(e){var p=(e&&e.parameter)||{};
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
-var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1};
+var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
   if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:''};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
   if(d.a=='approvePublic')return approvePublic_(d);
   var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
-  if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'){if(me!=='Admin')return {ok:false,err:'Only Admin can manage employees.'};return empApi_(d);}var ck=clockApi_(d,me);if(ck)return ck;if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
-  if(d.a=='qboconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
-  if(d.a=='qbodisconnect'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};saveObj_({},'qbo.json');return {ok:true,settings:settings_()};}
-  if(d.a=='voiceQuote'){if(me!=='Manager')return {ok:false,err:'Your role cannot do that.'};return voiceQuote_(d);}
+  var OWN=me==='Owner';var pe_=empOf_(d),need_=PERM_OF_[d.a];if(!OWN&&pe_&&Array.isArray(pe_.perms)&&need_&&!(d.forWho)&&pe_.perms.indexOf(need_)<0)return {ok:false,err:'You do not have permission for that. Ask the Owner.'};
+  if(d.a=='labor'){if(!OWN)return {ok:false,err:'Only the Owner can see labor cost.'};return laborApi_(d);}
+  if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'||d.a=='empEdit'){if(me!=='Admin'&&!OWN)return {ok:false,err:'Only Admin can manage employees.'};if(d.a=='empEdit'&&!OWN)return {ok:false,err:'Only the Owner can edit employees.'};return empApi_(d,OWN);}var ck=clockApi_(d,me);if(ck)return ck;if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
+  if(d.a=='qboconnect'){if(me!=='Manager'&&!OWN)return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
+  if(d.a=='qbodisconnect'){if(me!=='Manager'&&!OWN)return {ok:false,err:'Your role cannot do that.'};saveObj_({},'qbo.json');return {ok:true,settings:settings_()};}
+  if(d.a=='voiceQuote'){if(me!=='Manager'&&!OWN)return {ok:false,err:'Your role cannot do that.'};return voiceQuote_(d);}
   if(d.a=='qnList')return v5Api_(d);
   if(d.a=='qnScan'){var added=scanQuoteEmails();return added<0?BUSY_:{ok:true,added:added};}
   if(d.a=='smsOnWay')return smsOnWay_(d);
@@ -538,7 +542,7 @@ function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {o
 // Runs while holding the lock: read, change, save. Returns {resp} or {job,send} (send runs after unlock).
 function locked_(d,pre,meName){var j,send=null,js,R=function(o){return {resp:o}};
     var v5=v5Api_(d);if(v5)return R(v5);
-    if(d.a=='settings'){if(roleOf_(d)!=='Manager')return R({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return R({ok:true,settings:settings_()})}
+    if(d.a=='settings'){var sr_=roleOf_(d);if(sr_!=='Manager'&&sr_!=='Owner')return R({ok:false,err:'That PIN cannot change the quote form.'});var curS=loadObj_('settings.json');if(d.form)curS.form=FDForm.normalizeForm(d.form);curS.quoteBody=clip_(d.quoteBody,4000);curS.quoteSubject=clip_(d.quoteSubject,300);curS.quoteSign=clip_(d.quoteSign,800);if(d.theme==='classic'||d.theme==='dark')curS.theme=d.theme;saveObj_(curS,'settings.json');return R({ok:true,settings:settings_()})}
     if(d.a=='feedback'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot send feedback.'});var fbText=clip_(d.text,4000);if(!fbText)return R({ok:false,err:'Write a note first.'});var fb=[];try{fb=load_('feedback.json')}catch(eFb){fb=[]}if(!Array.isArray(fb))fb=[];fb.push({at:new Date().toISOString(),role:clip_(d.role,40),text:fbText});if(fb.length>500)fb=fb.slice(fb.length-500);save_(fb,'feedback.json');return R({ok:true})}
     if(d.a=='cedit'){if(!pinOk_(d))return R({ok:false,err:'That PIN cannot edit customers.'});if(d.email&&!validEmail(d.email))return R({ok:false,err:'That email does not look right.'});var ids=d.ids||[],cjs=load_();cjs.forEach(function(x){if(ids.indexOf(x.id)<0)return;x.name=clip_(d.name,200);x.phone=clip_(d.phone,40);x.email=clip_(d.email,200);x.address=clip_(d.address,300);x.phone2=clip_(d.phone2,40);x.contact2=clip_(d.contact2,120)});save_(cjs);return R({ok:true})}
     if(d.a=='importCustomers')return R(importCustomers_(d));
@@ -719,9 +723,9 @@ function clockDevCheck_(d,who,emp){var dev=clip_(d.deviceId,64);if(emp)return {d
   if(o.byName[k]&&o.byName[k]!==dev)return {err:who+' is set up on another phone. Admin PIN is needed to move it to this phone.',nameLocked:true};
   if(!had){clockBind_(o,dev,who);clockDevSave_(o);}return {dev:dev};}
 function clockApi_(d,me){if(!CLOCK_ACTS_[d.a])return null;var r=clockApi0_(d,me);if(r&&r.ok&&(d.a=='clockFix'||d.a=='clockDevice'))clockFlush_(15000);return r;}
-function clockApi0_(d,me){var boss=me==='Admin',now=Date.now();
+function clockApi0_(d,me){var boss=me==='Admin'||me==='Owner',now=Date.now();
   if(d.a=='clockDevice'){// change this phone's name: needs the Admin PIN (adminPin), or an Admin login.
-    var okA=boss||(d.adminPin&&roleOf_({pin:d.adminPin})==='Admin');if(!okA)return {ok:false,err:'Admin PIN needed to change the name on this phone.'};
+    var okA=boss||(d.adminPin&&(roleOf_({pin:d.adminPin})==='Admin'||roleOf_({pin:d.adminPin})==='Owner'));if(!okA)return {ok:false,err:'Admin PIN needed to change the name on this phone.'};
     var dv=clip_(d.deviceId,64),nw=clockWho_({who:d.who},me);if(!dv||!nw)return {ok:false,err:'Pick the name.'};
     var Ld=clockLock_(10000);if(!Ld)return CLOCK_BUSY_;try{var o=clockDevs_();clockBind_(o,dv,nw);clockDevSave_(o);}finally{unlock_(Ld);}return {ok:true,who:nw};}
   if(d.a=='clockList'){if(!boss)return {ok:false,err:'Only Admin can see everyone\'s hours.'};var f=d.from?Utilities.parseDate(d.from+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime():0,t=d.to?Utilities.parseDate(d.to+' 23:59',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime()+60000:now+86400000;
@@ -749,7 +753,9 @@ function clockApi0_(d,me){var boss=me==='Admin',now=Date.now();
         if(tn!==pn){clockWrite_(pn,S.m[pn].filter(function(x){return x!==p}));var dst=S.m[tn]||clockRead_(tn);dst.push(p);clockWrite_(tn,dst);}else clockWrite_(pn,S.m[pn]);}
       else{p={id:newId_('P-'),who:w,in:new Date(ni).toISOString(),out:no?new Date(no).toISOString():null,by:me,src:'fix',edited:ed};var arr=S.m[tn]||clockRead_(tn);arr.push(p);clockWrite_(tn,arr);}
       r={ok:true,punch:p,clamped:clamped};}finally{unlock_(L);}return r;}
-  var emp=empOf_(d),who=clockWho_(d,me);if(!who)return {ok:false,err:'Pick your name first.',needName:true};
+  var emp=empOf_(d),who=clockWho_(d,me);
+  if(d.forWho&&(d.a=='clockIn'||d.a=='clockOut'||d.a=='clockStatus')){if(me!=='Owner')return {ok:false,err:'Only the Owner can clock someone else in or out.'};who=clockWho_({who:d.forWho},me);emp={owner:1};d.at=null;}
+  if(!who)return {ok:false,err:'Pick your name first.',needName:true};
   if(d.a=='clockStatus')return Object.assign({ok:true},clockSum_(clockLoad_(clockNames_(now-7*86400000,now,who)).all,who));
   var tm=clockTime_(d,now);if(tm.err)return {ok:false,err:tm.err,tooOld:!!tm.tooOld,badTime:!!tm.badTime};
   var at=tm.t,cid=clip_(d.cid,40),L2=clockLock_(20000);if(!L2)return CLOCK_BUSY_;var res,all2;
@@ -770,26 +776,48 @@ function clockApi0_(d,me){var boss=me==='Admin',now=Date.now();
   if(res.ok&&!res.dup&&!clockFlush_(5000))res.pending=true;
   if(tm.skew&&res.ok)res.note='Phone clock is off by '+tm.skew+' min; server time was used.';
   return Object.assign(res,clockSum_(all2,who));}
-// ===== Employees (Admin only). Codes are 4 digits, unique, never returned by empList. =====
-function empPublic_(u){return {id:u.id,name:u.name,email:u.email,role:u.role,created:u.created}}
-function empApi_(d){
-  if(d.a=='empList')return {ok:true,employees:emps_().map(empPublic_)};
+// ===== Employees (Admin + Owner). Codes are 4 digits, unique. Only the Owner sees PINs and pay rates, and can edit.
+var PERM_OF_={create:'quotes',qedit:'quotes',sendQuoteText:'quotes',voiceQuote:'quotes',qnList:'quotes',qnScan:'quotes',qnStart:'quotes',qnDismiss:'quotes',block:'schedule',unblock:'schedule',invoice:'invoices',paid:'invoices',iedit:'invoices',clockList:'hours',clockFix:'hours',empList:'employees',empAdd:'employees',empDel:'employees',upload:'crew',finish:'crew',clockIn:'clock',clockOut:'clock'};
+var EMP_PERMS={quotes:1,schedule:1,projects:1,crew:1,clock:1,invoices:1,hours:1,employees:1,labor:1};
+function empPublic_(u,own){var o={id:u.id,name:u.name,email:u.email,role:u.role,created:u.created,perms:u.perms||null};if(own){o.pin=u.pin;o.payRate=u.payRate==null?null:u.payRate;}return o}
+function empPerms_(a){return Array.isArray(a)?a.filter(function(x){return EMP_PERMS[x]}).slice(0,20):null}
+function empRate_(v){if(v===''||v==null)return null;var n=Number(String(v).replace(/[^\d.]/g,''));return isFinite(n)&&n>=0&&n<1000?Math.round(n*100)/100:null}
+function empApi_(d,own){var pub=function(l){return l.map(function(u){return empPublic_(u,own)})};
+  if(d.a=='empList')return {ok:true,employees:pub(emps_())};
   var L=lock_(7000);if(!L)return BUSY_;var add=null,list;
-  try{list=emps_();
+  try{list=emps_();var used={},pm=pins_();list.forEach(function(u){used[u.pin]=1});for(var r in pm)used[pm[r]]=1;
     if(d.a=='empDel'){var me=empOf_(d),t=list.filter(function(u){return u.id==d.id})[0];if(!t)return {ok:false,err:'Employee not found'};
       if(me&&me.id==t.id)return {ok:false,err:'You cannot delete yourself.'};
-      if(t.role=='Admin'&&list.filter(function(u){return u.role=='Admin'}).length<=1)return {ok:false,err:'You cannot delete the last Admin.'};
-      list=list.filter(function(u){return u.id!=t.id});saveEmps_(list);return {ok:true,employees:list.map(empPublic_)};}
-    var name=clip_(d.name,80),email=String(d.email||'').trim().slice(0,200),role=String(d.role||'');
-    if(!name)return {ok:false,err:'Add the employee name'};if(!validEmail(email))return {ok:false,err:'That email does not look right'};if(!EMP_ROLES[role])return {ok:false,err:'Pick a role'};
-    if(list.some(function(u){return String(u.email).toLowerCase()==email.toLowerCase()}))return {ok:false,err:'That email already has a code. Delete them first to make a new one.'};
-    var used={},pm=pins_();list.forEach(function(u){used[u.pin]=1});for(var r in pm)used[pm[r]]=1;var pin='';
+      if(t.role=='Owner'&&!own)return {ok:false,err:'Only the Owner can remove an Owner.'};
+      if(t.role=='Admin'&&list.filter(function(u){return u.role=='Admin'}).length<=1&&!own)return {ok:false,err:'You cannot delete the last Admin.'};
+      list=list.filter(function(u){return u.id!=t.id});saveEmps_(list);return {ok:true,employees:pub(list)};}
+    var name=clip_(d.name,80),email=String(d.email||'').trim().slice(0,200),role=String(d.role||''),np=String(d.newPin||'').trim();
+    if(!name)return {ok:false,err:'Add the employee name'};if((email||!own)&&!validEmail(email))return {ok:false,err:'That email does not look right'};if(!EMP_ROLES[role])return {ok:false,err:'Pick a role'};
+    if(role=='Owner'&&!own)return {ok:false,err:'Only the Owner can add an Owner.'};
+    if(np&&!own)return {ok:false,err:'Only the Owner can set PINs.'};if(np&&!/^\d{4}$/.test(np))return {ok:false,err:'PIN must be 4 digits'};
+    if(d.a=='empEdit'){var u=list.filter(function(x){return x.id==d.id})[0];if(!u)return {ok:false,err:'Employee not found'};
+      if(np&&np!==String(u.pin)&&used[np])return {ok:false,err:'That PIN is already in use.'};
+      if(email&&list.some(function(x){return x!==u&&String(x.email).toLowerCase()==email.toLowerCase()}))return {ok:false,err:'Another employee has that email.'};
+      u.name=name;u.email=email;u.role=role;if(np)u.pin=np;if(d.perms)u.perms=empPerms_(d.perms);if('payRate' in d)u.payRate=empRate_(d.payRate);u.edited=new Date().toISOString();saveEmps_(list);
+      return {ok:true,employee:empPublic_(u,own),employees:pub(list)};}
+    if(email&&list.some(function(u){return String(u.email).toLowerCase()==email.toLowerCase()}))return {ok:false,err:'That email already has a code. Delete them first to make a new one.'};
+    if(np&&used[np])return {ok:false,err:'That PIN is already in use.'};var pin=np;
     for(var i=0;i<50&&(!pin||used[pin]);i++)pin=String(1000+Math.floor(Math.random()*9000));
-    add={id:newId_('E'),name:name,email:email,role:role,pin:pin,created:new Date().toISOString()};list.push(add);saveEmps_(list);
+    add={id:newId_('E'),name:name,email:email,role:role,pin:pin,created:new Date().toISOString()};if(own){add.perms=empPerms_(d.perms);add.payRate=empRate_(d.payRate);}list.push(add);saveEmps_(list);
   }finally{unlock_(L)}
-  var label={Manager:'Estimator',Crew:'Crew',Admin:'Admin'}[add.role],mailed=false,mailErr='';
-  try{var mr=mail_({to:add.email,replyTo:CO.email,name:CO.name,subject:'Your Fielder Field Desk login code',htmlBody:'<p>Hi '+esc_(add.name)+',</p><p>You have been added to Fielder Field Desk as <b>'+label+'</b>.</p><p>Your login code is <b style="font-size:22px;letter-spacing:3px">'+add.pin+'</b></p><p>Open <a href="https://austin-tss.github.io/fielder/">austin-tss.github.io/fielder</a> and enter the code. Keep it private.</p>'});mailed=!!(mr&&mr.sent);}catch(x){mailErr=String(x&&x.message||x)}
-  return {ok:true,code:add.pin,mailed:mailed,mailErr:mailErr,employee:empPublic_(add),employees:emps_().map(empPublic_)};}
+  var label={Manager:'Estimator',Crew:'Crew',Admin:'Admin',Owner:'Owner'}[add.role],mailed=false,mailErr='';
+  if(add.email)try{var mr=mail_({to:add.email,replyTo:CO.email,name:CO.name,subject:'Your Fielder Field Desk login code',htmlBody:'<p>Hi '+esc_(add.name)+',</p><p>You have been added to Fielder Field Desk as <b>'+label+'</b>.</p><p>Your login code is <b style="font-size:22px;letter-spacing:3px">'+add.pin+'</b></p><p>Open <a href="https://austin-tss.github.io/fielder/">austin-tss.github.io/fielder</a> and enter the code. Keep it private.</p>'});mailed=!!(mr&&mr.sent);}catch(x){mailErr=String(x&&x.message||x)}
+  return {ok:true,code:add.pin,mailed:mailed,mailErr:mailErr,employee:empPublic_(add,own),employees:pub(emps_())};}
+// ===== Owner labor cost: hours per person per day (from punches) x that employee's pay rate. =====
+function laborApi_(d){var now=Date.now(),re=/^\d{4}-\d{2}-\d{2}$/,to=re.test(d.to||'')?d.to:Utilities.formatDate(new Date(now),CLOCK_TZ,'yyyy-MM-dd'),fr=re.test(d.from||'')?d.from:to;
+  var a=Utilities.parseDate(fr+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime(),b=Utilities.parseDate(to+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime();if(b<a){var t=a;a=b;b=t}
+  if(b-a>62*86400000)return {ok:false,err:'Pick 62 days or less.'};
+  var ps=clockLoad_(clockNames_(a,b+86400000)).all,rates={};emps_().forEach(function(u){rates[clockKey_(u.name)]={rate:u.payRate==null?null:Number(u.payRate),name:u.name}});
+  var names={};ps.forEach(function(p){names[clockKey_(p.who)]=p.who});var days=[],tot=0,th=0,miss={};
+  for(var x=a;x<=b+3600000;){var ds=Utilities.formatDate(new Date(x),CLOCK_TZ,'yyyy-MM-dd'),d0=Utilities.parseDate(ds+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime(),d1=d0+86400000+3600000;d1=Utilities.parseDate(Utilities.formatDate(new Date(d1),CLOCK_TZ,'yyyy-MM-dd')+' 00:00',CLOCK_TZ,'yyyy-MM-dd HH:mm').getTime();
+    var people=[],dc=0,dh=0;for(var k in names){var h=clockHrs_(ps,names[k],d0,Math.min(d1,now),now);if(!h)continue;var r=rates[k],rate=r&&r.rate!=null?r.rate:null,c=rate==null?null:Math.round(h*rate*100)/100;if(rate==null)miss[names[k]]=1;people.push({who:names[k],hours:h,rate:rate,cost:c});dh+=h;dc+=c||0;}
+    days.push({date:ds,people:people,hours:Math.round(dh*100)/100,cost:Math.round(dc*100)/100});tot+=dc;th+=dh;x=d1;if(d0>=b)break;}
+  return {ok:true,from:fr,to:to,days:days,hours:Math.round(th*100)/100,cost:Math.round(tot*100)/100,missingRate:Object.keys(miss)};}
 
 // ===== Voice quotes: Gemini sorts a spoken walk-through into customer, estimate, and crew-only parts. =====
 // Needs Script Property GEMINI_API_KEY. Nothing is saved or sent here; the app pre-fills the form for review.

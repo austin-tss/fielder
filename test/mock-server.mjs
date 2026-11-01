@@ -62,8 +62,10 @@ const phoneOk = (p) => { const d = String(p || '').replace(/\D/g, ''); return d.
 function textLink(j) { if (!j.pt) j.pt = tok(); texts.push({ to: 'TEST_PHONE', customer: j.phone, link: 'quote.html?id=' + j.pt }); }
 function pubQuote(t) { const j = jobs.find((x) => x.pt && x.pt === t && !x.archived); if (!j) return { ok: false, err: 'This quote link is not valid. Please call (850) 656-8737.' };
   return { ok: true, quote: { est: j.est, name: j.name, address: j.address, date: j.created, items: (j.items || []).map((i) => ({ title: i.title, detail: i.detail || '', price: i.price == null || i.price === '' ? null : Number(i.price) })), total: j.total, custHtml: '', approved: j.status === 'approved', status: j.status } }; }
-const ROLEPINS = { '1234': 'Manager', '0123': 'Crew', '6789': 'Admin' };
-const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role });
+const ROLEPINS = { '1234': 'Manager', '0123': 'Crew', '6789': 'Admin', '4321': 'Owner' }; // mock-only test PINs
+const pub = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, perms: u.perms || null });
+const pubO = (u) => ({ ...pub(u), pin: u.pin, payRate: u.payRate == null ? null : u.payRate });
+const rate = (v) => { if (v === '' || v == null) return null; const n = Number(String(v).replace(/[^\d.]/g, '')); return isFinite(n) ? Math.round(n * 100) / 100 : null; };
 const hits = [];
 
 function send(res, code, body, type) {
@@ -96,15 +98,30 @@ function handleApi(req, res, body) {
     const r = e ? e.role : ROLEPINS[String(d.pin || '')];
     return send(res, 200, JSON.stringify(r ? { ok: true, role: r, name: e ? e.name : '' } : { ok: false, err: 'Wrong PIN' }));
   }
+  if (d.a === 'labor') {
+    if (ROLEPINS[String(d.pin || '')] !== 'Owner') return send(res, 200, JSON.stringify({ ok: false, err: 'Only the Owner can see labor cost.' }));
+    return send(res, 200, JSON.stringify(labor(d, employees)));
+  }
   if (/^clock(Status|In|Out|List|Fix)$/.test(d.a || '')) {
     const e = employees.find((u) => u.pin === String(d.pin || ''));
     clockApi(d, e ? e.role : ROLEPINS[String(d.pin || '')], e ? e.name : '').then((r) => send(res, 200, JSON.stringify(r)));
     return;
   }
-  if (d.a === 'empList' || d.a === 'empAdd' || d.a === 'empDel') {
+  if (d.a === 'empList' || d.a === 'empAdd' || d.a === 'empDel' || d.a === 'empEdit') {
     const me = employees.find((u) => u.pin === String(d.pin || ''));
     const role = me ? me.role : ROLEPINS[String(d.pin || '')];
-    if (role !== 'Admin') return send(res, 200, JSON.stringify({ ok: false, err: 'Only Admin can manage employees.' }));
+    const own = role === 'Owner', P = own ? pubO : pub;
+    if (role !== 'Admin' && !own) return send(res, 200, JSON.stringify({ ok: false, err: 'Only Admin can manage employees.' }));
+    const used = new Set([...employees.map((u) => u.pin), ...Object.keys(ROLEPINS)]);
+    if (d.a === 'empEdit') {
+      if (!own) return send(res, 200, JSON.stringify({ ok: false, err: 'Only the Owner can edit employees.' }));
+      const u = employees.find((x) => x.id === d.id); if (!u) return send(res, 200, JSON.stringify({ ok: false, err: 'Employee not found' }));
+      if (!d.name) return send(res, 200, JSON.stringify({ ok: false, err: 'Add the employee name' }));
+      if (d.newPin && !/^\d{4}$/.test(d.newPin)) return send(res, 200, JSON.stringify({ ok: false, err: 'PIN must be 4 digits' }));
+      if (d.newPin && d.newPin !== u.pin && used.has(d.newPin)) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN is already in use.' }));
+      Object.assign(u, { name: d.name, email: d.email || '', role: d.role || u.role }); if (d.newPin) u.pin = d.newPin; if (d.perms) u.perms = d.perms; if ('payRate' in d) u.payRate = rate(d.payRate);
+      return send(res, 200, JSON.stringify({ ok: true, employee: P(u), employees: employees.map(P) }));
+    }
     if (d.a === 'empDel') {
       const t = employees.find((u) => u.id === d.id);
       if (!t) return send(res, 200, JSON.stringify({ ok: false, err: 'Employee not found' }));
@@ -113,13 +130,15 @@ function handleApi(req, res, body) {
       employees = employees.filter((u) => u.id !== t.id);
     }
     if (d.a === 'empAdd') {
-      if (!d.name || !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(d.email || '')) return send(res, 200, JSON.stringify({ ok: false, err: 'That email does not look right' }));
-      const e = { id: 'E' + (employees.length + 10), name: d.name, email: d.email, role: d.role, pin: String(7000 + employees.length) };
+      if (!d.name || ((d.email || !own) && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(d.email || ''))) return send(res, 200, JSON.stringify({ ok: false, err: 'That email does not look right' }));
+      if (d.newPin && (!own || !/^\d{4}$/.test(d.newPin) || used.has(d.newPin))) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN is already in use.' }));
+      const e = { id: 'E' + (employees.length + 10) + Date.now() % 1000, name: d.name, email: d.email || '', role: d.role, pin: d.newPin || String(7000 + employees.length) };
+      if (own) { e.perms = d.perms || null; e.payRate = rate(d.payRate); }
       employees.push(e);
       outbox.push({ to: e.email, code: e.pin });
-      return send(res, 200, JSON.stringify({ ok: true, code: e.pin, mailed: true, employee: pub(e), employees: employees.map(pub) }));
+      return send(res, 200, JSON.stringify({ ok: true, code: e.pin, mailed: !!e.email, employee: P(e), employees: employees.map(P) }));
     }
-    return send(res, 200, JSON.stringify({ ok: true, employees: employees.map(pub) }));
+    return send(res, 200, JSON.stringify({ ok: true, employees: employees.map(P) }));
   }
   if (d.a === 'block' || d.a === 'unblock') {
     blocks = blocks.filter((b) => b.id !== d.block.id);
@@ -145,7 +164,7 @@ function handleApi(req, res, body) {
     return send(res, 200, JSON.stringify({ ok: true }));
   }
   if (d.a === 'settings') {
-    if (ROLEPINS[String(d.pin || '')] !== 'Manager' && !employees.some((u) => u.pin === String(d.pin || '') && u.role === 'Manager')) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
+    if (!/Manager|Owner/.test(ROLEPINS[String(d.pin || '')] || '') && !employees.some((u) => u.pin === String(d.pin || '') && u.role === 'Manager')) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
     settings = {
       form: FD.normalizeForm(d.form),
       quoteBody: String(d.quoteBody || ''),
@@ -292,7 +311,7 @@ function locked(fn) { const run = LOCK.then(() => new Promise((r) => setTimeout(
 export async function clockApi(d, role, empName) {
   if (!CLOCK) return { ok: false, err: 'Bad action' };
   if (!role) return { ok: false, err: 'PIN required' };
-  const boss = role === 'Admin' || role === 'Manager';
+  const boss = role === 'Admin' || role === 'Manager' || role === 'Owner';
   if (d.a === 'clockList') {
     if (!boss) return { ok: false, err: "Only Admin can see everyone's hours." };
     const f = d.from ? +new Date(d.from + 'T00:00') : 0, t = d.to ? +new Date(d.to + 'T23:59') + 60000 : Date.now() + 864e5;
@@ -310,7 +329,8 @@ export async function clockApi(d, role, empName) {
       const p = { id: 'P-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), who: w, in: ni, out: no || null, by: role, src: 'fix', edited: { by: role, at: new Date().toISOString() } }; punches.push(p); return { ok: true, punch: p };
     });
   }
-  const who = empName || String(d.who || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (d.forWho && role !== 'Owner') return { ok: false, err: 'Only the Owner can clock someone else in or out.' };
+  const who = d.forWho ? String(d.forWho).trim().slice(0, 60) : empName || String(d.who || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
   if (!who) return { ok: false, err: 'Pick your name first.', needName: true };
   if (d.a === 'clockStatus') return { ok: true, ...cSum(who) };
   return locked(() => {
@@ -321,4 +341,15 @@ export async function clockApi(d, role, empName) {
     else { if (!op) res = { ok: false, notIn: true, err: who + ' is not clocked in.' }; else { op.out = at < op.in ? op.in : at; op.ocid = cid; res = { ok: true }; } }
     return { ...res, ...cSum(who) };
   });
+}
+
+// ---- Owner labor cost (same math as Code.gs laborApi_) ----
+export function labor(d, emps) {
+  const re = /^\d{4}-\d{2}-\d{2}$/, today = new Date(); const ymd = (t) => { const x = new Date(t); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+  const to = re.test(d.to || '') ? d.to : ymd(today), fr = re.test(d.from || '') ? d.from : to; const rates = {}; emps.forEach((u) => { rates[ck(u.name)] = u.payRate == null ? null : Number(u.payRate); });
+  const names = {}; punches.forEach((p) => { names[ck(p.who)] = p.who; }); const days = []; let tot = 0, th = 0; const miss = new Set(); const now = Date.now();
+  for (let x = new Date(fr + 'T00:00'); ymd(x) <= to; x.setDate(x.getDate() + 1)) { const d0 = +x, d1x = new Date(x); d1x.setDate(d1x.getDate() + 1); const d1 = Math.min(+d1x, now);
+    const people = []; let dc = 0, dh = 0; for (const k in names) { const h = cHrs(names[k], d0, d1, now); if (!h) continue; const r = k in rates ? rates[k] : null; const c = r == null ? null : Math.round(h * r * 100) / 100; if (r == null) miss.add(names[k]); people.push({ who: names[k], hours: h, rate: r, cost: c }); dh += h; dc += c || 0; }
+    days.push({ date: ymd(x), people, hours: Math.round(dh * 100) / 100, cost: Math.round(dc * 100) / 100 }); tot += dc; th += dh; }
+  return { ok: true, from: fr, to, days, hours: Math.round(th * 100) / 100, cost: Math.round(tot * 100) / 100, missingRate: [...miss] };
 }
