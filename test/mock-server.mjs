@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { makeGas } from './gas-harness.mjs';
+import { makeTimber } from '../worker/timber.mjs';
+import { makeLinks } from '../worker/links.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -283,7 +285,7 @@ function handleApi(req, res, body) {
     job.invoice.note = d.note || '';
     return send(res, 200, JSON.stringify({ ok: true, job }));
   }
-  if (FEAT && ((FEAT.ctx.FT5_LISTS_ && FEAT.ctx.FT5_LISTS_[d.a]) || FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || FEAT.ctx.FT2_ACTS[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
+  if (FEAT && ((FEAT.ctx.FT5_LISTS_ && FEAT.ctx.FT5_LISTS_[d.a]) || (FEAT.ctx.FT6_RCP_ && FEAT.ctx.FT6_RCP_[d.a]) || FEAT.ctx.FT_ACTS[d.a] || FEAT.ctx.FT_PUB[d.a] || FEAT.ctx.FT2_ACTS[d.a] || d.a === 'finish' || (d.object === 'event' && d.type))) return send(res, 200, JSON.stringify(featCall(d)));
   send(res, 200, JSON.stringify({ ok: false, err: 'Bad action' }));
 }
 
@@ -291,6 +293,16 @@ export function start(port) {
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
     if (u.pathname === '/__hits') return send(res, 200, JSON.stringify(hits));
+    if (u.pathname === '/a' && FEAT) { LINKS(new Request('http://x' + req.url)).then(async (r) => { res.writeHead(r.status, { 'content-type': r.headers.get('content-type') }); res.end(await r.text()); }); return; }
+    if (u.pathname === '/api/timber' && req.method === 'POST') {
+      if (!GEMSTREAM || !FEAT) return send(res, 404, 'no stream');
+      const chunks = []; req.on('data', (c) => chunks.push(c));
+      req.on('end', async () => { STREAMS.push(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+        const r = await TIMBER(new Request('http://x/api/timber', { method: 'POST', body: Buffer.concat(chunks).toString('utf8') }), { GEMINI_API_KEY: 'test-key-not-real' }, null);
+        res.writeHead(r.status, { 'content-type': r.headers.get('content-type') || 'application/json' }); const rd = r.body.getReader();
+        for (;;) { const { value, done } = await rd.read(); if (done) break; res.write(Buffer.from(value)); if (STREAM_DELAY) await new Promise((z) => setTimeout(z, STREAM_DELAY)); } res.end(); });
+      return;
+    }
     if (u.pathname === '/exec') {
       const chunks = [];
       req.on('data', (c) => chunks.push(c));
@@ -395,3 +407,15 @@ function featCall(d) {
   const js = FEAT.readJson('jobs.json'); jobs.splice(0, jobs.length, ...js); blocks = FEAT.readJson('blocks.json');
   return r;
 }
+
+// ---- Worker /api/timber stream, run for real against the emulated Apps Script; Gemini is faked by setGemStream(fn(body) -> array of SSE chunk objects).
+let GEMSTREAM = null, STREAM_DELAY = 0; export const STREAMS = [], GEMCALLS = [];
+export function setGemStream(fn, delay) { GEMSTREAM = fn; STREAM_DELAY = delay || 0; }
+const TIMBER = makeTimber({ exec: 'https://exec.mock/exec', fetch: async (url, init) => {
+  if (url === 'https://exec.mock/exec') { const d = JSON.parse(init.body); const own = (FEAT.ctx.FT6_RCP_ || {}); void own; return new Response(JSON.stringify(featCall(d)), { headers: { 'content-type': 'application/json' } }); }
+  if (/streamGenerateContent/.test(url)) { const b = JSON.parse(init.body); GEMCALLS.push({ url, body: b }); const list = GEMSTREAM(b); if (!list) return new Response('err', { status: 500 });
+    return new Response(list.map((o) => 'data: ' + JSON.stringify(o) + '\r\n\r\n').join(''), { headers: { 'content-type': 'text/event-stream' } }); }
+  return new Response('offline', { status: 599 }); } });
+const LINKS = makeLinks({ exec: 'https://exec.mock/exec', fetch: async (url) => { const prm = Object.fromEntries(new URL(url).searchParams);
+  FEAT.writeJson('jobs.json', jobs); const out = FEAT.ctx.doGet({ parameter: prm }).getContent(); const js = FEAT.readJson('jobs.json'); jobs.splice(0, jobs.length, ...js);
+  return new Response(out, { headers: { 'content-type': 'application/json' } }); } });

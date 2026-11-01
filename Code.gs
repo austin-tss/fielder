@@ -450,7 +450,7 @@ function meta_(j,label,no){return '<table width="100%" style="font-size:14px;mar
 function imgs_(ps,pre){var inl={},h='';(ps||[]).forEach(function(p,i){inl[pre+i]=DriveApp.getFileById(p.id).getBlob();
   h+='<img src="cid:'+pre+i+'" style="width:48%;max-width:290px;border-radius:8px;margin:4px 1%;display:inline-block">';});return {inl:inl,h:h};}
 function logoBlob_(){return Utilities.newBlob(Utilities.base64Decode(LOGO.split(',')[1]),'image/png','logo.png');}
-function respUrl_(j,k){return ScriptApp.getService().getUrl()+'?a=respond&id='+encodeURIComponent(j.id)+'&ans='+k;}
+function respUrl_(j,k){return 'https://ft.vnxt.app/a?a=respond&id='+encodeURIComponent(j.id)+'&ans='+k;}
 function quoteHtml_(j,photosHtml,logoSrc,baseFn){var copy=FDForm.quoteCopy(settings_(),j);var btn=function(k,t,c){return '<a href="'+baseFn(k)+'" style="display:block;margin:8px 0;padding:15px;background:'+c+';color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:16px;text-align:center">'+t+'</a>';};
   return head_('Estimate',j.est,logoSrc)+'<p style="font-size:16px">Dear '+esc_(j.name)+',</p><p style="line-height:1.6">'+bodyHtml_(copy.body)+'</p>'+
   meta_(j,'Estimate #',j.est)+custBlock_(j)+itemsTable_(j)+(photosHtml?'<p style="margin:18px 0 6px"><b style="color:'+NAVY+'">Site photos</b></p>'+photosHtml:'')+
@@ -482,15 +482,19 @@ var LABELS={A:'Approved',B:'Approved with changes',C:'Declined',O:'Question / ot
 var SLOTS=['Weekdays 8-12','Weekdays 12-5','Weekends','Anytime'];
 function respond_(j,p){if(p.ans=='A'||p.ans=='B')applyDiscount_(j);j.response={ans:p.ans,label:LABELS[p.ans]||p.ans,text:p.text||'',avail:p.avail||'',when:p.when||'',at:new Date().toISOString()};
   j.status=(p.ans=='A'||p.ans=='B')?'approved':(p.ans=='C'?'declined':'reply');if(typeof ftWon_==='function')ftWon_(j);}
-function page_(b){return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f6f1;font-family:Arial,sans-serif;color:#231f20}.w{max-width:520px;margin:0 auto;padding:18px}h2{color:'+NAVY+'}.s{display:block;width:100%;margin:8px 0;padding:18px;font-size:19px;font-weight:bold;border:3px solid '+NAVY+';background:#fff;color:'+NAVY+';border-radius:12px;text-align:center;cursor:pointer}input[type=radio]{display:none}input[type=radio]:checked+.s{background:'+GREEN+';border-color:'+GREEN+';color:#fff}textarea,input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:14px;border:2px solid #cfd6c4;border-radius:10px}.go{width:100%;padding:20px;font-size:21px;font-weight:bold;background:'+GREEN+';color:#fff;border:0;border-radius:12px;margin-top:14px}</style><div style="background:'+NAVY+';color:#fff;padding:14px 18px;font-weight:bold;font-size:18px">'+CO.name+'</div><div class="w">'+b+'</div>').setTitle('Fielder Tree Service').addMetaTag('viewport','width=device-width,initial-scale=1');}
+var PAGE_JSON_=false;// Worker /a asks for the page body as JSON and shows it in the Fielder frame
+function page_(b){if(PAGE_JSON_)return out_({ok:true,page:String(b)});return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f6f1;font-family:Arial,sans-serif;color:#231f20}.w{max-width:520px;margin:0 auto;padding:18px}h2{color:'+NAVY+'}.s{display:block;width:100%;margin:8px 0;padding:18px;font-size:19px;font-weight:bold;border:3px solid '+NAVY+';background:#fff;color:'+NAVY+';border-radius:12px;text-align:center;cursor:pointer}input[type=radio]{display:none}input[type=radio]:checked+.s{background:'+GREEN+';border-color:'+GREEN+';color:#fff}textarea,input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:14px;border:2px solid #cfd6c4;border-radius:10px}.go{width:100%;padding:20px;font-size:21px;font-weight:bold;background:'+GREEN+';color:#fff;border:0;border-radius:12px;margin-top:14px}</style><div style="background:'+NAVY+';color:#fff;padding:14px 18px;font-weight:bold;font-size:18px">'+CO.name+'</div><div class="w">'+b+'</div>').setTitle('Fielder Tree Service').addMetaTag('viewport','width=device-width,initial-scale=1');}
 function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=radio name=avail id=s'+i+' value="'+s+'"'+(i==3?' checked':'')+'><label class=s for=s'+i+'>'+s+'</label>'}).join('');
-  return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="'+ScriptApp.getService().getUrl()+'" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
+  return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="https://ft.vnxt.app/a" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
    (ans=='B'||ans=='O'?'<p><b>'+(ans=='B'?'What would you like changed?':'Your question or message:')+'</b></p><textarea name=text rows=4></textarea>':'')+
    '<p><b>When works best for the work?</b> Tap one:</p>'+slots+'<p><b>Preferred date or time (optional)</b></p><input type=text name=when placeholder="e.g. Tuesday Nov 3 morning">'+
    '<button class=go>Send my answer</button></form>');}
 function doGet(e){try{return get_(e)}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
 function get_(e){var p=(e&&e.parameter)||{};
   if(p.code&&p.state)return qboFinish_(p);
+  if(p.a=='ok'&&typeof f6Get_==='function')return f6Get_(p);
+  if(p.a=='respond'&&p.fmt!=='json'&&typeof f6Bounce_==='function')return f6Bounce_(p);
+  PAGE_JSON_=p.fmt==='json';
   if(p.a=='img'){var fi;try{fi=DriveApp.getFileById(p.id)}catch(x){return out_({ok:false,err:'Not found'})}if(!inRoot_(fi))return out_({ok:false,err:'Not found'});var b=fi.getBlob();return out_({ok:true,data:'data:'+b.getContentType()+';base64,'+Utilities.base64Encode(b.getBytes())});}
   if(p.a=='respond'){var js=load_(),j=js.filter(function(x){return x.id==p.id})[0];if(!j)return page_('<h2>Estimate not found</h2><p>Please call '+CO.phone+'.</p>');
     if(p.ans!='C'&&!p.done)return respForm_(j,p.ans);
@@ -970,6 +974,7 @@ function featPost_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){retur
  if(d&&d.object==='event'&&d.type&&d.data)return ftStripeHook_(d);
  if(!d||typeof d!=='object')return post_(e);
  if(FT_PUB[d.a])return ftPublic_(d);
+ if(typeof FT6_RCP_!=='undefined'&&FT6_RCP_[d.a]&&d.a!=='supDecide'){if(typeof seedEmps_==='function')seedEmps_();return f6Rcp_(d)}
  if(typeof FT5_LISTS_!=='undefined'&&FT5_LISTS_[d.a]){if(typeof seedEmps_==='function')seedEmps_();return ft5Lists_(d)}
  if(FT_ACTS[d.a]||(typeof FT2_ACTS!=='undefined'&&FT2_ACTS[d.a])){if(!roleOf_(d))return {ok:false,err:'PIN required'};if(!ftCan_(d,d.a))return {ok:false,err:'You do not have permission for that. Ask the owner.'};ftSweep_();return ftStaff_(d)}
  // Pre-checks on core actions
@@ -1258,11 +1263,13 @@ function timber_(d){
  if(d.tts)return tbTts_(String(d.tts));
  if(d.vnxt){FT_TBD_=d;var vr=tbVnxt_(d,d.vnxt);return vr.ok?{ok:true,answer:'Sent to the VNXT team.'}:vr}
  if(d.data){var o={};String(d.data).split(',').forEach(function(n){o[n]=tbRun_(n,d.args||{})});return {ok:true,data:o}}
+ if(d.tool)return tbTool_(d);
  var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Timber needs setup. The Owner adds the Gemini key under Settings → Smart features.'};
- FT_DRAFT_=null;FT_OPEN_=null;FT_OFFER_=null;FT_TBD_=d;var q=String(d.q||'').slice(0,1000);if(!q)return {ok:false,err:'Ask Timber a question.'};
+ FT_DRAFT_=null;FT_OPEN_=null;FT_OFFER_=null;FT_TBD_=d;var q=String(d.q||'').slice(0,1000);if(!q&&!d.ctx)return {ok:false,err:'Ask Timber a question.'};
  var hist=(Array.isArray(d.history)?d.history:[]).slice(-12).map(function(h){return {role:h.who=='me'?'user':'model',parts:[{text:String(h.text||'').slice(0,1500)}]}});
  var now=new Date(),sys='You are Timber, the business assistant inside the '+CO.name+' Field Desk app (Tallahassee, FL). Today is '+Utilities.formatDate(now,CLOCK_TZ,'EEEE yyyy-MM-dd h:mm a')+' ET. The person asking is the '+(roleOf_(d)||'user')+'. '+
   'Always get numbers by calling the functions; never guess or invent numbers. Weeks run Sunday to Saturday. "Yesterday" means the calendar day before today. Requests to order, buy or restock anything go to addSupply (reply exactly: Added ITEM to Supplies.). For spreadsheet requests call makeSpreadsheet and say the spreadsheet is ready. If no function can do what was asked, call cannotDo with the exact request, then say in ONE plain sentence that you cannot do that yet and ask: Want me to ask the VNXT team? If they then say yes, call askVnxt with the original request and reply exactly: Sent to the VNXT team. Never pretend you did something you could not do. Your answer may be read aloud. Answer briefly (1-3 short sentences, plain words, no markdown, no tables) and lead with the numbers, in dollars rounded to whole dollars. Your answer may be read aloud. Never call yourself an AI, a model, or a bot; you are Timber.';
+ if(d.ctx)return tbCtx_(d,sys);
  var contents=hist.concat([{role:'user',parts:[{text:q}]}]),used=[],mdl=typeof FAST_MODEL!=='undefined'?FAST_MODEL:VOICE_MODEL,gc=Object.assign({temperature:0.2},typeof fastGen_==='function'?fastGen_(mdl):{}),decl=tbDecl_();
  for(var i=0;i<6;i++){
   var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+mdl+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
@@ -1431,19 +1438,96 @@ var SUP_ST=['Needed','Ordered','Got it'],VX_ST=['New','Working on it','Done'];
 function supLoad_(){var l=[];try{l=load_('supplies.json')}catch(e){}return Array.isArray(l)?l:[]}
 function supAdd_(d,a){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN required'};var item=clip_(String(a.item||'').trim(),120);if(!item)return {ok:false,err:'What item?'};
  var e=empOf_(d),who=e&&e.name?e.name:(role==='Manager'?'Estimator':role==='Admin'?'Office':role);
- var s={id:newId_('S-'),item:item,qty:clip_(a.qty,40),notes:clip_(a.notes,300),needBy:/^\d{4}-\d\d-\d\d$/.test(a.needBy||'')?a.needBy:'',store:clip_(a.store,80),who:who,role:role,status:'Needed',at:new Date().toISOString()};
+ var s={id:newId_('S-'),item:item,qty:clip_(a.qty,40),notes:clip_(a.notes,300),needBy:/^\d{4}-\d\d-\d\d$/.test(a.needBy||'')?a.needBy:'',store:clip_(a.store,80),who:who,role:role,status:'Waiting approval',nonce:Utilities.getUuid(),at:new Date().toISOString()};
  var L=lock_(10000);if(!L)return BUSY_;try{var l=supLoad_();l.unshift(s);save_(l.slice(0,500),'supplies.json')}finally{unlock_(L)}
- try{mail_({to:'austin@techsourcedsolutions.com',subject:'Fielder Tree: supply request - '+item,body:who+' added to Supplies: '+item+(s.qty?' ('+s.qty+')':'')+(s.store?' from '+s.store:'')+(s.needBy?', needed by '+s.needBy:'')+(s.notes?'\nNotes: '+s.notes:'')+'\n\nOpen the Field Desk > More > Supplies to mark it Ordered or Got it.'})}catch(x){}
- return {ok:true,item:s}}
-var FT5_LISTS_={supList:1,supAdd:1,supStep:1,supArchive:1,vxList:1,vxStep:1,vxArchive:1};
+ f6SupMail_(s);return {ok:true,item:f6Pub_(s)}}
+var FT5_LISTS_={supDecide:1,supList:1,supAdd:1,supStep:1,supArchive:1,vxList:1,vxStep:1,vxArchive:1};
 function ft5Lists_(d){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN required'};
- if(d.a=='supList'){var l=supLoad_().filter(function(s){return !s.archived});return {ok:true,items:l,open:l.filter(function(s){return s.status!=='Got it'}).length}}
+ if(d.a=='supList'){var l=supLoad_().filter(function(s){return !s.archived}).map(f6Pub_);return {ok:true,items:l,open:l.filter(function(s){return s.status!=='Got it'&&s.status!=='Denied'}).length,canDecide:f6CanDecide_(d)}}
+ if(d.a=='supDecide')return f6Rcp_(d);
  if(d.a=='supAdd')return supAdd_(d,d);
  if(d.a=='supStep'||d.a=='supArchive'){if(role!=='Owner'&&role!=='Admin')return {ok:false,err:'Only the Owner or Office can change supplies.'};var L=lock_(10000);if(!L)return BUSY_;try{var l2=supLoad_(),s=l2.filter(function(x){return x.id==d.id})[0];if(!s)return {ok:false,err:'Not found'};
-   if(d.a=='supArchive')s.archived=true;else{s.status=SUP_ST[(SUP_ST.indexOf(s.status)+1)%SUP_ST.length];s.updated=new Date().toISOString()}save_(l2,'supplies.json');return {ok:true,item:s}}finally{unlock_(L)}}
+   if(d.a=='supArchive')s.archived=true;else if(s.status==='Waiting approval'||s.status==='Denied')return {ok:false,err:'Approve it first.'};else{s.status=SUP_ST[(SUP_ST.indexOf(s.status)+1)%SUP_ST.length];s.updated=new Date().toISOString()}save_(l2,'supplies.json');return {ok:true,item:f6Pub_(s)}}finally{unlock_(L)}}
  if(role!=='Owner')return {ok:false,err:'Owner only.'};
  var v=[];try{v=load_('vnxt_requests.json')}catch(e){}if(!Array.isArray(v))v=[];v.forEach(function(r,i){if(!r.id)r.id='V-'+i;if(!r.status)r.status='New'});
  if(d.a=='vxList')return {ok:true,items:v.filter(function(r){return !r.archived}).reverse()};
  var r=v.filter(function(x){return x.id==d.id})[0];if(!r)return {ok:false,err:'Not found'};if(d.a=='vxArchive')r.archived=true;else r.status=VX_ST[(VX_ST.indexOf(r.status)+1)%VX_ST.length];save_(v,'vnxt_requests.json');return {ok:true,item:r}}
 TB_FUNCS.addSupply={d:'Add an item to the Supplies list (anything to order, buy, pick up or restock: parts, chains, fuel, gear). Use this, NOT cannotDo, for any order/buy/supply request. The purchase itself is done by a person.',p:{item:'item name',qty:'optional quantity',notes:'optional size or notes',needBy:'optional YYYY-MM-DD',store:'optional store'},
- f:function(a){var r=supAdd_(FT_TBD_||{},a);if(!r.ok)return {ok:false,error:r.err};FT_OPEN_={supplies:true,id:r.item.id,label:'Open Supplies'};return {ok:true,added:r.item.item,say:'Added '+r.item.item+' to Supplies.'}}};
+ f:function(a){var r=supAdd_(FT_TBD_||{},a);if(!r.ok)return {ok:false,error:r.err};FT_OPEN_={supplies:true,id:r.item.id,label:'Open Supplies'};return {ok:true,added:r.item.item,say:'Added '+r.item.item+' to Supplies. It is waiting approval; the approver got an email.'}}};
+
+// ===================== Fielder Field Desk: batch 6 (Miller 2374915 + 46db9db) =====================
+// Timber streaming endpoints for the Worker, one-tap signed approvals for Supplies and Receipts, receipt scanner.
+// TEST RUN: every approval email goes ONLY to the test inbox (mail_ also forces the test address).
+var APPROVER_TO='austin@techsourcedsolutions.com';
+// Worker /api/timber: context (system prompt, declarations, snapshot) and one tool call, both with the caller's own PIN.
+function tbCtx_(d,sys){var snap={};try{snap=tbCached_('snap',{},function(){return {today:TB_FUNCS.today.f({}),dashboard:TB_FUNCS.dashboard.f({})}})}catch(e){}
+ return {ok:true,sys:sys+' A data snapshot is included below; answer from it when it fully covers the question, otherwise call the functions.\nSNAPSHOT: '+JSON.stringify(snap),decl:tbDecl_(),acts:Object.keys(TB_FUNCS).filter(function(n){return !TB_READ_[n]&&!/^(cannotDo|makeSpreadsheet|receipts)$/.test(n)}),model:FAST_MODEL}}
+function tbTool_(d){FT_DRAFT_=null;FT_OPEN_=null;FT_OFFER_=null;FT_TBD_=d;var tn=String(d.tool),tr=tbRun_(tn,d.args||{});if(!TB_READ_[tn]&&!/^(cannotDo|makeSpreadsheet|receipts|draftQuote|createQuote)$/.test(tn))tbBust_();
+ var o={ok:true,result:tr};if(FT_OPEN_)o.open=FT_OPEN_;if(FT_OFFER_)o.offer=FT_OFFER_;if(FT_DRAFT_&&(roleOf_(d)==='Owner'||roleOf_(d)==='Manager'))o.draft=FT_DRAFT_;return o}
+// ----- signed single-use approval links -----
+function f6Key_(){var p=PropertiesService.getScriptProperties(),k=p.getProperty('APPROVE_SECRET');if(!k){k=Utilities.getUuid()+Utilities.getUuid();p.setProperty('APPROVE_SECRET',k)}return k}
+function f6Sig_(kind,id,v,nonce){return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(kind+'|'+id+'|'+v+'|'+nonce,f6Key_())).replace(/=+$/,'')}
+// Email action links land on the Worker (ft.vnxt.app/a), which calls /exec server-side with fmt=json and shows a branded Fielder page.
+// (Apps Script /exec links break on phones signed into Google.) Old /exec links bounce to the Worker.
+var APP_URL='https://ft.vnxt.app';
+function f6Link_(kind,id,v,nonce){return APP_URL+'/a?a=ok&k='+kind+'&id='+encodeURIComponent(id)+'&v='+v+'&s='+f6Sig_(kind,id,v,nonce)}
+function f6Bounce_(p){var q=Object.keys(p).filter(function(k){return k!=='fmt'}).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(p[k])}).join('&'),u=APP_URL+'/a?'+q;
+ return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><p style="font:18px Arial;padding:24px">One moment… <a href="'+esc_(u)+'" target="_top">Tap here if nothing happens</a></p><script>try{window.top.location.href='+JSON.stringify(u)+'}catch(e){}</script>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}
+function f6Btns_(kind,id,nonce){return '<table cellpadding=0 cellspacing=0 style="margin:18px 0"><tr><td style="padding-right:12px"><a href="'+f6Link_(kind,id,'yes',nonce)+'" style="display:inline-block;background:#78a22f;color:#fff;font:bold 20px Arial;padding:16px 34px;border-radius:10px;text-decoration:none">Approve</a></td><td><a href="'+f6Link_(kind,id,'no',nonce)+'" style="display:inline-block;background:#b42318;color:#fff;font:bold 20px Arial;padding:16px 34px;border-radius:10px;text-decoration:none">Deny</a></td></tr></table><p style="color:#667;font:13px Arial">One tap, no sign-in. Each button works once.</p>'}
+var F6={sup:{file:'supplies.json',yes:'Needed',no:'Denied',name:function(x){return x.item}}};// receipts need no approval (Austin, Nov 1): the Owner reviews them on the Receipts page
+function f6List_(f){var l=[];try{l=load_(f)}catch(e){}return Array.isArray(l)?l:[]}
+function f6Decide_(kind,id,yes,by){var c=F6[kind],L=lock_(15000);if(!L)return BUSY_;var r;try{var l=f6List_(c.file),x=l.filter(function(i){return i.id==id})[0];if(!x)return {ok:false,err:'Not found'};
+  if(x.status!=='Waiting approval')return {ok:false,already:true,item:f6Pub_(x),err:'Already '+x.status+(x.decidedBy?' by '+x.decidedBy:'')+'.'};
+  x.status=yes?c.yes:c.no;x.decidedBy=by;x.decidedAt=new Date().toISOString();x.nonce='';save_(l,c.file);r={ok:true,item:f6Pub_(x)}}finally{unlock_(L)}
+ try{tbBust_()}catch(e){}return r}
+function f6Pub_(x){var o=JSON.parse(JSON.stringify(x));delete o.nonce;return o}
+function f6Get_(p){if(p.fmt!=='json')return f6Bounce_(p);var J=function(o){return out_(o)},c=F6[p.k];if(!c)return J({ok:false,title:'Link not valid',msg:'This link is not valid.'});var x=f6List_(c.file).filter(function(i){return i.id==p.id})[0];
+ if(!x)return J({ok:false,title:'Not found',msg:'This request was removed.'});
+ if(!x.nonce||p.s!==f6Sig_(p.k,x.id,p.v,x.nonce))return J({ok:false,already:x.status!=='Waiting approval',status:x.status,name:c.name(x),title:x.status!=='Waiting approval'?'Already '+x.status:'Link not valid',msg:x.status!=='Waiting approval'?c.name(x)+' is already '+x.status+(x.decidedBy?' ('+x.decidedBy+')':'')+'. Nothing changed.':'This link is not valid. Nothing changed.'});
+ var r=f6Decide_(p.k,x.id,p.v=='yes','Email link');if(!r.ok)return J({ok:false,title:r.err,name:c.name(x),msg:'Nothing changed.'});
+ return J({ok:true,yes:p.v=='yes',status:r.item.status,name:c.name(r.item),kind:p.k})}
+function f6CanDecide_(d){var r=roleOf_(d);return r==='Owner'||r==='Admin'||r==='Manager'}
+function f6Who_(d){var role=roleOf_(d),e=empOf_(d);return e&&e.name?e.name:(role==='Manager'?'Estimator':role==='Admin'?'Office':role)}
+function f6JobCost_(x){try{var unlink=x.archived;patchJob_(x.jobId,function(s){s.costs=(s.costs||[]).filter(function(c){return c.rid!==x.id});if(!unlink&&x.total>0)s.costs.push({id:newId_('C-'),kind:'materials',amt:Math.round(x.total*100)/100,note:'Receipt: '+(x.store||'')+(x.date?' '+x.date:''),by:x.who,at:new Date().toISOString(),rid:x.id})})}catch(e){}}
+function f6SupMail_(s){try{mail_({to:APPROVER_TO,subject:'Fielder Tree: supply request - '+s.item,body:s.who+' asked for: '+s.item+(s.qty?' ('+s.qty+')':'')+'. Approve: '+f6Link_('sup',s.id,'yes',s.nonce)+'  Deny: '+f6Link_('sup',s.id,'no',s.nonce),
+ htmlBody:'<div style="font:16px Arial;color:#112337"><h2 style="margin:0 0 6px">Supply request from '+esc_(s.who)+'</h2><p style="font-size:22px;margin:0"><b>'+esc_(s.item)+'</b>'+(s.qty?' · '+esc_(s.qty):'')+'</p><p style="color:#556">'+[s.notes,s.store&&('From '+s.store),s.needBy&&('Needed by '+s.needBy)].filter(Boolean).map(esc_).join(' · ')+'</p>'+f6Btns_('sup',s.id,s.nonce)+'</div>'})}catch(e){}}
+// ----- receipt scanner -----
+function f6RcpFolder_(date){var r=root_(),it=r.getFoldersByName('Receipts'),f=it.hasNext()?it.next():r.createFolder('Receipts'),m=String(date||'').slice(0,7)||Utilities.formatDate(new Date(),CLOCK_TZ,'yyyy-MM'),i2=f.getFoldersByName(m);return i2.hasNext()?i2.next():f.createFolder(m)}
+var RCP_MODEL='gemini-3.1-flash-lite';// checked against the key's model list (structured JSON with minimal thinking)
+function f6Read_(dataUrl){var key=prop_('GEMINI_API_KEY');if(!key)return null;var b64=String(dataUrl).split(',')[1]||'',mime=(String(dataUrl).match(/^data:([^;]+)/)||[])[1]||'image/jpeg';
+ var sch={type:'OBJECT',properties:{store:{type:'STRING'},date:{type:'STRING',description:'YYYY-MM-DD'},total:{type:'NUMBER'},tax:{type:'NUMBER'},items:{type:'ARRAY',items:{type:'OBJECT',properties:{name:{type:'STRING'},qty:{type:'NUMBER'},price:{type:'NUMBER'}}}}},required:['store','total']};
+ var gc={temperature:0.1,responseMimeType:'application/json',responseSchema:sch,thinkingConfig:{thinkingLevel:'minimal'}};
+ for(var i=0;i<2;i++){var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+RCP_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,payload:JSON.stringify({contents:[{role:'user',parts:[{inlineData:{mimeType:mime,data:b64}},{text:'Read this store receipt. Return store name, purchase date (YYYY-MM-DD), grand total, tax, and the line items. Use numbers only for money.'}]}],generationConfig:gc})});
+  if(res.getResponseCode()===400&&gc.thinkingConfig){delete gc.thinkingConfig;continue}if(res.getResponseCode()!==200)return null;
+  try{var c=JSON.parse(res.getContentText());return JSON.parse(c.candidates[0].content.parts.map(function(p){return p.text||''}).join(''))}catch(e){return null}}return null}
+var FT6_RCP_={rcpList:1,rcpScan:1,rcpSet:1,rcpPaid:1,rcpArchive:1,supDecide:1};
+function f6Rcp_(d){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN required'};var who=f6Who_(d),boss=role==='Owner';
+ if(d.a=='supDecide'){if(!f6CanDecide_(d))return {ok:false,err:'Only the Owner, Office or Estimator can approve.'};return f6Decide_('sup',d.id,!!d.yes,who)}
+ var l=f6List_('receipts.json');
+ if(d.a=='rcpList'){var mo=/^\d{4}-\d\d$/.test(d.month||'')?d.month:'',all=l.filter(function(x){return !x.archived&&(boss||x.who===who)}),months={};all.forEach(function(x){months[String(x.date).slice(0,7)]=1});
+  var mine=all.filter(function(x){return !mo||String(x.date).slice(0,7)===mo}).map(f6Pub_);return {ok:true,items:mine,months:Object.keys(months).sort().reverse(),month:mo,canPay:boss,owner:boss}}
+ if(d.a=='rcpScan'){if(!d.photo||String(d.photo).length>9e6)return {ok:false,err:'Take a photo of the receipt.'};var g=f6Read_(d.photo)||{};
+  var x={id:newId_('R-'),store:clip_(g.store||'Unknown store',80),date:/^\d{4}-\d\d-\d\d$/.test(g.date||'')?g.date:Utilities.formatDate(new Date(),CLOCK_TZ,'yyyy-MM-dd'),total:Math.round(num_(g.total,0)*100)/100,tax:Math.round(num_(g.tax,0)*100)/100,items:(g.items||[]).slice(0,40).map(function(i){return {name:clip_(i.name,80),qty:num_(i.qty,1),price:num_(i.price,0)}}),
+   who:who,role:role,at:new Date().toISOString(),status:'Submitted',reimbursed:false,jobId:'',jobName:'',supId:'',supName:'',read:!!g.store};
+  if(d.jobId){var j=findJob_(load_(),d.jobId);if(j){x.jobId=j.id;x.jobName=j.name}}
+  var bl=Utilities.newBlob(Utilities.base64Decode(String(d.photo).split(',')[1]),'image/jpeg',x.date+' '+x.store.replace(/[\\\/:*?"<>|]/g,'')+' '+x.id+'.jpg'),f=f6RcpFolder_(x.date).createFile(bl);x.photoId=f.getId();x.photo=f.getUrl();
+  var L=lock_(10000);if(!L)return BUSY_;try{var l2=f6List_('receipts.json');l2.unshift(x);save_(l2.slice(0,2000),'receipts.json')}finally{unlock_(L)}
+  if(x.jobId)f6JobCost_(x);try{tbBust_()}catch(e2){}return {ok:true,item:f6Pub_(x)}}
+ var x2=l.filter(function(i){return i.id==d.id})[0];if(!x2)return {ok:false,err:'Not found'};
+ if(d.a=='rcpSet'){if(!(boss||x2.who===who))return {ok:false,err:'Not yours.'};var L2=lock_(10000);if(!L2)return BUSY_;var old=x2.jobId;try{var l3=f6List_('receipts.json'),y=l3.filter(function(i){return i.id==d.id})[0];
+   if(d.jobId!=null){var j2=d.jobId?findJob_(load_(),d.jobId):null;y.jobId=j2?j2.id:'';y.jobName=j2?j2.name:''}
+   if(d.supId!=null){var s=supLoad_().filter(function(q){return q.id==d.supId})[0];y.supId=s?s.id:'';y.supName=s?s.item:''}
+   ['store','date'].forEach(function(k){if(d[k]!=null)y[k]=clip_(d[k],80)});if(d.total!=null)y.total=Math.round(num_(d.total,y.total)*100)/100;save_(l3,'receipts.json');x2=y}finally{unlock_(L2)}
+  if(old&&old!==x2.jobId)f6JobCost_({id:x2.id,jobId:old,archived:true});if(x2.jobId)f6JobCost_(x2);try{tbBust_()}catch(e3){}return {ok:true,item:f6Pub_(x2)}}
+ if(d.a=='rcpPaid'||d.a=='rcpArchive'){if(!boss)return {ok:false,err:'Only the Owner can do that.'};var L4=lock_(10000);if(!L4)return BUSY_;try{var l4=f6List_('receipts.json'),z=l4.filter(function(i){return i.id==d.id})[0];if(d.a=='rcpPaid'){z.reimbursed=!z.reimbursed;z.paidAt=z.reimbursed?new Date().toISOString():''}else z.archived=true;save_(l4,'receipts.json');x2=z}finally{unlock_(L4)}if(d.a=='rcpArchive'&&x2.jobId)f6JobCost_(x2);try{tbBust_()}catch(e4){}return {ok:true,item:f6Pub_(x2)}}
+ return {ok:false,err:'Bad action'}}
+// ----- Timber -----
+TB_FUNCS.approve={d:'Approve or deny a supply request that is waiting approval (Owner, Office or Estimator). Match by item name. Receipts need no approval.',p:{name:'item name, e.g. bar oil',deny:'true to deny'},
+ f:function(a){var d=FT_TBD_||{};if(!f6CanDecide_(d))return {ok:false,error:'Only the Owner, Office or Estimator can approve.'};var n=String(a.name||'').toLowerCase(),yes=!(a.deny===true||a.deny==='true'),by=f6Who_(d);
+  var s=supLoad_().filter(function(x){return !x.archived&&x.status==='Waiting approval'&&String(x.item).toLowerCase().indexOf(n)>=0})[0];if(s){var r=f6Decide_('sup',s.id,yes,by);if(!r.ok)return {ok:false,error:r.err};FT_OPEN_={supplies:true,id:s.id,label:'Open Supplies'};return {ok:true,say:s.item+' is now '+r.item.status+'.'}}
+  return {ok:false,error:'Nothing waiting approval matches "'+a.name+'".'}}};
+TB_FUNCS.receipts={d:'Scanned receipts (spending) between two dates, optionally for one store: total spent, count, by store, by job.',p:{from:'YYYY-MM-DD',to:'YYYY-MM-DD',store:'optional store name'},
+ f:function(a){var l=f6List_('receipts.json').filter(function(x){return !x.archived&&(!a.from||x.date>=a.from)&&(!a.to||x.date<=a.to)&&(!a.store||String(x.store).toLowerCase().indexOf(String(a.store).toLowerCase())>=0)});
+  var by={},bj={};l.forEach(function(x){by[x.store]=(by[x.store]||0)+x.total;if(x.jobName)bj[x.jobName]=(bj[x.jobName]||0)+x.total});
+  return {total:Math.round(l.reduce(function(a,x){return a+x.total},0)*100)/100,count:l.length,byStore:by,byJob:bj,notReimbursed:Math.round(l.filter(function(x){return !x.reimbursed}).reduce(function(a,x){return a+x.total},0)*100)/100}}};
+TB_READ_.receipts=1;

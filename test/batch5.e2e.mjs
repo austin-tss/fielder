@@ -35,7 +35,7 @@ async function open(pin, width, opts = {}) {
 const shot = (p, n) => p.screenshot({ path: '/workspace/fielder-parity8-' + n + '.png' });
 try {
   // ---- layout: sidebar per role at 1280 and 820, phone unchanged ----
-  const SIDE = { '4321': ['home', 'quotes', 'jobs', 'money', 'timber', 'more'], '1234': ['home', 'quotes', 'jobs', 'sched', 'cust', 'timber', 'more'], '6789': ['home', 'ready', 'inv', 'pay', 'cust', 'more'], '7711': ['home', 'jobs', 'clock', 'more'] };
+  const SIDE = { '4321': ['home', 'quotes', 'jobs', 'money', 'rcps', 'timber', 'more'], '1234': ['home', 'quotes', 'jobs', 'sched', 'cust', 'timber', 'more'], '6789': ['home', 'ready', 'inv', 'pay', 'cust', 'more'], '7711': ['home', 'jobs', 'clock', 'more'] };
   const NAME = { '4321': 'owner', '1234': 'estimator', '6789': 'office', '7711': 'crew' };
   for (const [pin, ids] of Object.entries(SIDE)) for (const width of [1280, 820]) {
     const p = await open(pin, width); await p.waitForSelector('#dside button', { timeout: 6000 });
@@ -73,7 +73,7 @@ try {
   GEM = [call('addSupply', { item: 'chainsaw chains', qty: '4', store: 'Home Depot' }), say('Added chainsaw chains to Supplies.')]; await p.type('#tbq', 'order more chainsaw chains from Home Depot'); await p.click('#tbsend');
   await p.waitForFunction(() => [...document.querySelectorAll('#tbmsgs button')].some((b) => /Open Supplies/.test(b.textContent)), { timeout: 8000 });
   await p.evaluate(() => [...document.querySelectorAll('#tbmsgs button')].find((b) => /Open Supplies/.test(b.textContent)).click()); await p.waitForFunction(() => /chainsaw chains/.test(A.innerText) && /Supplies \(1\)/.test(A.innerText), { timeout: 8000 });
-  await p.evaluate(() => [...document.querySelectorAll('[id^="sst-"]')][0].click()); await p.waitForFunction(() => /Ordered/.test(A.innerText), { timeout: 5000 }); await shot(p, 'supplies');
+  await p.evaluate(() => [...document.querySelectorAll('[id^="sok-"]')][0].click()); await p.waitForFunction(() => /Needed/.test(A.innerText) && document.querySelector('[id^="sst-"]'), { timeout: 5000 }); await p.evaluate(() => [...document.querySelectorAll('[id^="sst-"]')][0].click()); await p.waitForFunction(() => /Ordered/.test(A.innerText), { timeout: 5000 }); await shot(p, 'supplies');
   await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-vx'); await p.click('#s-vx'); await p.waitForFunction(() => /Text every customer a coupon/.test(A.innerText), { timeout: 5000 }); await shot(p, 'vnxt-requests');
   await p.close();
   // Gemini TTS fallback when the device cannot speak

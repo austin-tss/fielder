@@ -53,10 +53,11 @@ test('cannotDo offers Ask the VNXT team; askVnxt logs it and emails only austin@
   assert.equal(g.post({ a: 'vxList', pin: OWN }).items.length, 1); assert.equal(g.post({ a: 'vxList', pin: MGR }).ok, false, 'Owner only');
   const id = g.post({ a: 'vxList', pin: OWN }).items[0].id; assert.equal(g.post({ a: 'vxStep', pin: OWN, id }).item.status, 'Working on it');
 });
-test('Supplies: any role adds (crew too), Owner/Office advance Needed -> Ordered -> Got it; Timber addSupply opens Supplies', () => {
+test('Supplies: any role adds (crew too), approved, then Owner/Office advance Needed -> Ordered -> Got it; Timber addSupply opens Supplies', () => {
   const g = gas();
   const a = g.post({ a: 'supAdd', pin: CREW, item: 'Chainsaw chains', qty: '4', store: 'Home Depot' }); assert.equal(a.ok, true); assert.equal(a.item.who, 'Jake Saw');
   assert.equal(g.post({ a: 'supStep', pin: CREW, id: a.item.id }).ok, false);
+  assert.equal(g.post({ a: 'supDecide', pin: MGR, id: a.item.id, yes: true }).item.status, 'Needed');
   assert.equal(g.post({ a: 'supStep', pin: ADM, id: a.item.id }).item.status, 'Ordered'); assert.equal(g.post({ a: 'supStep', pin: OWN, id: a.item.id }).item.status, 'Got it');
   assert.equal(g.post({ a: 'supList', pin: MGR }).open, 0);
   GEM = [call('addSupply', { item: 'bar oil', qty: '2 gallons' }), say('Added bar oil to Supplies.')];

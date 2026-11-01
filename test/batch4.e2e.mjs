@@ -84,7 +84,7 @@ try {
   await p.click('#qbgo'); await p.waitForFunction(() => /1 quote marked Declined/.test(document.getElementById('toast').textContent), { timeout: 5000 });
   await p.close();
   // simple homes (Miller 7281002): 3-5 big actions, one green, everything else under More; screenshots of each role
-  const EXP = { '1234': ['s-newq', 's-quotes', 's-cust', 's-sched', 's-more'], '6789': ['s-inv', 's-cust', 's-pay', 's-more'], '7711': ['s-today', 's-clock', 's-photo', 's-done', 's-more'] };
+  const EXP = { '1234': ['s-newq', 's-quotes', 's-cust', 's-sched', 's-more'], '6789': ['s-inv', 's-cust', 's-pay', 's-more'], '7711': ['s-today', 's-clock', 's-rcp', 's-photo', 's-done', 's-more'] };
   for (const [pin, ids] of Object.entries(EXP)) {
     p = await open(pin, true); await p.waitForSelector('#shome', { timeout: 8000 });
     const h = await p.evaluate(() => ({ ids: [...document.querySelectorAll('#shome > button')].map((b) => b.id), green: [...document.querySelectorAll('#shome > button.g')].length, tall: Math.min(...[...document.querySelectorAll('#shome > button')].map((b) => b.getBoundingClientRect().height)), more: document.getElementById('smore').hidden, txt: document.body.innerText }));
