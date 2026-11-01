@@ -85,7 +85,7 @@ function laborScreen(){const r=LAB.r,fd=d=>new Date(d+'T12:00').toLocaleDateStri
 // ---- Voice: owner commands first, then the normal voice routes ----
 function nameOf(q){q=String(q||'').toLowerCase().replace(/[^a-z' ]/g,' ').replace(/\s+/g,' ').trim();if(!q)return '';const l=TEAM||[];
  const hit=l.find(u=>u.name.toLowerCase()===q)||l.find(u=>u.name.toLowerCase().split(' ')[0]===q.split(' ')[0])||l.find(u=>u.name.toLowerCase().includes(q));
- return hit?hit.name:q.replace(/\b\w/g,c=>c.toUpperCase())}
+ return hit?hit.name:''}
 function sayV(t){const s=document.getElementById('vhst');if(s)s.textContent=t;else toast(t)}
 function hook(){if(!window.FDVH||FDVH._own)return;const base=FDVH.route;FDVH._own=1;
  FDVH.route=async function(raw){if(!isOwner())return base(raw);const t=String(raw||'').toLowerCase().replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim();let m;
@@ -93,7 +93,7 @@ function hook(){if(!window.FDVH||FDVH._own)return;const base=FDVH.route;FDVH._ow
   if((m=t.match(/^(?:view|look|see|open) as (?:the )?(crew|estimator|manager|admin|office|owner)(?: view)?$/))||(m=t.match(/^(crew|estimator|admin) view$/))){const r={crew:'Crew',estimator:'Manager',manager:'Manager',admin:'Admin',office:'Admin'}[m[1]];if(!r)return ownerBack();ownerAs(r);return sayV('Viewing as '+RL[r])}
   if(/^(owner( page| home| view)?|back to owner( page)?|go to owner( page)?)$/.test(t)){ownerBack();return}
   m=t.match(/^(?:clock|punch) (in|out) (.+)$/);if(!m){const z=t.match(/^(?:clock|punch) (.+?) (in|out)$/);if(z)m=[z[0],z[2],z[1]]}
-  if(m){await team();const who=nameOf(m[2]);const ok=await ownerClock(m[1]==='in'?'clockIn':'clockOut',who);sayV(ok?(m[1]==='in'?'Clocked in ':'Clocked out ')+who:'Couldn’t clock '+who);return}
+  if(m){await team();const who=nameOf(m[2]);if(!who){sayV('No one named '+m[2]+' on the team.');return}const ok=await ownerClock(m[1]==='in'?'clockIn':'clockOut',who);sayV(ok?(m[1]==='in'?'Clocked in ':'Clocked out ')+who:'Couldn’t clock '+who);return}
   if(/who'?s on the clock|who is on the clock|who'?s (working|clocked in)|who is (working|clocked in)|on the clock now/.test(t)){const n=await loadNow();if(role!=='Owner')ownerBack();else fill();sayV(n.length?n.length+' on the clock: '+n.map(p=>p.who).join(', '):'Nobody is on the clock.');return}
   if((m=t.match(/labor( cost)?|payroll|what did (labor|payroll) cost/))){const k=/yesterday/.test(t)?'yesterday':/last week/.test(t)?'lastweek':/week/.test(t)?'week':'today';await ownerLabor(k);const r=LAB.r;sayV(r&&r.ok!==false?LAB.label+': '+money(r.cost)+' for '+hrs(r.hours)+' hours':'Couldn’t load labor cost');return}
   if((m=t.match(/^(?:add|new|hire) (?:an |a )?(?:employee|person|crew member|worker)(?: (?:named|called))? ?(.*)$/))){await team();ownerEdit('',{name:(m[1]||'').replace(/\b\w/g,c=>c.toUpperCase())});return sayV('Add employee. Check role, pay and PIN, then Save.')}

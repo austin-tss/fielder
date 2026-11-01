@@ -17,7 +17,7 @@ function st(){const s=rd(LSK.st,null),w=clockName();return s&&s.who===w?s:{who:w
 function liveSt(){const s=st(),now=Date.now();let t=s.today,wk=s.week;if(s.open){const from=Math.max(s.asOf,+new Date(s.open));t+=hrs(now-from);wk+=hrs(now-from)}
  if(new Date(s.asOf).toDateString()!==new Date(now).toDateString())t=s.open?hrs(now-new Date(new Date(now).toDateString())):0;return {open:s.open,today:t,week:wk}}
 function fromServer(r){if(!r||r.who==null)return;wr(LSK.st,{who:r.who,open:r.open?r.open.in:null,today:+r.today||0,week:+r.week||0,asOf:Date.now()})}
-window.clockCard=function(){const w=clockName();
+window.clockCard=function(){if(sessionStorage.fdOwner==='1')return '';const w=clockName();
  if(!w)return `<div class="card clockc" id="clockc"><h2>Time clock</h2><p class="muted">Pick your name once. This phone remembers it.</p><button class="btn huge" id="clockbtn" onclick="clockNameScreen()">Clock In</button></div>`;
  const s=liveSt(),q=Q();
  return `<div class="card clockc" id="clockc"><div class="clockwho">${esc(w)} <button type="button" class="linkb" onclick="clockNameScreen(1)">Not you?</button></div>
@@ -45,7 +45,18 @@ window.clockNameScreen=function(chg){if(chg&&clockName())return clockChangeScree
  A.innerHTML=`<div class="card"><h2>Who is clocking in?</h2><p class="muted">Pick or type your name once. This phone remembers it.</p>
 ${names.map(n=>`<button class="btn gr" onclick="clockSetName(this.dataset.n)" data-n="${esc(n)}">${esc(n)}</button>`).join('')}
 <label>Your name</label><input id="clockname" autocomplete="name" maxlength="60" placeholder="First and last name"><button class="btn huge" id="clocksave" onclick="clockSetName($('#clockname').value)">Save my name</button></div>`};
-window.clockSetName=function(n){n=String(n||'').replace(/\s+/g,' ').trim().slice(0,60);if(!n)return toast('Type your name');wr(LSK.name,n);const l=rd(LSK.names,[]).filter(x=>x!==n);l.unshift(n);wr(LSK.names,l.slice(0,8));view='';render();clockSync()};
+window.clockSetName=function(n){n=String(n||'').replace(/\s+/g,' ').trim().slice(0,60);if(!n)return toast('Type your name');wr(LSK.name,n);const l=rd(LSK.names,[]).filter(x=>x!==n);l.unshift(n);wr(LSK.names,l.slice(0,8));view='';render();if(AUTO){AUTO=false;clockAuto()}else clockSync()};
+// Crew: clock in automatically the moment they sign in. Never double-punches; clock-out stays manual. Skipped when the Owner is viewing as Crew.
+let AUTO=false;
+function banner(msg){let b=document.getElementById('autoclk');if(!b){b=document.createElement('div');b.id='autoclk';b.setAttribute('role','status');b.style.cssText='position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 76px);transform:translateX(-50%);z-index:70;background:#78a22f;color:#fff;font-size:20px;font-weight:800;padding:16px 22px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none;text-align:center;max-width:92vw';document.body.appendChild(b)}
+ b.textContent=msg;b.hidden=false;clearTimeout(b._t);b._t=setTimeout(()=>{b.hidden=true},7000)}
+window.clockAuto=async function(){if(role!=='Crew'||sessionStorage.fdOwner==='1')return;try{if(localStorage.fdAutoClock==='off')return}catch(e){}const w=clockName();if(!w){AUTO=true;return clockNameScreen()}
+ try{await clockSync()}catch(e){}
+ const s=st();if(s.open){banner('✅ You\u2019re clocked in since '+tm(s.open));return}
+ const q=Q();if(q.length&&q[q.length-1].a==='clockIn')return banner('✅ You\u2019re clocked in at '+tm(q[q.length-1].at));
+ const now=Date.now(),at=new Date(now).toISOString(),L=liveSt();wr(LSK.st,{who:w,open:at,today:L.today,week:L.week,asOf:now});
+ q.push({a:'clockIn',who:w,at,cid:'C'+now.toString(36)+Math.random().toString(36).slice(2,8),auto:true});wr(LSK.q,q);redraw();
+ banner('✅ You\u2019re clocked in at '+tm(at));clockSync()};
 // Changing the name on a phone that already has one needs the Admin PIN (the server checks it and moves the name to this phone).
 window.clockChangeScreen=function(){armBack(()=>{view='';render()});
  A.innerHTML=`<div class="card"><h2>Change name on this phone</h2><p class="muted">This phone is set to <b>${esc(clockName())}</b>. Ask Admin to enter their PIN to change it.</p>

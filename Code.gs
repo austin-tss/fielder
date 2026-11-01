@@ -504,13 +504,14 @@ function get_(e){var p=(e&&e.parameter)||{};
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
-var KNOWN_={login:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
+var KNOWN_={login:1,aiKeys:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
   if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:'',perms:le&&Array.isArray(le.perms)?le.perms:null};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
   if(d.a=='approvePublic')return approvePublic_(d);
   var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
+  if(d.a=='aiKeys'){if(me!=='Owner')return {ok:false,err:'Only the Owner can do that.'};return aiKeys_(d);}
   var OWN=me==='Owner';var pe_=empOf_(d),need_=PERM_OF_[d.a];if(!OWN&&pe_&&Array.isArray(pe_.perms)&&need_&&!(d.forWho)&&pe_.perms.indexOf(need_)<0)return {ok:false,err:'You do not have permission for that. Ask the Owner.'};
   if(d.a=='labor'){if(!OWN)return {ok:false,err:'Only the Owner can see labor cost.'};return laborApi_(d);}
   if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'||d.a=='empEdit'){if(me!=='Admin'&&!OWN)return {ok:false,err:'Only Admin can manage employees.'};if(d.a=='empEdit'&&!OWN)return {ok:false,err:'Only the Owner can edit employees.'};return empApi_(d,OWN);}var ck=clockApi_(d,me);if(ck)return ck;if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
@@ -888,3 +889,6 @@ function importCustomers_(d){var rows=Array.isArray(d.rows)?d.rows:[];if(!rows.l
     if((c.email&&seen['e:'+c.email])||(ph.length>=7&&seen['p:'+ph])){skipped.push({row:i+1,why:'Duplicate'});return}
     if(c.email)seen['e:'+c.email]=1;if(ph.length>=7)seen['p:'+ph]=1;cs.push(c);added++});
   if(added)save_(cs,'customers.json');return {ok:true,added:added,skipped:skipped.length,reasons:skipped.slice(0,50),customers:cs};}
+
+// Owner-only, write-only setup for GEMINI_API_KEY / GOOGLE_PLACES_KEY (same names Miller uses). Values are never returned: set, present, missing or invalid.
+function aiKeys_(d){var P=PropertiesService.getScriptProperties(),r={};['GEMINI_API_KEY','GOOGLE_PLACES_KEY'].forEach(function(k){var v=String(d[k]||'').trim();if(v){if(!/^[A-Za-z0-9_\-]{20,80}$/.test(v)){r[k]='invalid';return}P.setProperty(k,v);r[k]='set'}else r[k]=prop_(k)?'present':'missing'});return {ok:true,keys:r};}

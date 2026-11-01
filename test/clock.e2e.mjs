@@ -25,7 +25,7 @@ try {
   const now = Date.now(); punches.push({ id: 'P-old', who: 'Sam Oak', in: new Date(now - 3 * 3600e3).toISOString(), out: new Date(now - 1 * 3600e3).toISOString(), src: 'app' });
 
   // 2) Crew UI.
-  const page = await browser.newPage(); await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+  const page = await browser.newPage(); await page.evaluateOnNewDocument(() => { localStorage.fdAutoClock = 'off'; }); await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
   const login = async (p) => { for (const d of p) await page.evaluate((d) => [...document.querySelectorAll('.pin button')].find((b) => b.textContent === d).click(), d); };
   await page.goto(base + '/?api=' + encodeURIComponent(EXEC), { waitUntil: 'networkidle0' });
   await login('0123'); await page.waitForSelector('#clockbtn');

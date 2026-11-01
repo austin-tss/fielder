@@ -3,7 +3,7 @@ import { start, setVoice } from './mock-server.mjs';
 const server=await start(0);const base='http://127.0.0.1:'+server.address().port;
 const browser=await puppeteer.launch({executablePath:process.env.CHROME||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const fail=m=>{throw new Error(m)};const SH=process.env.SHOTS_DIR||'/workspace';const w=ms=>new Promise(r=>setTimeout(r,ms));
-async function open(pin,shot){const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:2});
+async function open(pin,shot){const page=await browser.newPage();await page.evaluateOnNewDocument(()=>{localStorage.fdAutoClock='off'});await page.setViewport({width:390,height:844,deviceScaleFactor:2});
  await page.evaluateOnNewDocument(()=>{localStorage.fdHome=localStorage.fdHome||'voice';window.FAKESR=[];window.SpeechRecognition=class{constructor(){FAKESR.push(this)}start(){this.live=true}stop(){if(!this.live)return;this.live=false;setTimeout(()=>this.onend&&this.onend(),10)}abort(){this.stop()}
   say(t){const r=[{transcript:t,confidence:.9}];r.isFinal=true;this.onresult&&this.onresult({resultIndex:0,results:[r]})}}});
  page.on('dialog',d=>{page._dlg=(page._dlg||[]).concat(d.message());d.accept()});
