@@ -61,7 +61,7 @@ try {
   await p.waitForFunction(() => /⛈/.test(document.getElementById('dalert')?.textContent || ''), { timeout: 8000 }).catch(async (e) => { console.log(await p.evaluate(() => document.getElementById('dalert')?.innerText)); throw e; });
   const L = await p.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight })); if (L.sh > L.ih) fail('dashboard scrolls with alerts ' + JSON.stringify(L));
   if (!(await noBigMic(p))) fail('big mic on dashboard');
-  await p.evaluate(() => ownerSect('timber')); for (const id of ['s-pay', 's-leads2', 's-permits2', 's-wx2', 's-coi2']) if (!(await p.$('#' + id))) fail('tools button ' + id);
+  await p.evaluate(() => ownerSect('timber')); for (const id of ['s-pay', 's-leads2', 's-permits2', 's-wx2', 's-coi2']) if (!(await p.waitForSelector('#' + id, { timeout: 5000 }).catch(() => null))) fail('tools button ' + id);
   await p.evaluate(() => document.getElementById('s-pay').click()); await p.waitForSelector('#prf'); await p.waitForFunction(() => /overtime/i.test(document.body.innerText));
   await p.evaluate(() => ftCOI()); await p.waitForSelector('#coicard');
   const exp = ymd(now + 20 * DAY);

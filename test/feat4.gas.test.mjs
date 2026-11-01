@@ -88,3 +88,10 @@ test('Timber actions run through the normal pipeline with the asker PIN; emails 
   assert.equal(run('assignCrew', { customer: 'Linda', crew: 'Jake Saw' }, CREW).ok, false, 'crew PIN refused');
   assert.equal(run('invoice', { customer: 'zzz' }).ok, false);
 });
+test('extras: off by default, Owner turns them on with fSet {on}, status reports them', () => {
+  const g = gas();
+  let s = g.post({ a: 'fGet', pin: OWN }).status; assert.deepEqual(s.on, { permits: false, safety: false, equipment: false, coi: false, reviews: false, storm: false });
+  s = g.post({ a: 'fSet', pin: OWN, on: { permits: true, equipment: true, bogus: true } }).status; assert.equal(s.on.permits, true); assert.equal(s.on.equipment, true); assert.equal(s.on.safety, false); assert.equal(s.on.bogus, undefined);
+  assert.equal(g.post({ a: 'fSet', pin: OWN, on: { permits: false } }).status.on.permits, false);
+  assert.equal(g.post({ a: 'fSet', pin: MGR, on: { safety: true } }).ok, false, 'Owner only');
+});

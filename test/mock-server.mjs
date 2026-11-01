@@ -383,7 +383,10 @@ let FEAT = null;
 export const featOutbox = [];
 export function featOn(opts = {}) {
   FEAT = makeGas({ props: opts.props || {}, fetch: opts.fetch || ((url) => (/census\.gov/.test(url) ? { code: 200, body: { result: { addressMatches: [{ coordinates: { x: -84.31, y: 30.479 } }] } } } : { code: 599, body: 'offline' })) });
-  FEAT.mails = featOutbox; FEAT.ctx.MailApp.sendEmail = (m) => featOutbox.push(m); return FEAT;
+  FEAT.mails = featOutbox; FEAT.ctx.MailApp.sendEmail = (m) => featOutbox.push(m);
+  // extras are off until turned on; older feature tests run with them all on (opts.extras === false keeps them off)
+  if (opts.extras !== false) FEAT.writeJson('feat.json', { on: { permits: true, safety: true, equipment: true, coi: true, reviews: true, storm: true } });
+  return FEAT;
 }
 function featCall(d) {
   FEAT.props.EMPLOYEES_JSON = JSON.stringify(employees);

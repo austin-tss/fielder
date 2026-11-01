@@ -63,7 +63,7 @@ try {
     if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
   // Team & Time keeps the old Owner tools (clock in/out, who is on, labor)
   await p.click('#dn-more'); await p.waitForSelector('#s-team'); await p.evaluate(() => document.getElementById('s-team').click()); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
-  await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); for (const id of ['ft-storm', 'ft-qb', 'ft-equip', 's-lc', 's-pay', 's-coi2', 's-leads2']) if (!(await p.$('#tbqa #' + id))) fail('quick action ' + id);
+  await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); for (const id of ['ft-storm', 'ft-equip', 's-lc', 's-pay', 's-coi2', 's-leads2']) if (!(await p.waitForSelector('#tbqa #' + id, { timeout: 5000 }).catch(() => null))) fail('quick action ' + id);
   if (await p.evaluate(() => /business tools/i.test(document.body.innerText))) fail('Business tools name still shown');
   if (await p.$('#dtimber')) fail('separate Timber header button still there');
   // Timber opens a quick action from chat

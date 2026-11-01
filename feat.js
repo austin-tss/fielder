@@ -24,8 +24,11 @@ window.ftPos=pos;
 const API0=window.api;window.api=api=async function(body){if(body&&/^(clockIn|clockOut|finish)$/.test(body.a)&&!body.gps){const p=await pos(4000);if(p)body=Object.assign({},body,{gps:{lat:p.lat,lng:p.lng,acc:p.acc}})}return API0(body)};
 // ---------- home cards ----------
 // The old tool buttons are quick-action chips on the Ask Timber page (ftTools); homes get one Ask Timber card.
+// Extras stay hidden until the Owner turns them on (Settings → Turn on extras). QuickBooks shows once connected.
+window.ftOn=k=>{const s=S(),o=s.on||{};return k==='storm'?!!(o.storm||s.storm):!!o[k]};
+const XN={'ft-storm':'storm','ft-follow':'reviews','ft-saferep':'safety','ft-safety':'safety','ft-equip':'equipment'};
 function tools(){const r=role,own=isOwn(),s=S();const b=[];
- const add=(id,l,fn)=>{if(!b.some(x=>x.id===id))b.push({id,l,fn})};
+ const add=(id,l,fn)=>{if(b.some(x=>x.id===id))return;if(XN[id]&&!ftOn(XN[id]))return;if(id==='ft-qb'&&!(s.qbo&&s.qbo.connected))return;b.push({id,l,fn})};
  if(r==='Owner'||r==='Manager'){add('ft-storm',s.storm?'🌀 Storm queue':'🌀 Storm calls','ftStorm()');add('ft-follow','⭐ Reviews &amp; yearly follow-ups','ftFollow()');add('ft-profit','📈 Job profit','ftProfit()')}
  if(r==='Owner'||r==='Admin'){add('ft-map','🗺 Crew map','ftMap()');add('ft-saferep','🦺 Safety compliance','ftSafeRep()');add('ft-qb','📒 QuickBooks export','ftQB()');if(r==='Admin')add('ft-profit','📈 Job profit','ftProfit()')}
  if(r==='Crew'){add('ft-safety','🦺 Daily safety checklist','ftSafety()');add('ft-storm','🌀 Storm queue','ftStorm()')}
@@ -33,7 +36,7 @@ function tools(){const r=role,own=isOwn(),s=S();const b=[];
  if(r==='Owner'){add('ft-sched','📅 Schedule','ownerDo(\'Manager\',\'sched\')');add('ft-set','⚙️ Payments, texts, reviews','ftSet()')}
  if(r==='Manager'&&!own)add('ft-remind','🔔 Send tomorrow’s reminders','ftRemind()');
  return b}
-window.ftTools=()=>tools();
+window.ftTools=()=>{if(!window.FTST||!window.FTST.on)st(true).then(()=>{if(view==='timber'&&document.getElementById('tbqa')&&window.ftTimber)ftTimber()});return tools()};
 function grid(){return `<div class="card" id="ftcard"><button class="btn huge g" id="ft-timber" type="button" onclick="ftTimber()" style="margin:0">🌲 Ask Timber</button></div>`}
 window.ftGrid=()=>grid();
 function stormBar(){return S().storm&&(role==='Owner'||role==='Manager'||role==='Crew')?`<div class="ftstorm" id="ftstormbar">🌀 STORM MODE ON<button type="button" onclick="ftStormNew()">+ Storm call</button></div>`:''}
@@ -77,7 +80,7 @@ window.ftSafety=function(next){view='ftsafe';SAFENEXT=next||null;back();A.innerH
 window.ftSafeAll=function(){document.querySelectorAll('#ftchk input').forEach(i=>i.checked=true)};
 window.ftSafeSave=async function(){const items={};document.querySelectorAll('#ftchk input').forEach(i=>items[i.value]=i.checked);if(Object.values(items).some(v=>!v))return toast('Check every item first');
  const crew=($('#ftscrew').value||'').split(',').map(s=>s.trim()).filter(Boolean);try{await api({a:'safetySave',items,crew,hazards:$('#ftshz').value,who:(window.clockName&&clockName())||sessionStorage.fdName||''});try{localStorage['ftSafe:'+tday()]='1'}catch(e){}toast('🦺 Safety checklist done for today');const n=SAFENEXT;SAFENEXT=null;if(n)n();else{view='';render()}}catch(e){toast(e.message)}};
-const DONE0=window.done;if(typeof DONE0==='function')window.done=async function(id){if(role==='Crew'&&!sessionStorage.fdOwner){let ok=false;try{ok=localStorage['ftSafe:'+tday()]==='1'}catch(e){}if(!ok){try{const r=await api({a:'safetyStatus',who:(window.clockName&&clockName())||''});ok=r.done}catch(e){ok=true}}if(!ok){toast('Do today’s safety checklist first');return ftSafety(()=>{cview(id)})}}return DONE0.apply(this,arguments)};
+const DONE0=window.done;if(typeof DONE0==='function')window.done=async function(id){if(role==='Crew'&&!sessionStorage.fdOwner&&ftOn('safety')){let ok=false;try{ok=localStorage['ftSafe:'+tday()]==='1'}catch(e){}if(!ok){try{const r=await api({a:'safetyStatus',who:(window.clockName&&clockName())||''});ok=r.done}catch(e){ok=true}}if(!ok){toast('Do today’s safety checklist first');return ftSafety(()=>{cview(id)})}}return DONE0.apply(this,arguments)};
 window.ftSafeRep=async function(){view='ftsr';back();A.innerHTML='<div class="card"><h2>🦺 Safety compliance</h2><p class="muted">Loading…</p></div>';let r;try{r=await api({a:'safetyReport',days:7})}catch(e){return toast(e.message)}
  A.innerHTML=`<div class="card"><h2>🦺 Safety compliance</h2><p class="muted">Everyone who clocked in, and whether today’s checklist covered them.</p></div>`+(r.equipmentDue.length?`<div class="card" style="border:3px solid #b42318"><h2>🛠 Equipment due</h2>${r.equipmentDue.map(x=>`<div class="ftrow"><b>${esc(x.name)}</b><span class="ftbad">${esc(x.why.join(' · '))}</span></div>`).join('')}</div>`:'')+
  r.days.map(d=>`<div class="card"><div class="ftrow" style="border:0"><b>${new Date(d.day+'T12:00').toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'})}</b><b class="${d.ok===d.people.length?'ftgood':'ftbad'}">${d.ok}/${d.people.length} covered</b></div>${d.people.map(p=>`<div class="ftrow"><span>${esc(p.who)}</span><span class="${p.ok?'ftgood':'ftbad'}">${p.ok?'✓ '+new Date(p.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'✗ missing'}</span></div>`).join('')||'<p class="muted">Nobody clocked in.</p>'}</div>`).join('')};
@@ -186,3 +189,13 @@ window.FTV=function(raw,say){const t=String(raw||'').toLowerCase().replace(/[^a-
  return false};
 if(role)st().then(()=>{try{inject()}catch(e){}});
 })();
+// Settings → "Turn on extras" (Owner): chips for the extras that need setup. Off until turned on.
+(function(){const X=[['permits','📋 Permits and 811'],['safety','🦺 Safety checks'],['equipment','🛠 Equipment'],['coi','📄 Insurance paper'],['reviews','⭐ Reviews'],['storm','🌀 Storm mode']];
+ const css=document.createElement('style');css.textContent='.xchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}.xchips button{margin:0;width:auto;min-height:48px;padding:8px 16px;border-radius:999px;border:1.5px solid #dfe3da;background:#fff;color:#112337;font:inherit;font-weight:800;font-size:16px}.xchips button.on{background:#112337;border-color:#112337;color:#fff}';document.head.appendChild(css);
+ const card=()=>{const s=window.FTST||{},o=s.on||{};return `<div class="card" id="ftextras"><h2 style="margin:0 0 4px">Turn on extras</h2><p class="muted" style="margin:0">Tap to turn on. Off extras stay hidden everywhere.</p><div class="xchips">${X.map(([k,l])=>`<button type="button" id="x-${k}" role="switch" aria-checked="${o[k]?'true':'false'}" class="${o[k]?'on':''}" onclick="ftExtraTap('${k}')">${o[k]?'✓ ':''}${l}</button>`).join('')}</div><p class="muted" style="margin:6px 0 0;font-size:14px">Card payments, texts and QuickBooks show up once they are connected.</p></div>`};
+ const own=()=>role==='Owner'||sessionStorage.fdOwner==='1';
+ const paint=()=>{const c=document.getElementById('ftextras');if(c)c.outerHTML=card()};
+ window.ftExtraTap=async function(k){const o=Object.assign({},(window.FTST||{}).on||{});o[k]=!o[k];try{const r=await api({a:'fSet',on:{[k]:o[k]}});window.FTST=r.status;try{FTST=r.status}catch(e){}paint();toast((X.find(x=>x[0]===k)||[,''])[1].replace(/^\S+ /,'')+(o[k]?' on':' off'))}catch(e){toast(e.message)}};
+ window.ftExtras=async function(){if(typeof window.setScreen==='function'){if(role==='Owner'&&window.ownerAs)ownerAs('Manager');setScreen()}const c=document.getElementById('ftextras');if(c)c.scrollIntoView({block:'start'})};
+ const ins=()=>{if(view!=='set'||!own()||document.getElementById('ftextras'))return;const h=A.querySelector('h2');if(!h)return;h.insertAdjacentHTML('afterend',card());api({a:'fGet'}).then(r=>{window.FTST=r.status;paint()}).catch(()=>{})};
+ try{new MutationObserver(ins).observe(A,{childList:true})}catch(e){}})();

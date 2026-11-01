@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer-core';
 import { start, addJob, featOn, featOutbox, mockEmployees, created } from './mock-server.mjs';
 const server = await start(0); const base = 'http://127.0.0.1:' + server.address().port, api = base + '/exec';
 const DAY = 864e5, iso = (ms) => new Date(ms).toISOString(), ymd = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(ms));
-featOn({ props: {} });
+featOn({ props: {}, extras: false });
 mockEmployees.push({ id: 'E7', name: 'Carlos Ruiz', role: 'Crew', pin: '7711' }, { id: 'E8', name: 'Tyler Reed', role: 'Crew', pin: '7712' });
 const now = Date.now(), td = ymd(now);
 addJob({ id: 'H-1', est: 'FT-EST-2026-0501', jobNo: 'FT-JOB-2026-0501', wonAt: iso(now), name: 'Hal Hartwell', address: '4 Elm', email: 'h@example.com', status: 'approved', items: [{ title: 'Removal', price: 2000 }], created: iso(now - DAY), photos: [], crew: [] });
@@ -25,7 +25,7 @@ async function open(pin, simple) {
   await p.waitForFunction(() => typeof jobs !== 'undefined' && jobs.length > 0, { timeout: 10000 });
   return p;
 }
-const shot = (p, n) => p.screenshot({ path: '/workspace/fielder-parity6-' + n + '.png' });
+const shot = (p, n) => p.screenshot({ path: '/workspace/fielder-parity7-' + n + '.png' });
 try {
   let p = await open('4321');
   await p.evaluate((td) => api({ a: 'block', block: { id: 'BO', date: td, start: '08:00', end: '12:00', job: 'O-1', note: '' } }).then((r) => { blocks = r.blocks; }), td);
@@ -67,6 +67,22 @@ try {
   p = await open('7711'); await p.waitForSelector('#tdjob', { timeout: 8000 });
   const c = await p.evaluate(() => A.innerText); if (!/Hal Hartwell/.test(c) || /Olive Other/.test(c)) fail('crew sees wrong jobs ' + c.slice(0, 300));
   await shot(p, 'crew-today'); await p.close();
+  // extras hidden until turned on (Settings -> Turn on extras); bulk status is chips
+  p = await open('4321', true); await p.waitForSelector('#dnav'); await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); await w(500);
+  for (const id of ['ft-equip', 'ft-storm', 'ft-follow', 'ft-saferep', 's-permits2', 's-coi2', 'ft-qb']) if (await p.$('#tbqa #' + id)) fail('extra shown while off: ' + id);
+  await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-extras'); if (await p.$('#s-eq')) fail('Equipment in More while off');
+  await p.click('#s-extras'); await p.waitForSelector('#x-equipment'); if (await p.$eval('#x-equipment', (e) => e.classList.contains('on'))) fail('equipment on by default');
+  await p.click('#x-equipment'); await p.waitForFunction(() => document.getElementById('x-equipment')?.classList.contains('on'), { timeout: 5000 });
+  await p.click('#x-permits'); await p.waitForFunction(() => document.getElementById('x-permits')?.classList.contains('on'), { timeout: 5000 });
+  await p.evaluate(() => { const c = document.getElementById('ftextras'); scrollTo(0, c.getBoundingClientRect().top + scrollY - 170); document.getElementById('toast').style.display = 'none'; }); await w(100); await shot(p, 'extras');
+  await p.evaluate(() => { ownerAs('Owner'); ftTimber(); }); await p.waitForSelector('#tbqa #ft-equip', { timeout: 5000 }); await p.waitForSelector('#tbqa #s-permits2', { timeout: 5000 });
+  if (await p.$('#tbqa #ft-storm')) fail('storm shown though still off');
+  await p.evaluate(() => openOutstanding()); await p.waitForSelector('[data-sel="S-1"]'); await p.evaluate(() => document.querySelector('[data-sel="S-1"]').click());
+  await p.waitForSelector('#qbst [data-st]'); if (await p.$('#qbst option, #qbulk select')) fail('status dropdown still there');
+  await p.click('#qbst [data-st="declined"]'); if (!(await p.$eval('#qbst [data-st="declined"]', (e) => e.classList.contains('on')))) fail('chip not selected');
+  await p.evaluate(() => { document.getElementById('qbulk').scrollIntoView(); document.getElementById('toast').style.display = 'none'; }); await w(100); await shot(p, 'bulk-chips');
+  await p.click('#qbgo'); await p.waitForFunction(() => /1 quote marked Declined/.test(document.getElementById('toast').textContent), { timeout: 5000 });
+  await p.close();
   // simple homes (Miller 7281002): 3-5 big actions, one green, everything else under More; screenshots of each role
   const EXP = { '1234': ['s-newq', 's-quotes', 's-cust', 's-sched', 's-more'], '6789': ['s-inv', 's-cust', 's-pay', 's-more'], '7711': ['s-today', 's-clock', 's-photo', 's-done', 's-more'] };
   for (const [pin, ids] of Object.entries(EXP)) {

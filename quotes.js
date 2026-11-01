@@ -20,22 +20,25 @@ let QSEL=new Set(),QMODE='out';
 function card(j){const s=qstat(j),tot=money(j.total!=null?j.total:(j.items||[]).reduce((a,i)=>a+(+i.price||0),0)),fu=has('followUp')&&OUT(j);
  const fuB=fu?`<div class="qbtns"><button class="btn" type="button" data-fu="text" data-id="${esc(j.id)}">💬 Text follow-up</button><button class="btn n" type="button" data-fu="email" data-id="${esc(j.id)}">✉️ Email follow-up</button>${has('discount')?`<button class="btn gr" type="button" data-fu="text" data-disc="1" data-id="${esc(j.id)}">💬 Text ${pct()}% off</button><button class="btn gr" type="button" data-fu="email" data-disc="1" data-id="${esc(j.id)}">✉️ Email ${pct()}% off</button>`:''}</div>`:'';
  return `<div class="qcard" data-q="${esc(j.id)}"><label class="qsel"><input type="checkbox" data-sel="${esc(j.id)}" ${QSEL.has(j.id)?'checked':''}> Select</label><h3>${esc(j.name||'(no name)')}</h3><div class="qmeta">${esc(j.address||'')}</div><span class="qbadge" style="background:${s.c}">${esc(s.t)}</span><div class="qmeta">Total ${tot}${j.discount?' · '+j.discount.pct+'% off offered':''}</div><div class="qmeta">Sent ${dstr(sentAt(j))} · Last follow-up ${dstr(j.lastFollowUp)}${j.openedAt?' · Opened '+dstr(j.openedAt):''}</div><button class="btn gr" type="button" style="margin-top:8px" onclick="mview('${esc(j.id)}')">Open quote ›</button>${fuB}</div>`}
-function bulk(){const opts=has('setStatus')?[['sent','Sent'],['followup','Follow up'],['approved','Approved'],['declined','Declined']]:[['approved','Approved'],['declined','Declined']];
- return `<div id="qbulk" ${QSEL.size?'':'hidden'}><b id="qbn">${QSEL.size} selected</b><select id="qbst">${opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select><button class="btn huge" id="qbgo" type="button">Change status</button><button class="btn gr" type="button" id="qbclr">Clear selection</button></div>`}
+let QBST='approved';
+(function(){const c=document.createElement('style');c.textContent='.qbchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.qbchips button{margin:0;width:auto;min-height:48px;padding:8px 16px;border-radius:999px;border:1.5px solid #dfe3da;background:#fff;color:#112337;font:inherit;font-weight:800;font-size:16px}.qbchips button.on{background:#112337;border-color:#112337;color:#fff}';document.head.appendChild(c)})();
+function bulk(){const opts=has('setStatus')?[['sent','Quote sent'],['followup','Follow up'],['approved','Approved'],['declined','Declined']]:[['approved','Approved'],['declined','Declined']];
+ return `<div id="qbulk" ${QSEL.size?'':'hidden'}><b id="qbn">${QSEL.size} selected</b><div class="qbchips" id="qbst" role="radiogroup" aria-label="New status">${opts.map((o,i)=>`<button type="button" role="radio" data-st="${o[0]}" aria-checked="${o[0]===QBST?'true':'false'}" class="${o[0]===QBST?'on':''}">${o[1]}</button>`).join('')}</div><button class="btn huge" id="qbgo" type="button">Change status</button><button class="btn gr" type="button" id="qbclr">Clear selection</button></div>`}
 function draw(){const out=QMODE=='out',arr=jobs.filter(out?OUT:SENT).sort((a,b)=>String(sentAt(b)).localeCompare(String(sentAt(a))));
  view=out?'oq':'sq';armBack(navHome);
  A.innerHTML=`<h2 style="margin-top:0">${out?'Outstanding quotes':'Sent quotes'} (${arr.length})</h2><p class="muted" style="margin:0 0 12px">${out?'Sent, not approved or declined yet.':'Every quote sent to a customer, newest first.'}${has('followUp')?'':' Follow-up buttons turn on after the Field Desk script update.'}</p>`+(arr.length?arr.map(card).join(''):'<p class="muted">Nothing here right now.</p>')+bulk();
  A.querySelectorAll('[data-sel]').forEach(c=>c.onchange=()=>{c.checked?QSEL.add(c.dataset.sel):QSEL.delete(c.dataset.sel);const b=$('#qbulk');b.hidden=!QSEL.size;$('#qbn').textContent=QSEL.size+' selected'});
  A.querySelectorAll('[data-fu]').forEach(b=>b.onclick=()=>followUp(b.dataset.id,b.dataset.fu,!!b.dataset.disc,b));
+ A.querySelectorAll('#qbst [data-st]').forEach(c=>c.onclick=()=>{QBST=c.dataset.st;A.querySelectorAll('#qbst [data-st]').forEach(x=>{const on=x===c;x.classList.toggle('on',on);x.setAttribute('aria-checked',on?'true':'false')})});
  const go=$('#qbgo');if(go)go.onclick=bulkGo;const cl=$('#qbclr');if(cl)cl.onclick=()=>{QSEL.clear();draw()}}
 async function followUp(id,via,disc,b){const j=jobs.find(x=>x.id==id);if(!j)return;
  if(b){b.disabled=true;b.textContent='Sending…'}
  try{const r=await api({a:'followUp',id,via,discount:disc});if(r.job){const i=jobs.findIndex(x=>x.id==id);if(i>=0)jobs[i]=r.job}toast((via=='text'?'Text':'Email')+' follow-up sent'+(disc?' with '+pct()+'% off':''))}
  catch(e){toast(e.message)}draw()}
-async function bulkGo(){const st=$('#qbst').value,ids=[...QSEL];if(!ids.length)return;const b=$('#qbgo');b.disabled=true;b.textContent='Saving…';
+async function bulkGo(){const st=QBST,ids=[...QSEL];if(!ids.length)return;const b=$('#qbgo');b.disabled=true;b.textContent='Saving…';
  try{if(has('setStatus')){const r=await api({a:'setStatus',ids,status:st});if(r.jobs)jobs=r.jobs.filter(j=>!j.archived)}
   else{for(const id of ids)await api({a:'respond',id,ans:st=='approved'?'A':'C'});await refresh()}
-  toast(ids.length+' quote'+(ids.length>1?'s':'')+' marked '+$('#qbst').selectedOptions[0].textContent);QSEL.clear()}catch(e){toast(e.message)}draw()}
+  toast(ids.length+' quote'+(ids.length>1?'s':'')+' marked '+(($('#qbst [data-st="'+st+'"]')||{}).textContent||st));QSEL.clear()}catch(e){toast(e.message)}draw()}
 window.openOutstanding=function(){QMODE='out';QSEL.clear();draw();window.scrollTo(0,0)};
 window.openSentQuotes=function(){QMODE='sent';QSEL.clear();draw();window.scrollTo(0,0)};
 window.FDQ={draw,qstat,OUT,SENT,count:()=>jobs.filter(OUT).length};

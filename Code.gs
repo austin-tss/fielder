@@ -964,7 +964,7 @@ function ftStripeKey_(){return String(prop_('STRIPE_SECRET_KEY')||'')}
 function ftReviewUrl_(){return String(prop_('GOOGLE_REVIEW_URL')||ftCfg_().reviewUrl||'')}
 function ftStatus_(){var c=smsCfg_(),q={};try{q=qboPublic_()}catch(e){}var cfg=ftCfg_();
  return {storm:!!cfg.storm,smsOn:!!cfg.smsOn,smsReady:!!(c.sid&&c.tok&&c.from),stripe:!!ftStripeKey_(),stripeMode:/^sk_live/.test(ftStripeKey_())?'live':(ftStripeKey_()?'test':''),
-  reviewUrl:ftReviewUrl_(),reviewDirect:!!ftReviewUrl_(),qbo:q,gemini:!!prop_('GEMINI_API_KEY'),site:FT_SITE}}
+  reviewUrl:ftReviewUrl_(),reviewDirect:!!ftReviewUrl_(),qbo:q,on:(function(o){o=o||{};return {permits:!!o.permits,safety:!!o.safety,equipment:!!o.equipment,coi:!!o.coi,reviews:!!o.reviews,storm:!!(o.storm||cfg.storm)}})(cfg.on),gemini:!!prop_('GEMINI_API_KEY'),site:FT_SITE}}
 
 function featPost_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return post_(e)}
  if(d&&d.object==='event'&&d.type&&d.data)return ftStripeHook_(d);
@@ -1067,7 +1067,7 @@ function ftStaff_(d){var me=roleOf_(d),own=me==='Owner',S=function(o){return Obj
  if(typeof ft2Staff_==='function'){var r2=ft2Staff_(d,me);if(r2)return r2}
  if(d.a=='fDemo'){if(!own)return {ok:false,err:'Owner only'};return ftDemo_(d)}
  if(d.a=='fGet')return S({status:ftStatus_(),hazards:FT_HAZ});
- if(d.a=='fSet'){if(!own)return {ok:false,err:'Only the Owner can change that.'};var c=ftCfg_();if('storm' in d)c.storm=!!d.storm;if('smsOn' in d)c.smsOn=!!d.smsOn;if('reviewAuto' in d)c.reviewAuto=!!d.reviewAuto;if('reviewUrl' in d){var u=clip_(d.reviewUrl,400);if(u&&!/^https:\/\//.test(u))return {ok:false,err:'Review link must start with https://'};c.reviewUrl=u}ftSaveCfg_(c);return S({status:ftStatus_()})}
+ if(d.a=='fSet'){if(!own)return {ok:false,err:'Only the Owner can change that.'};var c=ftCfg_();if('storm' in d)c.storm=!!d.storm;if('smsOn' in d)c.smsOn=!!d.smsOn;if('reviewAuto' in d)c.reviewAuto=!!d.reviewAuto;if(d.on&&typeof d.on==='object'){c.on=c.on||{};['permits','safety','equipment','coi','reviews','storm'].forEach(function(k){if(k in d.on)c.on[k]=!!d.on[k]});if(d.on.storm===false)c.storm=false}if('reviewUrl' in d){var u=clip_(d.reviewUrl,400);if(u&&!/^https:\/\//.test(u))return {ok:false,err:'Review link must start with https://'};c.reviewUrl=u}ftSaveCfg_(c);return S({status:ftStatus_()})}
  if(d.a=='fKeys'){if(!own)return {ok:false,err:'Only the Owner can change that.'};var P=PropertiesService.getScriptProperties(),r={};
   var v=String(d.STRIPE_SECRET_KEY||'').trim();if(v==='-'){P.deleteProperty('STRIPE_SECRET_KEY');r.STRIPE_SECRET_KEY='removed'}else if(v){if(!/^(sk|rk)_(test|live)_[A-Za-z0-9]{10,}$/.test(v))r.STRIPE_SECRET_KEY='invalid';else{P.setProperty('STRIPE_SECRET_KEY',v);r.STRIPE_SECRET_KEY='set'}}
   ['TWILIO_SID','TWILIO_TOKEN','TWILIO_FROM','TEST_PHONE'].forEach(function(k){var x=String(d[k]||'').trim();if(x){P.setProperty(k,clip_(x,80));r[k]='set'}});return S({result:r,status:ftStatus_()})}

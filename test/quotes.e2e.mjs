@@ -24,9 +24,9 @@ try{
  const em=outbox.at(-1);if(outbox.length!==o0+1||em.to!=='austin@techsourcedsolutions.com'||!/10% off: \$1620\.00 \(was \$1800\.00\)/.test(em.body))fail('email routing/discount '+JSON.stringify(em));
  if(/howard\.com/.test(JSON.stringify(outbox)))fail('howard address used');
  // bulk status: approve FT-OLD (applies discount), decline FT-Q2
- await clk(p,'[data-sel="FT-OLD"]');await p.select('#qbst','approved');await clk(p,'#qbgo');await p.waitForFunction(()=>/1 quote marked Approved/.test($('#toast').textContent));
+ await clk(p,'[data-sel="FT-OLD"]');await clk(p,'#qbst [data-st="approved"]');await clk(p,'#qbgo');await p.waitForFunction(()=>/1 quote marked Approved/.test($('#toast').textContent));
  if(old.status!=='approved'||old.total!==1620)fail('approve+discount '+old.status+' '+old.total);
- await clk(p,'[data-sel="FT-Q2"]');await p.select('#qbst','followup');await clk(p,'#qbgo');await w(400);if(mockJobs.find(j=>j.id==='FT-Q2').status!=='followup')fail('bulk followup');
+ await clk(p,'[data-sel="FT-Q2"]');await clk(p,'#qbst [data-st="followup"]');await clk(p,'#qbgo');await w(400);if(mockJobs.find(j=>j.id==='FT-Q2').status!=='followup')fail('bulk followup');
  await p.evaluate(()=>openSentQuotes());await p.waitForSelector('.qcard');const sb=await p.$$eval('.qbadge',l=>l.map(e=>e.textContent));if(!sb.includes('Approved (A)'))fail('sent view '+sb);
  // settings discount
  await p.evaluate(()=>{openSet();openDisc()});await p.waitForSelector('#discpct');await p.$eval('#discpct',e=>e.value='15');await clk(p,'#discsave');await p.waitForFunction(()=>/Discount saved: 15%/.test($('#toast').textContent));
@@ -34,6 +34,6 @@ try{
  await p.close();
  // old backend (no caps): follow-up buttons hidden, bulk only Approved/Declined
  setCaps([]);p=await open();await p.evaluate(()=>openOutstanding());await p.waitForSelector('.qcard');
- if(await p.$('[data-fu]'))fail('fu buttons shown without caps');const opts=await p.$$eval('#qbst option',l=>l.map(o=>o.value).join());if(opts!=='approved,declined')fail('opts '+opts);
+ if(await p.$('[data-fu]'))fail('fu buttons shown without caps');const opts=await p.$$eval('#qbst [data-st]',l=>l.map(o=>o.dataset.st).join());if(opts!=='approved,declined')fail('opts '+opts);
  await p.close();console.log('quotes e2e ok');
 }finally{await browser.close();server.close()}
