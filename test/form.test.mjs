@@ -112,7 +112,7 @@ test('Code.gs stays live, embeds the form, and strips internal notes before cust
   assert.equal(/concrete|coating|epoxy|flake/i.test(html + fs.readFileSync(path.join(root, 'form.js'), 'utf8')), false);
   assert.ok(html.includes('form.js?v=20261028v'));
   assert.ok(html.includes('openSet()'));
-  assert.equal(gs.split('mail_({to:j.email').length - 1, 4); // quote, recap, invoice + parity2 ftMail_ (all via mail_ test guard)
+  assert.equal(gs.split('mail_({to:j.email').length - 1, 5); // quote, recap, invoice, quote follow-up + parity2 ftMail_ (all through the mail_ test guard)
   assert.equal(gs.split('MailApp.sendEmail(').length - 1, 1);
   assert.ok(gs.includes("d.a=='qedit'"));
   assert.ok(gs.includes("d.a=='cedit'"));

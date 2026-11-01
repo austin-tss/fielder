@@ -82,14 +82,14 @@ function customerHtml(job) {
 function publicSettings() {
   const form = FD.normalizeForm(settings.form);
   settings.form = form;
-  return { form, quoteBody: settings.quoteBody || '', quoteSubject: settings.quoteSubject || '', quoteSign: settings.quoteSign || '', theme: settings.theme === 'dark' ? 'dark' : 'classic', voice: VOICE, placesKey: '' };
+  return { form, quoteBody: settings.quoteBody || '', quoteSubject: settings.quoteSubject || '', quoteSign: settings.quoteSign || '', theme: settings.theme === 'dark' ? 'dark' : 'classic', voice: VOICE, placesKey: '', discountPct: settings.discountPct || 10 };
 }
 
 function handleApi(req, res, body) {
   if (req.method === 'GET') {
     const q = new URL(req.url, 'http://x').searchParams;
     if (q.get('a') === 'quotePublic') return send(res, 200, JSON.stringify(pubQuote(q.get('t'))));
-    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, customers, settings: publicSettings() }));
+    send(res, 200, JSON.stringify({ ok: true, root: 'https://drive.google.com/drive/folders/MOCK-ROOT', jobs: jobs.filter((j) => !j.archived), blocks, customers, settings: publicSettings(), caps: CAPS }));
     return;
   }
   const d = JSON.parse(body || '{}');
@@ -165,10 +165,22 @@ function handleApi(req, res, body) {
     job.archived = !d.undo;
     return send(res, 200, JSON.stringify({ ok: true }));
   }
+  if (d.a === 'followUp' || d.a === 'setStatus') {
+    if (!CAPS.includes(d.a)) return send(res, 200, JSON.stringify({ ok: false, err: 'Bad action' }));
+    if (d.a === 'setStatus') { let n = 0; (d.ids || []).forEach((id) => { const j = jobs.find((x) => x.id === id); if (!j) return; n++; if (d.status === 'approved') { j.status = 'approved'; j.response = { ans: 'A' }; if (j.discount && !j.discount.applied) applyDisc(j); } else if (d.status === 'declined') { j.status = 'declined'; j.response = { ans: 'C' }; } else j.status = d.status; }); return send(res, 200, JSON.stringify({ ok: true, changed: n, jobs: jobs.filter((j) => !j.archived) })); }
+    const j = jobs.find((x) => x.id === d.id); if (!j) return send(res, 200, JSON.stringify({ ok: false, err: 'Job not found' }));
+    if (!j.pt) j.pt = tok(); const pct = settings.discountPct || 10; if (d.discount && !(j.discount && j.discount.applied)) j.discount = { pct };
+    const base = (j.items || []).reduce((a, i) => a + (+i.price || 0), 0), link = 'quote.html?id=' + j.pt;
+    const body = d.discount ? `${pct}% off: $${(base - base * pct / 100).toFixed(2)} (was $${base.toFixed(2)}) ${link}` : `Following up ${link}`;
+    if (d.via === 'email') outbox.push({ to: 'austin@techsourcedsolutions.com', customer: j.email, followUp: true, body }); else texts.push({ to: 'TEST_PHONE', from: '+18506131820', customer: j.phone, followUp: true, body });
+    const at = new Date().toISOString(); j.followUps = (j.followUps || []).concat([{ at, via: d.via, disc: !!d.discount }]); j.lastFollowUp = at; if (j.status === 'sent' || j.status === 'reply') j.status = 'followup';
+    return send(res, 200, JSON.stringify({ ok: true, job: j }));
+  }
   if (d.a === 'settings') {
     if (!/Manager|Owner/.test(ROLEPINS[String(d.pin || '')] || '') && !employees.some((u) => u.pin === String(d.pin || '') && u.role === 'Manager')) return send(res, 200, JSON.stringify({ ok: false, err: 'That PIN cannot change the quote form.' }));
     settings = {
-      form: FD.normalizeForm(d.form),
+      form: d.form ? FD.normalizeForm(d.form) : settings.form,
+      discountPct: (Number(d.discountPct) >= 1 && Number(d.discountPct) <= 50) ? Math.round(Number(d.discountPct)) : settings.discountPct,
       quoteBody: String(d.quoteBody || ''),
       quoteSubject: String(d.quoteSubject || ''),
       quoteSign: String(d.quoteSign || ''),
@@ -360,6 +372,10 @@ export function labor(d, emps) {
 let LASTVQ = '';
 export const lastVQ = () => LASTVQ;
 
+let CAPS = ['followUp', 'setStatus', 'discount', 'opened'];
+export function setCaps(c) { CAPS = c; }
+function applyDisc(j) { const base = (j.items || []).reduce((a, i) => a + (+i.price || 0), 0), off = Math.round(base * j.discount.pct) / 100; j.items = (j.items || []).concat([{ title: 'Discount (' + j.discount.pct + '% off)', price: -off }]); j.total = base - off; j.discount.applied = true; }
+export { jobs as mockJobs };
 // ---- parity2 business features: run the real Code.gs (in the in-memory Apps Script emulator) against the mock's jobs/blocks.
 // No network: geocoder, Stripe and Twilio are faked; email is only recorded (featOutbox).
 let FEAT = null;
