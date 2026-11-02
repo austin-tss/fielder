@@ -35,7 +35,7 @@ async function open(pin, width, opts = {}) {
 const shot = (p, n) => p.screenshot({ path: '/workspace/fielder-parity8-' + n + '.png' });
 try {
   // ---- layout: sidebar per role at 1280 and 820, phone unchanged ----
-  const SIDE = { '4321': ['home', 'quotes', 'jobs', 'money', 'rcps', 'timber', 'need', 'more'], '1234': ['home', 'quotes', 'jobs', 'sched', 'cust', 'timber', 'need', 'more'], '6789': ['home', 'ready', 'inv', 'pay', 'cust', 'need', 'more'], '7711': ['home', 'jobs', 'clock', 'need', 'more'] };
+  const SIDE = { '4321': ['home', 'quotes', 'jobs', 'money', 'rcps', 'timber', 'need', 'more'], '1234': ['home', 'quotes', 'jobs', 'sched', 'cust', 'need', 'more'], '6789': ['home', 'ready', 'inv', 'pay', 'cust', 'need', 'more'], '7711': ['home', 'jobs', 'clock', 'need', 'more'] };
   const NAME = { '4321': 'owner', '1234': 'estimator', '6789': 'office', '7711': 'crew' };
   for (const [pin, ids] of Object.entries(SIDE)) for (const width of [1280, 820]) {
     const p = await open(pin, width); await p.waitForSelector('#dside button', { timeout: 6000 });

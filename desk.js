@@ -49,7 +49,7 @@ const more="(view='',render(),window.ftSimpleMore&&ftSimpleMore())";
 window.ftReadyInv=()=>list('Ready to invoice',jobs.filter(j=>j.status=='complete'&&!j.invoice).sort(byNew),'aview');
 const T={
  own:[['home','🏠','Home',"ownerHome()"],['quotes','📝','Quotes',"ownerSect('quotes')"],['jobs','🌳','Jobs',"ownerSect('jobs')"],['money','💵','Money',"ownerSect('money')"],['rcps','🧾','Receipts',"ftReceipts()"],['timber','🌲','Ask Timber',"ftTimber()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',"ownerSect('more')"]],
- Manager:[['home','🏠','Home',"view='';render()"],['quotes','📝','Quotes',"ftJobs('sent')"],['jobs','🌳','Jobs',"ftJobs('jobs')"],['sched','📅','Schedule',"sched()"],['cust','👥','Customers',"openCusts()"],['timber','🌲','Ask Timber',"ftTimber()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]],
+ Manager:[['home','🏠','Home',"view='';render()"],['quotes','📝','Quotes',"ftJobs('sent')"],['jobs','🌳','Jobs',"ftJobs('jobs')"],['sched','📅','Schedule',"sched()"],['cust','👥','Customers',"openCusts()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]],
  Admin:[['home','🏠','Home',"view='';render()"],['ready','🧾','Ready to invoice',"ftReadyInv()"],['inv','💵','Invoices',more],['pay','💳','Payments',"ftJobs('invoiced')"],['cust','👥','Customers',"openCusts()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]],
  Crew:[['home','🏠','Home',"view='';render()"],['jobs','🌳','My jobs',"(view='',render(),window.ftSimpleMore&&ftSimpleMore())"],['clock','⏱','Clock in or out',"clockTap()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]]};
 let KEY='',CUR='home';

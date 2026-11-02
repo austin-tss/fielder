@@ -1149,7 +1149,7 @@ function ft2Staff_(d,me){if(!FT2_ACTS[d.a])return null;var r3=ft3Staff_(d,me);if
    try{var r=featPost_({postData:{contents:JSON.stringify(q)}});if(r&&r.ok!==false)R.push({body:b,res:r})}catch(e){}});return S({items:R,ms:Date.now()-t0})}
  if(d.a=='laborDay')return S(ft2LaborDay_(d.date));
  if(d.a=='laborCmp')return S(ft2LaborCmp_(d));
- if(d.a=='timber'){if(d.data&&!own)return {ok:false,err:'Owner only'};return S(timber_(d))}
+ if(d.a=='timber'){if(!own&&!d.tts)return {ok:false,err:'Ask Timber is for the Owner right now.'};if(d.data&&!own)return {ok:false,err:'Owner only'};return S(timber_(d))}
  if(d.a=='dash'){if(!own)return {ok:false,err:'Owner only'};return S(ft2Dash_())}
  return null}
 function ft2Dash_(){var js=load_().filter(function(j){return !j.archived}),now=Date.now(),today=ftYmd_(now),wk0=clockWeekStart_(now),ps=ftAllPunches_(),rm=ftRateMap_(),bl=load_('blocks.json');

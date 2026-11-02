@@ -91,7 +91,10 @@ try {
   if (!(await p.$('#vhfab'))) fail('corner mic removed');
   await p.close();
   // Need something?: send + own status; Owner sees everyone's
-  p = await open('1234', 390); await p.evaluate(() => ftNeed()); await p.waitForSelector('#ndq');
+  p = await open('1234', 390); await w(600);
+  if (await p.evaluate(() => document.body.classList.contains('hastb') || !!document.getElementById('ds-timber') || !!document.querySelector('#tbdrb .tb'))) fail('Estimator has Ask Timber');
+  await p.evaluate(() => ftTimber()); if (await p.evaluate(() => document.body.classList.contains('tbopen'))) fail('Estimator opened Ask Timber');
+  await p.evaluate(() => ftNeed()); await p.waitForSelector('#ndq');
   const m0 = featOutbox.length; await p.type('#ndq', 'Add a tip line to invoices'); await p.click('#ndsend');
   await p.waitForFunction(() => /Add a tip line/.test((document.getElementById('ndl') || {}).innerText || ''), { timeout: 8000 });
   if (!/New/.test(await p.$eval('#ndl', (e) => e.innerText))) fail('status chip');

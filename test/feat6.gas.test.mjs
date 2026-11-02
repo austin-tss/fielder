@@ -41,7 +41,8 @@ test('in-app approve: Owner, Office, Estimator yes; Crew no; Timber approve the 
   assert.equal(g.post({ a: 'supDecide', pin: ADM, id: a.item.id, yes: false }).item.status, 'Denied');
   assert.equal(g.post({ a: 'supDecide', pin: MGR, id: a.item.id, yes: true }).ok, false, 'already decided');
   GEM = [() => ok({ candidates: [{ content: { parts: [{ functionCall: { name: 'approve', args: { name: 'rope' } } }] } }] }), () => ok({ candidates: [{ content: { parts: [{ text: 'Rope is now Needed.' }] } }] })];
-  const r = g.post({ a: 'timber', pin: MGR, q: 'approve the rope' }); assert.equal(r.open.supplies, true);
+  const r = g.post({ a: 'timber', pin: OWN, q: 'approve the rope' }); assert.equal(r.open.supplies, true);
+  assert.match(g.post({ a: 'timber', pin: MGR, q: 'approve the rope' }).err, /Ask Timber is for the Owner/, 'Ask Timber chat is Owner-only');
   assert.equal(g.readJson('supplies.json').find((x) => x.id === b.item.id).status, 'Needed');
   for (const m of g.mails) assert.equal(m.to, 'austin@techsourcedsolutions.com');
 });
@@ -65,7 +66,8 @@ test('Worker endpoints: ctx gives prompt, declarations, actions, snapshot; tool 
   const g = gas(); const c = g.post({ a: 'timber', pin: OWN, ctx: 1 }); assert.equal(c.ok, true, JSON.stringify(c));
   assert.match(c.sys, /You are Timber/); assert.match(c.sys, /SNAPSHOT: /); assert.ok(c.decl.find((d) => d.name === 'addSupply')); assert.ok(c.acts.includes('addSupply')); assert.ok(!c.acts.includes('today')); assert.equal(c.model, 'gemini-3.5-flash-lite');
   assert.equal(calls.length, 0, 'ctx does not call Gemini');
-  const t = g.post({ a: 'timber', pin: MGR, tool: 'addSupply', args: { item: 'Wedges' } }); assert.equal(t.ok, true, JSON.stringify(t)); assert.equal(t.open.supplies, true); assert.equal(g.readJson('supplies.json')[0].status, 'Waiting approval');
+  assert.equal(g.post({ a: 'timber', pin: MGR, tool: 'addSupply', args: { item: 'X' } }).ok, false, 'Estimator has no Ask Timber');
+  const t = g.post({ a: 'timber', pin: OWN, tool: 'addSupply', args: { item: 'Wedges' } }); assert.equal(t.ok, true, JSON.stringify(t)); assert.equal(t.open.supplies, true); assert.equal(g.readJson('supplies.json')[0].status, 'Waiting approval');
   assert.equal(g.post({ a: 'timber', pin: CREW, tool: 'addSupply', args: { item: 'X' } }).ok, false, 'crew has no Timber (unchanged)');
   assert.equal(g.post({ a: 'timber', tool: 'today', args: {} }).ok, false, 'PIN required');
 });
