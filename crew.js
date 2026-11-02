@@ -40,6 +40,3 @@ const V0=window.FTV2;window.FTV2=function(t){let m;t=String(t||'');
 // Wording: "Have Timber fill this quote" (form.js stays byte-identical; swap the label on screen).
 (function(){const fix=()=>{document.querySelectorAll('button,summary,h3,b,span,label').forEach(e=>{if(e.childNodes.length&&/Have AI fill this quote/.test(e.textContent))e.childNodes.forEach(n=>{if(n.nodeType===3&&/AI/.test(n.nodeValue))n.nodeValue=n.nodeValue.replace(/Have AI fill/g,'Have Timber fill')})})};
  try{new MutationObserver(fix).observe(document.getElementById('app')||document.body,{childList:true,subtree:true})}catch(e){}})();
-// TEST RUN: every customer send toast says where it really went.
-(function(){const T0=window.toast;if(typeof T0!=='function')return;const TO='austin@techsourcedsolutions.com';
- window.toast=function(t){t=String(t==null?'':t);if(/\b(sent|emailed)\b/i.test(t)&&!/test run/i.test(t)&&!/^(nothing|not )/i.test(t))t=t+' (test run: went to '+TO+')';return T0.call(this,t)}})();

@@ -411,9 +411,9 @@ var BUSY_={ok:false,busy:true,err:'Busy, please retry'};
 function prop_(k){try{return PropertiesService.getScriptProperties().getProperty(k)}catch(e){return null}}
 // Script Property TEST_SKIP_EMAIL='true' logs emails instead of sending them (default off).
 function skipEmail_(){return String(prop_('TEST_SKIP_EMAIL')||'').toLowerCase()==='true';}
-// TEST RUN: every customer-facing email goes ONLY to TEST_EMAIL_TO (default austin@techsourcedsolutions.com). Never howard.com.
+// LIVE: emails go to the real address on the job/customer. (testTo_ kept only for internal fallbacks) (default austin@techsourcedsolutions.com). Never howard.com.
 function testTo_(){var t=String(prop_('TEST_EMAIL_TO')||'austin@techsourcedsolutions.com').trim();return /howard\.com/i.test(t)?'austin@techsourcedsolutions.com':t;}
-function mail_(m){var orig=String(m.to||'');m.to=testTo_();delete m.cc;delete m.bcc;if(orig.toLowerCase()!==m.to.toLowerCase())m.subject='[TEST to '+orig+'] '+(m.subject||'');if(skipEmail_()){Logger.log('TEST_SKIP_EMAIL: not sent | to='+m.to+' | '+m.subject);return {skipped:true};}MailApp.sendEmail(m);return {sent:true};}
+function mail_(m){var to=String(m.to||'').trim();if(!to||!/@/.test(to)){Logger.log('mail_: no recipient | '+(m.subject||''));return {skipped:true,err:'no email'};}m.to=to;if(skipEmail_()){Logger.log('TEST_SKIP_EMAIL: not sent | to='+m.to+' | '+m.subject);return {skipped:true};}MailApp.sendEmail(m);return {sent:true};}
 function newId_(pre){return pre+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,7).toUpperCase();}
 function lock_(ms){var L=LockService.getScriptLock();try{if(L.tryLock(ms||20000))return L}catch(e){}return null;}
 function trash_(id){try{if(id)DriveApp.getFolderById(id).setTrashed(true)}catch(e){}}
@@ -890,7 +890,7 @@ function quotePublic_(t){var j=byTok_(load_(),t);if(!j)return {ok:false,err:'Thi
 function approvePublic_(d){var L=lock_(8000);if(!L)return BUSY_;try{var js=load_(),j=byTok_(js,d.t);if(!j)return {ok:false,err:'This quote link is not valid. Please call '+CO.phone+'.'};
   if(!(j.response&&(j.response.ans=='A'||j.response.ans=='B'))){respond_(j,{ans:'A',text:'Approved on the quote page'});save_(js);}return {ok:true};}finally{unlock_(L)}}
 
-// ===== Sent-quote follow-ups, bulk status, discount offer (TEST RUN: emails only to testTo_(), texts only to TEST_PHONE) =====
+// ===== Sent-quote follow-ups, bulk status, discount offer (emails live to real address, texts TEST_PHONE only) =====
 var CAPS_=['followUp','setStatus','discount','opened'];
 var FU_STATUS_={sent:1,followup:1,approved:1,declined:1};
 function discPct_(o){var n=Math.round(Number(o&&o.discountPct));return n>=1&&n<=50?n:10;}
@@ -938,7 +938,7 @@ function aiKeys_(d){var P=PropertiesService.getScriptProperties(),r={};['GEMINI_
 // ===================== Fielder Field Desk: business features (parity2) =====================
 // Self-scheduling, reminders/on-the-way, Stripe payments, e-signature, crew GPS, job costing,
 // equipment + safety, reviews + yearly follow-ups, storm mode, QuickBooks export, customer portal.
-// Entry: featPost_(e) wraps post_(e). Everything customer-facing goes through mail_() (testTo_() only) and sendSms_() (TEST_PHONE only).
+// Entry: featPost_(e) wraps post_(e). Everything customer-facing goes through mail_() (live, real recipients) and sendSms_() (TEST_PHONE only).
 var FT_SITE='https://ft.vnxt.app/';
 var FT_ACTS={fGet:1,fSet:1,fKeys:1,bookSend:1,onWay:1,remindNow:1,gpsMap:1,costAdd:1,costDel:1,costSummary:1,eqList:1,eqSave:1,eqDel:1,eqService:1,safetySave:1,safetyStatus:1,safetyReport:1,reviewSend:1,followList:1,followSend:1,stormAdd:1,stormList:1,stormSet:1,qbExport:1,portalLink:1,sigImg:1,fDemo:1};
 var FT_PUB={bookInfo:1,bookPick:1,signInfo:1,signSubmit:1,payStart:1,payConfirm:1,portalInfo:1};
@@ -1006,14 +1006,14 @@ function ftPublic_(d){var j=ftJobOfTok_(d.t);if(!j)return {ok:false,err:'This li
   var rec={name:nm,choice:ch,label:LABELS[ch],at:new Date().toISOString(),fileId:f.getId(),note:clip_(d.note,1000)};
   var js2,j2;var L2=lock_(10000);if(!L2){trash_f_(f);return BUSY_}try{js2=load_();j2=findJob_(js2,j.id);j2.sig=rec;if(j.folderId&&!j2.folderId){j2.folderId=j.folderId;j2.folder=j.folder}respond_(j2,{ans:ch,text:rec.note||('Signed online by '+nm)});save_(js2)}finally{unlock_(L2)}
   var pdf=Utilities.newBlob(ftSignedHtml_(j2,sig),'text/html','s.html').getAs('application/pdf').setName('Fielder Signed Estimate '+(j2.est||j2.id)+'.pdf');try{folder_(j2).createFile(pdf.copyBlob())}catch(x){}
-  mail_({to:j2.email||testTo_(),replyTo:CO.email,name:CO.name,subject:'Signed: Estimate '+(j2.est||'')+' - '+LABELS[ch],htmlBody:head_('Signed estimate',j2.est,'cid:logo')+'<p>Thank you, '+esc_(nm)+'. Your choice: <b>'+esc_(LABELS[ch])+'</b>, signed '+Utilities.formatDate(new Date(rec.at),CLOCK_TZ,'MMM d, yyyy h:mm a')+'.</p><p><img src="cid:sig" style="max-width:320px;border-bottom:2px solid #112337"></p>'+ftPortalP_(j2)+foot_(),inlineImages:{logo:logoBlob_(),sig:blob},attachments:[pdf]});
+  mail_({to:j2.email||'',replyTo:CO.email,name:CO.name,subject:'Signed: Estimate '+(j2.est||'')+' - '+LABELS[ch],htmlBody:head_('Signed estimate',j2.est,'cid:logo')+'<p>Thank you, '+esc_(nm)+'. Your choice: <b>'+esc_(LABELS[ch])+'</b>, signed '+Utilities.formatDate(new Date(rec.at),CLOCK_TZ,'MMM d, yyyy h:mm a')+'.</p><p><img src="cid:sig" style="max-width:320px;border-bottom:2px solid #112337"></p>'+ftPortalP_(j2)+foot_(),inlineImages:{logo:logoBlob_(),sig:blob},attachments:[pdf]});
   return {ok:true,sig:{name:nm,choice:ch,at:rec.at},bookUrl:(ch!='C'?ftLink_('book.html',j2):'')}}
  if(d.a=='payStart'){var key=ftStripeKey_();if(!key)return {ok:false,inactive:true,err:'Online payment is not switched on yet. Please call '+CO.phone+' to pay by card.'};
   if(!j.invoice)return {ok:false,err:'There is no invoice on this project yet.'};if(j.invoice.paid)return {ok:true,paid:true};
   var amt=Math.round(num_(j.invoice.amount,total_(j.items))*100);if(!(amt>=50))return {ok:false,err:'Invoice amount is missing. Please call '+CO.phone+'.'};var tk=ftTok_(j.id);
   var pl={'mode':'payment','payment_method_types[0]':'card','payment_method_types[1]':'us_bank_account','line_items[0][quantity]':'1','line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':String(amt),
    'line_items[0][price_data][product_data][name]':'Invoice '+String(j.est||j.id).replace('EST','INV')+' - '+CO.name,'metadata[job]':j.id,'client_reference_id':j.id,
-   'success_url':FT_SITE+'pay.html?t='+encodeURIComponent(tk)+'&sid={CHECKOUT_SESSION_ID}','cancel_url':FT_SITE+'pay.html?t='+encodeURIComponent(tk)};if(validEmail(j.email))pl.customer_email=testTo_();
+   'success_url':FT_SITE+'pay.html?t='+encodeURIComponent(tk)+'&sid={CHECKOUT_SESSION_ID}','cancel_url':FT_SITE+'pay.html?t='+encodeURIComponent(tk)};if(validEmail(j.email))pl.customer_email=j.email;
   var res=UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions',{method:'post',payload:pl,muteHttpExceptions:true,headers:{Authorization:'Bearer '+key}}),o={};try{o=JSON.parse(res.getContentText())}catch(x){}
   if(!o.url)return {ok:false,err:'Payment page could not open ('+((o.error&&o.error.message)||res.getResponseCode())+').'};return {ok:true,url:o.url}}
  if(d.a=='payConfirm'){if(j.invoice&&j.invoice.paid)return {ok:true,paid:true};var s=ftStripeSession_(d.sid);if(s&&s.payment_status=='paid'&&(s.metadata||{}).job==j.id){ftMarkPaid_(j.id,s);return {ok:true,paid:true}}return {ok:true,paid:false,pending:!!s}}
@@ -1288,7 +1288,7 @@ function timber_(d){
  return {ok:false,err:'Timber got stuck on that one. Try asking it a simpler way.'}}
 
 // ===================== Fielder Field Desk: parity batch 3 (permits/HOA, 811, lead sources, payroll OT, COI, multi-day jobs) =====================
-// Ported from Miller v7 Features2.gs (no photo estimates). COI email goes through mail_() (TEST RUN routing).
+// Ported from Miller v7 Features2.gs (no photo estimates). COI email goes through mail_() (live).
 var FT3_ACTS={permitSet:1,locateSet:1,permList:1,setSource:1,leadReport:1,payroll:1,coiUpload:1,coiInfo:1,coiSend:1,progNote:1};
 var FT3_NEED={permitSet:['quotes','schedule','projects'],locateSet:['quotes','schedule','projects','crew'],permList:['quotes','schedule','projects','crew'],setSource:['quotes','projects'],leadReport:['quotes','projects','invoices'],
  payroll:['hours'],coiUpload:['employees','invoices'],coiInfo:[],coiSend:['quotes','projects','invoices','schedule'],progNote:['crew','projects']};
@@ -1353,7 +1353,7 @@ TB_FUNCS.draftQuote={d:'Start a NEW quote/estimate draft for a customer when ask
   return {ok:true,draft:FT_DRAFT_,note:'The draft is open for review. Tell the person to check it and tap Send. Do not say it was sent.'}}};
 // ===== Timber actions (Miller 7997e81): every action re-enters the normal request pipeline with the asker's own PIN,
 // so the same role/permission checks apply. Quotes are drafts (open for review, Send on tap); archive asks first.
-// TEST RUN: emails go through mail_() -> the test inbox. Reply carries open:{id,label} or draft for the app.
+// Emails go through mail_() to the real recipient. Reply carries open:{id,label} or draft for the app.
 var FT_TBD_=null,FT_OPEN_=null;
 function tbSub_(a,o){var base={};Object.keys(FT_TBD_||{}).forEach(function(k){if(k!=='q'&&k!=='history'&&k!=='data'&&k!=='args')base[k]=FT_TBD_[k]});
  var r=featPost_({postData:{contents:JSON.stringify(Object.assign(base,o||{},{a:a}))}});return r&&typeof r.getContent==='function'?JSON.parse(r.getContent()):r}
@@ -1391,7 +1391,7 @@ TB_FUNCS.sendInvoice={d:TBD_+'Email (or re-send) an invoice. Use for "send the m
   if(C.get(ck))return {ok:true,sent:false,customer:j.name,amount:j.invoice.amount,done:'Already sent invoice for '+j.name+' · '+amt+' a moment ago, so I did not send it twice.'};
   try{sendInvoice_(k)}catch(e){return {ok:false,error:String(e.message||e)}}C.put(ck,'1',120);
   try{var L=lock_(20000);var js=load_(),x=js.filter(function(y){return y.id==j.id})[0];if(x&&x.invoice){x.invoice.sentAt=new Date().toISOString();x.invoice.sentTo=k.email;save_(js)}if(L)L.releaseLock()}catch(e){}
-  return {ok:true,sent:true,customer:j.name,amount:j.invoice.amount,paid:!!j.invoice.paid,intendedTo:k.email,deliveredTo:testTo_(),done:'Sent invoice for '+j.name+' · '+amt,note:'TEST RUN: say "Sent invoice for '+j.name+' · '+amt+'" and that test-run emails go to '+testTo_()+'.'}}};
+  return {ok:true,sent:true,customer:j.name,amount:j.invoice.amount,paid:!!j.invoice.paid,intendedTo:k.email,deliveredTo:k.email,done:'Sent invoice for '+j.name+' · '+amt+' to '+k.email,note:'Say "Sent invoice for '+j.name+' · '+amt+' to '+k.email+'".'}}};
 TB_FUNCS.markPaid={d:TBD_+'Mark a job\'s invoice Paid, or back to Open (unpaid).',p:{customer:'customer name',paid:'yes for Paid, no for Open'},
  f:tbDo_(true,function(j,a){var p=!/^(no|open|unpaid|false)/i.test(String(a.paid||'yes'));var r=tbSub_('paid',{id:j.id,paid:p});return r.ok?{ok:true,done:j.name+' marked '+(p?'Paid':'Open')}:{ok:false,error:r.err}})};
 TB_FUNCS.addCustomer={d:TBD_+'Add a customer to the customer list.',p:{name:'full name',email:'email (optional)',phone:'phone (optional)',address:'address (optional)'},
@@ -1479,7 +1479,7 @@ TB_FUNCS.addSupply={d:'Add an item to the Supplies list (anything to order, buy,
 
 // ===================== Fielder Field Desk: batch 6 (Miller 2374915 + 46db9db) =====================
 // Timber streaming endpoints for the Worker, one-tap signed approvals for Supplies and Receipts, receipt scanner.
-// TEST RUN: every approval email goes ONLY to the test inbox (mail_ also forces the test address).
+// Approval emails go to the approver address.
 var APPROVER_TO='austin@techsourcedsolutions.com';
 // Worker /api/timber: context (system prompt, declarations, snapshot) and one tool call, both with the caller's own PIN.
 function tbCtx_(d,sys){var snap={};try{snap=tbCached_('snap',{},function(){return {today:TB_FUNCS.today.f({}),dashboard:TB_FUNCS.dashboard.f({})}})}catch(e){}
