@@ -88,3 +88,20 @@ test('Timber: needs the Gemini key; answers via server data functions with exact
   assert.equal(g.post({ a: 'timber', pin: CREW, q: 'hi' }).ok, false, 'crew has no Timber');
   assert.ok(!g.fetches.some((f) => !/generativelanguage/.test(f.url)));
 });
+
+test('Timber sendInvoice: most recent or named invoice, test inbox only, no double send, never VNXT', () => {
+  const g = gas();
+  const run = (pin, args) => g.post({ a: 'timber', pin, data: 'sendInvoice', args: args || {} });
+  const r = run(OWN, {}); assert.equal(r.ok, true, JSON.stringify(r)); const d = JSON.stringify(r.data);
+  assert.match(d, /Sent invoice for Rita Caldwell · \$400/);
+  assert.equal(g.mails.length, 1); assert.equal(g.mails[0].to, 'austin@techsourcedsolutions.com'); assert.match(g.mails[0].subject, /Invoice/);
+  assert.match(JSON.stringify(run(OWN, {})), /Already sent/); assert.equal(g.mails.length, 1, 'no double send');
+  const n = run(OWN, { customer: 'Caldwell', to: 'billing@example.org' }); assert.match(JSON.stringify(n.data), /Sent invoice for Rita Caldwell/);
+  assert.equal(g.mails.length, 2); assert.match(g.mails[1].subject, /^\[TEST to billing@example\.org\]/);
+  assert.match(JSON.stringify(run(OWN, { customer: 'Linda Whitaker' })), /has no invoice yet/);
+  assert.ok(g.mails.every((m) => m.to === 'austin@techsourcedsolutions.com'));
+  assert.equal(g.post({ a: 'timber', pin: ADM, data: 'sendInvoice', args: {} }).ok, false, 'Timber is Owner-only in Fielder');
+  assert.match(JSON.stringify(g.post({ a: 'timber', pin: MGR, data: 'sendInvoice', args: {} })), /"ok":false|Only the Owner/);
+  const cd = g.post({ a: 'timber', pin: OWN, data: 'cannotDo', args: { request: 'Send the most recent invoice built to austin@techsourcedsolutions.com' } });
+  assert.match(JSON.stringify(cd), /sendInvoice/); assert.doesNotMatch(JSON.stringify(cd), /"offered":true/);
+});
