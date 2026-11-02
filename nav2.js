@@ -83,9 +83,9 @@ window.logoHome=function(){let r='';try{r=role}catch(e){}if(!r)return;if(window.
  wrap();setTimeout(wrap,0);{let n=0;const iv=setInterval(()=>{wrap();if(++n>50)clearInterval(iv)},100)}document.addEventListener('click',wrap,true);
  const lh=window.logoHome;if(lh)window.logoHome=function(){sessionStorage.fdRoute='';return lh.apply(this,arguments)};
  const lo=window.logout;if(typeof lo==='function')window.logout=function(){sessionStorage.fdRoute='';return lo.apply(this,arguments)};
- let rt=null;try{rt=JSON.parse(sessionStorage.fdRoute||'null')}catch(e){}const TBO=!!window.FD_TBO0;if(!rt&&TBO)rt=['ownerHome',[]];
+ let rt=null;try{rt=JSON.parse(sessionStorage.fdRoute||'null')}catch(e){}const T0R=Date.now();let UCL=false;document.addEventListener('click',e=>{if(e.isTrusted)UCL=true},true);const TBO=!!window.FD_TBO0;if(!rt&&TBO)rt=['ownerHome',[]];
  if(rt&&(rt[0]!=='ownerHome'||TBO)&&typeof role!=='undefined'&&role){window.FD_ROUTE_ON=1;const t0=Date.now();
-  const go=()=>{const f=window[rt[0]];const ready=typeof jobs!=='undefined'&&(jobs.length||Date.now()-t0>4000);if(!f||!ready){if(Date.now()-t0<8000)return setTimeout(go,60);window.FD_ROUTE_ON=0;return}
+  const go=()=>{if(UCL||Date.now()-T0R>20000){window.FD_ROUTE_ON=0;return}const f=window[rt[0]];const ready=typeof jobs!=='undefined'&&(jobs.length||Date.now()-t0>4000);if(!f||!ready){if(Date.now()-t0<8000)return setTimeout(go,60);window.FD_ROUTE_ON=0;return}
    replaying=true;try{f.apply(window,rt[1]||[])}catch(e){}replaying=false;if(TBO&&window.ftTimber)setTimeout(()=>{try{ftTimber()}catch(e){}},150);setTimeout(()=>{window.FD_ROUTE_ON=0},3000)};setTimeout(go,0)}
 })();
 
@@ -93,3 +93,6 @@ window.logoHome=function(){let r='';try{r=role}catch(e){}if(!r)return;if(window.
 {const s9=document.createElement('style');s9.textContent='#tbtop,#tbdr,#tbtoast{display:none!important}#brand #who{display:none!important}';document.head.appendChild(s9);
  {let pv='';new MutationObserver(()=>{let v='';try{v=view}catch(e){}if(pv==='timber'&&v!=='timber'){try{tbStop()}catch(e){}}pv=v}).observe(document.getElementById('app')||document.body,{childList:true})}
  setInterval(()=>{let v='';try{v=view}catch(e){}const cur=v==='timber'?'timber':v==='need'?'need':'';if((location.hash||'').slice(1)!==cur){try{history.replaceState(history.state,'',location.pathname+location.search+(cur?'#'+cur:''))}catch(e){}}},400)}
+
+// Miller d6f1938: Owner Home puts the role back to Owner (after ticker lists that run as Manager)
+{const wh=()=>{const f=window.ownerHome;if(typeof f!=='function'||f._hm)return;const g=function(){if(sessionStorage.fdOwner==='1'){try{role='Owner'}catch(e){}sessionStorage.fdRole='Owner'}return f.apply(this,arguments)};g._hm=1;Object.keys(f).forEach(k=>{try{g[k]=f[k]}catch(e){}});window.ownerHome=g};wh();setInterval(wh,500)}

@@ -135,3 +135,24 @@ window.ftTimberDictate=async function(){tbUnlock();if(DICT){try{DICT.rec.stop()}
 
 // Miller 39f0cd2: thread scroll area, full page, slim send arrow inside the box, no expand button
 {const st9=document.createElement('style');st9.textContent='.tb .msgs{gap:10px;max-height:min(46dvh,420px);overflow-y:auto;overscroll-behavior:contain;padding:10px;background:#eef1ea;border-radius:14px}.tb .msgs:empty{display:none}.tb.full .msgs{max-height:calc(100dvh - 360px);min-height:220px}.tb .b{box-shadow:0 1px 2px rgba(17,35,55,.08)}.tb .b .who{display:block;font-size:12px;font-weight:800;opacity:.75;margin-bottom:2px}.tb #tbbig{display:none!important}.tb .tbin .tbmicin{right:54px!important}.tb .tbin #tbsend{width:44px!important;min-width:44px!important;padding:0!important;background:#78a22f!important;border:0!important;display:flex!important;align-items:center;justify-content:center}.tb .tbin textarea{padding-right:104px!important}.tb .ask{width:100%}';document.head.appendChild(st9)}
+
+// Miller 5feaa9f: full-screen, non-jumpy Timber page: lock body scroll, size the card to the visible viewport (keyboard aware).
+(function(){const st=document.createElement('style');st.textContent=`
+body.tbfull{overflow:hidden;overscroll-behavior:none}
+body.tbfull #app{padding-top:8px!important;padding-bottom:0!important}
+body.tbfull #topstick{position:fixed!important;left:0;right:0;top:var(--vvtop,0px)!important;z-index:60}
+body.tbfull .tb.full{position:fixed;left:8px;right:8px;max-width:760px;top:calc(var(--vvtop,0px) + var(--tbtop,72px) + 8px);display:flex;flex-direction:column;box-sizing:border-box;height:calc(var(--tbvh,100dvh) - var(--tbtop,72px) - 16px);margin:0 auto!important;overflow:hidden;z-index:5}
+@media (min-width:768px){body.tbfull.dk .tb.full{left:calc(var(--sw,240px) + 8px)}}
+body.tbfull .tb.full>p{display:none}
+body.tbfull .tb.full .msgs{flex:1 1 auto;max-height:none!important;min-height:0!important;margin:8px 0}
+body.tbfull .tb.full .msgs:empty{display:block}
+body.tbfull .tb.full .ask{flex:0 0 auto;margin:0!important;order:9}
+body.tbfull .tb.full .tbsg{flex:0 0 auto;margin:0 0 8px!important;order:8}
+body.tbfull #fddone{display:none}
+#app{min-height:calc(100dvh - var(--tbtop,72px));box-sizing:border-box}html{scrollbar-gutter:stable}`;document.head.appendChild(st);
+let on=false;
+function fit(){const vv=window.visualViewport,h=vv?vv.height:innerHeight;document.documentElement.style.setProperty('--tbvh',Math.round(h)+'px');const t=document.getElementById('topstick');document.documentElement.style.setProperty('--tbtop',Math.round(t?t.getBoundingClientRect().height:72)+'px');document.documentElement.style.setProperty('--vvtop',Math.round(vv?vv.offsetTop:0)+'px');if(on){const m=document.getElementById('tbmsgs');if(m)m.scrollTop=m.scrollHeight}}
+function sync(){let v='';try{v=view}catch(e){}const now=v==='timber'&&!!document.querySelector('#app .tb.full');if(now!==on){on=now;document.body.classList.toggle('tbfull',on);if(on){window.scrollTo(0,0);fit()}}}
+if(window.visualViewport){visualViewport.addEventListener('resize',fit);visualViewport.addEventListener('scroll',fit)}addEventListener('resize',fit);
+new MutationObserver(sync).observe(document.getElementById('app')||document.body,{childList:true});setInterval(sync,300);fit();
+})();

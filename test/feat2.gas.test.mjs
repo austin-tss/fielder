@@ -35,16 +35,12 @@ test('labor vs jobs for today: labor split across the day\'s jobs, % of the day\
   assert.equal(g.post({ a: 'laborDay', pin: CREW }).ok, false, 'crew cannot see labor $');
 });
 
-test('Labor compare: day/week/month, every measure, every breakdown', () => {
+test('Labor compare: one day vs that day\'s jobs only (Miller 39f0cd2), every breakdown', () => {
   const g = gas(); punch(g, 'Jake Saw', 4);
   const c = (o) => g.post(Object.assign({ a: 'laborCmp', pin: OWN, date: ymd(Date.now()) }, o));
   near(c({ period: 'day', vs: 'jobs', by: 'none' }).total.cmp, 1600);
-  near(c({ period: 'day', vs: 'invoiced', by: 'none' }).total.cmp, 400);
-  near(c({ period: 'day', vs: 'collected', by: 'none' }).total.cmp, 400);
-  near(c({ period: 'day', vs: 'quoted', by: 'none' }).total.cmp, 0);
-  near(c({ period: 'week', vs: 'quoted', by: 'none' }).total.cmp >= 0 ? 1 : 0, 1);
-  near(c({ period: 'day', vs: 'hours', by: 'none' }).total.cmp, 4);
-  const m = c({ period: 'month', vs: 'jobs', by: 'job' }); assert.ok(m.series.length >= 28); near(m.total.labor, 100);
+  for (const vs of ['invoiced', 'collected', 'quoted', 'hours']) near(c({ period: 'day', vs, by: 'none' }).total.cmp, 1600);
+  const m = c({ period: 'month', vs: 'jobs', by: 'job' }); assert.equal(m.series.length, 1); near(m.total.labor, 100);
   assert.deepEqual(c({ period: 'day', vs: 'jobs', by: 'crew' }).rows.map((x) => x.key), ['Jake Saw']);
   assert.deepEqual(c({ period: 'day', vs: 'jobs', by: 'source' }).rows.map((x) => x.key).sort(), ['Google', 'Referral']);
   assert.deepEqual(c({ period: 'day', vs: 'jobs', by: 'service' }).rows.map((x) => x.key).sort(), ['Removal', 'Stump grinding']);

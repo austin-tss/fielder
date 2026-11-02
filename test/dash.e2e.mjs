@@ -60,14 +60,14 @@ try {
   }
   // tabs: each page has the bar with Home (and the app Back/Home); Home returns to the dashboard
   for (const k of ['quotes', 'jobs', 'money', 'timber', 'more']) { await p.evaluate(() => ownerHome()); await p.waitForSelector('#dn-' + k); await p.evaluate((k) => document.getElementById('dn-' + k).click(), k); await w(150);
-    if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
+    if (k === 'timber') { if (!(await p.$('#brand'))) fail('no brand Home on Timber'); await p.evaluate(() => document.getElementById('brand').click()); } else { if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); } await p.waitForSelector('#dgrid', { timeout: 4000 }); }
   // Team & Time keeps the old Owner tools (clock in/out, who is on, labor)
   await p.click('#dn-more'); await p.waitForSelector('#s-team'); await p.evaluate(() => document.getElementById('s-team').click()); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
   await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-extras'); for (const id of ['ft-storm', 's-eq', 's-lc', 's-pay', 's-coi', 's-leads']) if (!(await p.waitForSelector('#' + id, { timeout: 5000 }).catch(() => null))) fail('quick action ' + id);
   if (await p.evaluate(() => /business tools/i.test(document.body.innerText))) fail('Business tools name still shown');
   if (await p.$('#dtimber')) fail('separate Timber header button still there');
   // Timber opens a quick action from chat
-  await p.type('#tbq', 'open payroll'); await p.click('#tbsend'); await p.waitForSelector('#prf', { timeout: 5000 });
+  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq'); await p.type('#tbq', 'open payroll'); await p.click('#tbsend'); await p.waitForSelector('#prf', { timeout: 5000 });
   await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq'); if (await p.$('#tbqa')) fail('quick-action chips still in Ask Timber');
   // (C) speed: tab switch and cached screens render well under 150 ms
   await p.evaluate(() => ownerHome()); await p.waitForSelector('#dgrid');
@@ -81,11 +81,12 @@ try {
   if (!opt.now || opt.after) fail('optimistic ' + JSON.stringify(opt));
   // (D) Labor compare: Day/Week/Month, every measure and breakdown, chart + table, drill-down, voice
   await p.evaluate(() => ownerHome()); await p.waitForSelector('#dc-lab'); await p.click('#dc-lab'); await p.waitForSelector('#lctot', { timeout: 6000 });
-  for (const id of ['lp-day', 'lp-week', 'lp-month', 'lv-jobs', 'lv-invoiced', 'lv-collected', 'lv-quoted', 'lv-hours', 'lb-job', 'lb-crew', 'lb-customer', 'lb-source', 'lb-service']) if (!(await p.$('#' + id))) fail('labor compare control ' + id);
+  for (const id of ['lp-day', 'lb-job', 'lb-crew', 'lb-customer', 'lb-source', 'lb-service']) if (!(await p.$('#' + id))) fail('labor compare control ' + id);
+  for (const id of ['lp-week', 'lp-month', 'lv-jobs', 'lv-invoiced']) if (await p.$('#' + id)) fail('labor compare should be day vs jobs only: ' + id);
   await p.click('#lb-source'); await p.waitForFunction(() => /Google/.test(document.body.innerText) && /Referral/.test(document.body.innerText), { timeout: 6000 });
   if (!(await p.$('.lc .bar'))) fail('no chart bars'); await shot(p, 'labor-compare');
-  await p.click('#lp-week'); await p.waitForFunction(() => document.getElementById('lp-week').classList.contains('on'));
-  await say(p, 'labor this month by crew'); await p.waitForFunction(() => document.getElementById('lp-month')?.classList.contains('on') && document.getElementById('lb-crew')?.classList.contains('on') && /Jake Saw/.test(document.body.innerText), { timeout: 6000 }).catch(async (e) => { console.log(await p.evaluate(() => A.innerText.slice(0, 900))); throw e; });
+  await p.evaluate(() => ftLaborCmp({ by: 'crew' })); await p.waitForFunction(() => document.getElementById('lb-crew')?.classList.contains('on') && /Jake Saw/.test(document.body.innerText), { timeout: 6000 });
+
   // (B) status chips with counts + voice
   await say(p, 'show scheduled jobs'); await p.waitForSelector('#fchips');
   const ch = await p.evaluate(() => ({ title: document.querySelector('.listhead h2').textContent, sch: document.getElementById('fc-scheduled').textContent, prog: document.getElementById('fc-progress').textContent }));
