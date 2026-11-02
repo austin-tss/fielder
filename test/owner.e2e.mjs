@@ -14,7 +14,7 @@ const txt=p=>p.evaluate(()=>document.body.innerText);
 try{
 // Owner home is the numbers dashboard now; the Owner clock tools live on the Team & Time tab.
 const team=async(p)=>{await p.waitForSelector('#dnav,#ow-now',{timeout:30000});if(!(await p.$('#ow-now')))await p.evaluate(()=>ownerSect('team'));await p.waitForSelector('#ow-now')};
-let p=await open(OWNER);await team(p);if(!/Owner/.test(await p.$eval('#who',e=>e.textContent)))fail('label');
+let p=await open(OWNER);await team(p);if(await p.$eval('#who',e=>e.textContent.trim()!==''||!e.hidden))fail('role subtitle should be gone');
 // add employee by voice -> form prefilled, set pay, save
 await say(p,'add employee Jake Limb');await p.waitForSelector('#owsave');if(await p.$eval('#owname',e=>e.value)!=='Jake Limb')fail('prefill');
 await p.$eval('#owpay',e=>e.value='20');await p.$eval('#owpin',e=>e.value='4466');await p.click('#owsave');await p.waitForFunction(()=>/Jake Limb/.test(document.body.innerText)&&/\$20\.00\/hr/.test(document.body.innerText));

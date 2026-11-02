@@ -68,15 +68,15 @@ try {
   const c = await p.evaluate(() => A.innerText); if (!/Hal Hartwell/.test(c) || /Olive Other/.test(c)) fail('crew sees wrong jobs ' + c.slice(0, 300));
   await shot(p, 'crew-today'); await p.close();
   // extras hidden until turned on (Settings -> Turn on extras); bulk status is chips
-  p = await open('4321', true); await p.waitForSelector('#dnav'); await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); await w(500);
-  for (const id of ['ft-equip', 'ft-storm', 'ft-follow', 'ft-saferep', 's-permits2', 's-coi2', 'ft-qb']) if (await p.$('#tbqa #' + id)) fail('extra shown while off: ' + id);
+  p = await open('4321', true); await p.waitForSelector('#dnav'); await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-extras'); await w(500);
+  for (const id of ['s-eq', 's-permits', 's-coi', 'ft-qb']) if (await p.$('#' + id)) fail('extra shown while off: ' + id);
   await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-extras'); if (await p.$('#s-eq')) fail('Equipment in More while off');
   await p.click('#s-extras'); await p.waitForSelector('#x-equipment'); if (await p.$eval('#x-equipment', (e) => e.classList.contains('on'))) fail('equipment on by default');
   await p.click('#x-equipment'); await p.waitForFunction(() => document.getElementById('x-equipment')?.classList.contains('on'), { timeout: 5000 });
   await p.click('#x-permits'); await p.waitForFunction(() => document.getElementById('x-permits')?.classList.contains('on'), { timeout: 5000 });
   await p.evaluate(() => { const c = document.getElementById('ftextras'); scrollTo(0, c.getBoundingClientRect().top + scrollY - 170); document.getElementById('toast').style.display = 'none'; }); await w(100); await shot(p, 'extras');
-  await w(150); await p.evaluate(() => ownerAs('Owner')); await w(400); await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbqa #ft-equip', { timeout: 5000 }); await p.waitForSelector('#tbqa #s-permits2', { timeout: 5000 });
-  if (await p.$('#tbqa #ft-storm')) fail('storm shown though still off');
+  await w(150); await p.evaluate(() => ownerAs('Owner')); await w(400); await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-eq', { timeout: 5000 }); await p.waitForSelector('#s-permits', { timeout: 5000 });
+  if (/Storm queue/.test(await p.evaluate(() => A.innerText))) fail('storm mode shown though still off');
   await p.evaluate(() => { tbDrawer(false); openOutstanding(); }); await p.waitForSelector('[data-sel="S-1"]'); await p.evaluate(() => document.querySelector('[data-sel="S-1"]').click());
   await p.waitForSelector('#qbst [data-st]'); if (await p.$('#qbst option, #qbulk select')) fail('status dropdown still there');
   await p.click('#qbst [data-st="declined"]'); if (!(await p.$eval('#qbst [data-st="declined"]', (e) => e.classList.contains('on')))) fail('chip not selected');

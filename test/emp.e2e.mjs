@@ -35,7 +35,7 @@ try {
   if (SHOTS) await page.screenshot({ path: SHOTS + '/employees_list.png', fullPage: true });
   await page.evaluate(() => logout());
   await login(code);
-  await waitText('Estimator view');
+  await page.waitForFunction(() => typeof role !== 'undefined' && role === 'Manager', { timeout: 10000 });
   await page.evaluate(() => logout());
   await login('6789');
   await waitText('Employees');

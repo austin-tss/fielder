@@ -42,8 +42,8 @@ try {
   if (!/Read aloud off/.test(await p.$eval('#tbspk', (e) => e.textContent))) fail('voice should be off in a new session');
   // ---- green outline mic everywhere, no mic emoji; recording = red + stop ----
   const ic = await p.evaluate(() => { const b = document.getElementById('tbdict'), f = document.getElementById('vhfab'), cs = getComputedStyle(b);
-    return { emoji: /🎙|🎤|⏹/.test(document.body.innerHTML), svg: !!b.querySelector('svg.fdmic .m rect'), col: cs.color, bord: cs.borderTopColor, fab: !!(f && f.querySelector('svg.fdmic')), fabCol: f && getComputedStyle(f).color }; });
-  if (ic.emoji || !ic.svg || ic.col !== 'rgb(120, 162, 47)' || ic.bord !== 'rgb(120, 162, 47)' || !ic.fab || ic.fabCol !== 'rgb(120, 162, 47)') fail('mic icon ' + JSON.stringify(ic));
+    return { emoji: /🎙|🎤|⏹/.test(document.body.innerHTML), svg: !!b.querySelector('svg.fdmic .m rect'), col: cs.color, bord: cs.borderTopColor, fab: !!(f && f.querySelector('svg.fdmic')), fabCol: f && getComputedStyle(f).color, fabShown: !!f && getComputedStyle(f).display !== 'none' }; });
+  if (ic.emoji || !ic.svg || ic.col !== 'rgb(120, 162, 47)' || ic.bord !== 'rgb(120, 162, 47)' || !ic.fab || ic.fabCol !== 'rgb(120, 162, 47)' || ic.fabShown) fail('mic icon ' + JSON.stringify(ic));
   await shot(p, 'voice-off');
   const rec = await p.evaluate(() => { const b = document.getElementById('tbdict'); b.classList.add('rec'); b.innerHTML = FDMIC(true); const s = b.querySelector('.s'), m = b.querySelector('.m'); const o = { bg: getComputedStyle(b).backgroundColor, col: getComputedStyle(b).color, stop: getComputedStyle(s).display, mic: getComputedStyle(m).display }; return o; });
   if (rec.bg !== 'rgb(192, 57, 43)' || rec.col !== 'rgb(255, 255, 255)' || rec.stop === 'none' || rec.mic !== 'none') fail('recording look ' + JSON.stringify(rec));
@@ -97,6 +97,20 @@ try {
   await p2.bringToFront(); await p2.evaluate(() => ftVnxt()); await p2.waitForFunction(() => /tip line/.test(A.innerText), { timeout: 8000 }); if (/rain button/.test(await p2.evaluate(() => A.innerText))) fail('deleted still listed');
   await shot(p2, 'vnxt-delete'); await p2.click('.vxdel'); await p2.waitForFunction(() => !/tip line/.test(A.innerText), { timeout: 8000 }).catch(() => fail('owner delete'));
   await p.close(); await p2.close();
+  // ---- e432ba3: no tips / no header ?, Add team member with plain-English role abilities, Timber hard reset on tuck ----
+  p = await open('4321', 390); await w(600);
+  if (await p.$('#tipsbtn') || await p.evaluate(() => !!document.querySelector('script[src*="tips.js"]'))) fail('tips still loaded');
+  await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-addp'); await p.click('#s-addp'); await p.waitForSelector('#owcan', { timeout: 8000 });
+  if (!/What an Estimator can do|What Crew can do|What an Owner can do|What an Admin can do/.test(await p.$eval('#owcan', (e) => e.innerText))) fail('can-do box');
+  await p.select('#owrole', 'Crew'); if (!/What Crew can do[\s\S]*Clock in and out/.test(await p.$eval('#owcan', (e) => e.innerText))) fail('can-do updates by role');
+  if ((await p.$$eval('#owrole option', (o) => o.length)) !== 4) fail('four roles'); await shot(p, 'add-team-member');
+  GS = [[chunk('Late reply that must not come back.')]]; setGemStream(() => GS.shift() || null, 700);
+  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq'); await p.type('#tbq', 'slow one'); await p.click('#tbsend'); await w(150);
+  await p.click('#tbtop'); await w(1500); setGemStream(() => GS.shift() || null);
+  if (/Late reply/.test(await p.evaluate(() => sessionStorage.tbHist || ''))) fail('in-flight reply leaked after tuck');
+  await p.click('#tbtop'); await p.waitForSelector('#tbs1', { visible: true }); if (/slow one|Late reply/.test(await p.$eval('#tbmsgs', (e) => e.innerText))) fail('reopen not empty');
+  GS = [[chunk('Fresh answer.')]]; await p.type('#tbq', 'next'); await p.click('#tbsend'); await p.waitForFunction(() => /Fresh answer/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 }).catch(() => fail('next question blocked'));
+  await p.close();
   setTts('ok');
   console.log('batch9 e2e ok');
 } finally { await browser.close(); server.close(); }

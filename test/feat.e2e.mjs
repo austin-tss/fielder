@@ -25,9 +25,9 @@ try {
   // Owner: Ask Timber quick actions, keys screen that never shows keys back, storm mode by voice
   let o = await open('4321');
   // Owner home is the numbers dashboard; the former tools are quick actions on the Ask Timber tab
-  await o.waitForSelector('#dnav', { timeout: 10000 }); await o.click('#dn-timber');
-  await o.waitForSelector('#tbqa', { timeout: 10000 }); await shot(o, 'owner-tools');
-  for (const id of ['ft-storm', 'ft-follow', 'ft-profit', 'ft-map', 'ft-saferep', 'ft-equip', 'ft-set']) if (!(await o.waitForSelector('#' + id, { timeout: 5000 }).catch(() => null))) fail('owner card missing ' + id); if (await o.$('#tbqa #ft-qb')) fail('QuickBooks shown before it is connected');
+  await o.waitForSelector('#dnav', { timeout: 10000 }); await o.evaluate(() => ownerSect('more'));
+  await o.waitForSelector('#s-extras', { timeout: 10000 }); await shot(o, 'owner-tools');
+  for (const id of ['s-profit', 's-map', 's-set']) if (!(await o.waitForSelector('#' + id, { timeout: 5000 }).catch(() => null))) fail('owner card missing ' + id); if (await o.$('#ft-qb')) fail('QuickBooks shown before it is connected');
   await o.evaluate(() => ftSet()); await o.waitForSelector('#ftsk', { timeout: 8000 });
   const key = 'sk_test_' + 'Z'.repeat(28);
   await o.type('#ftsk', key); await o.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /save keys|save/i.test(x.textContent) && /ftKeys|ftSaveKeys|fKeys/.test(x.getAttribute('onclick') || '')); b && b.click(); });

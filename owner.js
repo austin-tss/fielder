@@ -4,7 +4,14 @@
 const PL={quotes:'Quotes',schedule:'Schedule',projects:'Projects',crew:'Crew photos / job complete',clock:'Time clock',invoices:'Invoices',hours:'Crew hours',employees:'Employees'};
 const PERMS=Object.keys(PL);
 const DEF={Manager:['quotes','schedule','projects'],Crew:['crew','clock'],Admin:['invoices','hours','employees','projects'],Owner:PERMS.slice()};
+// What each built-in role can do, in plain words (Miller e432ba3); updates when the role changes.
+const CAN={Manager:['Make and send quotes','Have Timber fill a quote','Schedule jobs and assign crew','See customers and projects','Approve supply requests'],
+ Crew:['See the jobs they are assigned','Clock in and out','Add job photos and mark jobs done','Scan receipts','Ask for supplies'],
+ Admin:['Send invoices and mark them paid','Fix crew hours','Manage employee logins','See projects and receipts','Approve supply requests'],
+ Owner:['Everything: money, settings, team, Ask Timber']};
+window.ownerCan=function(r){return `<div id="owcan" style="background:#f1f6e8;border:2px solid #d6e6bd;border-radius:12px;padding:10px 14px;margin:6px 0 4px"><b>What ${r==='Manager'?'an Estimator':r==='Admin'||r==='Owner'?'an '+r:'Crew'} can do</b><ul style="margin:6px 0 0;padding-left:20px;font-size:17px;line-height:1.45">${CAN[r].map(x=>'<li>'+x+'</li>').join('')}</ul><div class="muted" style="font-size:14px;margin-top:4px">Fine-tune with the checkboxes below.</div></div>`};
 const RL={Manager:'Estimator',Crew:'Crew',Admin:'Admin',Owner:'Owner'};
+window.ownerTeamAdd=async function(){if(window.tbDrawer)tbDrawer(false);await ownerTeam();ownerEdit()};
 const MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 let TEAM=null,EDIT=null,NOW=[],LAB={from:'',to:'',label:'Today',r:null,err:''};
 const css=document.createElement('style');css.textContent=`
@@ -31,7 +38,7 @@ window.ownerHome=function(){view='';if(typeof armBack==='function')armBack(null)
  <div class="card owc" id="ow-now"><h2>On the clock now</h2><p class="muted">Loading…</p></div>
  <div class="card owc" id="ow-lab"><h2>Labor today</h2><p class="muted">Loading…</p></div>
  <div class="card owc"><h2>Clock someone in</h2><select id="ow-who" style="width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:10px"><option value="">Pick a person</option></select><button class="btn huge" id="ow-in" type="button" onclick="ownerClock('clockIn',$('#ow-who').value)">Clock In</button></div>
- <div class="card owc"><button class="btn huge" id="ow-team" type="button" onclick="ownerTeam()">👥 Team, PINs, pay &amp; permissions</button><button class="btn huge n" id="ow-labor" type="button" onclick="ownerLabor('today')">💲 Labor cost</button><button class="btn n" id="ow-hours" type="button" onclick="openHours()">🕒 Crew hours &amp; punch fixes</button>
+ <div class="card owc"><button class="btn huge" id="ow-addp" type="button" onclick="ownerTeamAdd()">➕ Add team member</button><button class="btn huge n" id="ow-team" type="button" onclick="ownerTeam()">👥 Team members and PINs</button><button class="btn huge n" id="ow-labor" type="button" onclick="ownerLabor('today')">💲 Labor cost</button><button class="btn n" id="ow-hours" type="button" onclick="openHours()">🕒 Crew hours &amp; punch fixes</button>
  <div class="owgrid" style="margin-top:12px"><button class="btn gr" id="ow-mgr" type="button" onclick="ownerAs('Manager')">📝 Estimator view</button><button class="btn gr" id="ow-crew" type="button" onclick="ownerAs('Crew')">🌳 Crew view</button><button class="btn gr" id="ow-admin" type="button" onclick="ownerAs('Admin')">💵 Admin view</button><button class="btn gr" type="button" onclick="ownerAs('Manager');sched()">📅 Schedule</button></div></div>`;
  fill()};
 async function fill(){const [t,n]=await Promise.all([team(),loadNow()]);let lab=null;try{lab=await api({a:'labor',from:ymd(new Date()),to:ymd(new Date())})}catch(e){}
@@ -55,12 +62,13 @@ window.ownerEdit=function(id,pre){view='owedit';const u=id?(TEAM||[]).find(x=>x.
  A.innerHTML=`<div class="card"><h2>${u?'Edit '+esc(u.name):'Add employee'}</h2>
  <label>Name</label><input id="owname" maxlength="80" value="${esc(u?u.name:(pre&&pre.name)||'')}" placeholder="First and last name">
  <label>Role</label><select id="owrole" onchange="ownerRole()" style="width:100%;font-size:18px;padding:14px;border:2px solid #cfd6c4;border-radius:10px">${Object.keys(RL).map(k=>`<option value="${k}" ${k===r?'selected':''}>${RL[k]}</option>`).join('')}</select>
+ ${ownerCan(r)}
  <label>Pay rate ($ per hour)</label><input id="owpay" inputmode="decimal" value="${u&&u.payRate!=null?esc(u.payRate):''}" placeholder="e.g. 22.50">
  <label>Personal PIN (4 digits)</label><div class="row"><input id="owpin" inputmode="numeric" maxlength="4" value="${u?esc(u.pin||''):rpin()}" style="flex:1;font-size:24px;letter-spacing:6px"><button class="btn gr" type="button" style="flex:none;width:auto;padding:0 16px;margin-top:0" onclick="$('#owpin').value=ownerRpin()">🎲 New</button></div>
  <label>Email (optional, gets their PIN)</label><input id="owemail" type="email" value="${u?esc(u.email||''):''}" placeholder="name@example.com">
  <label>Permissions</label><div class="permg" id="owperms">${PERMS.map(p=>`<label><input type="checkbox" value="${p}" ${pm.includes(p)?'checked':''}>${PL[p]}</label>`).join('')}</div>
  <button class="btn huge" id="owsave" type="button" onclick="ownerSave()">💾 Save</button><button class="btn gr" type="button" onclick="view='owteam';teamScreen()">Cancel</button></div>`};
-window.ownerRole=function(){const r=$('#owrole').value;document.querySelectorAll('#owperms input').forEach(i=>i.checked=DEF[r].includes(i.value))};
+window.ownerRole=function(){const r=$('#owrole').value;const cb=document.getElementById('owcan');if(cb)cb.outerHTML=ownerCan(r);document.querySelectorAll('#owperms input').forEach(i=>i.checked=DEF[r].includes(i.value))};
 window.ownerSave=async function(){const d={a:EDIT?'empEdit':'empAdd',id:EDIT||undefined,name:$('#owname').value.trim(),role:$('#owrole').value,newPin:$('#owpin').value.trim(),email:$('#owemail').value.trim(),payRate:$('#owpay').value.trim(),perms:[...document.querySelectorAll('#owperms input:checked')].map(i=>i.value)};
  if(!d.name)return toast('Add the name');if(!/^\d{4}$/.test(d.newPin))return toast('PIN must be 4 digits');if(d.payRate&&!/^\$?\d+(\.\d{1,2})?$/.test(d.payRate))return toast('Pay rate like 22.50');
  const b=$('#owsave');b.disabled=true;b.textContent='Saving…';

@@ -3,7 +3,7 @@
 (function(){
 const T=[
  {id:'vh-mic',sel:'#vhmic',txt:'Tap the big mic and just say what you need. Buttons are always there as a backup.'},
- {id:'fab',sel:'#vhfab:not([hidden])',txt:'This mic is on every page. Tap it and talk: “go home”, “open Smith”, and more.'},
+
  {id:'ow-mic',sel:'#ow-now',txt:'Owner page. Tap the mic and say “Clock in Jake”, “Who’s on the clock” or “Team”.'},
  {id:'ow-cin',sel:'#ow-in',txt:'Clock anyone in from here. Or say “clock in Jake”.'},
  {id:'ow-labor',sel:'#ow-labor',txt:'Labor cost per day: hours × each person’s pay rate. Set rates on the Team page.'},
@@ -39,7 +39,7 @@ const T=[
  {id:'s-pay',sel:'#s-pay',txt:'Payments: see what is paid and what is still open.'},
  {id:'o-num',sel:'#dgrid',txt:'Your numbers for today. Tap any number to see what is behind it.'},
  {id:'o-nav',sel:'#dnav',txt:'Quotes, Jobs, Money, Ask Timber and More are always here.'},
- {id:'mic3',sel:'#vhfab:not([hidden])',txt:'Tap the mic on any page and just say what you need.'}
+ {id:'mic3',sel:'#tbdict',txt:'Tap the mic to talk instead of typing.'}
 ];
 // First run: at most 3 tips per role.
 const ALLOW={Crew:['s-today','s-clock','mic3'],Manager:['s-newq','s-quotes','mic3'],Admin:['s-inv','s-pay','mic3'],Owner:['o-num','o-nav','mic3']};

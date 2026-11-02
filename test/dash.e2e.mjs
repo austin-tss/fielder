@@ -49,7 +49,7 @@ try {
   if (L.pos !== 'sticky') fail('tab bar not sticky');
   const lab = await p.$eval('#dc-lab', (e) => e.innerHTML); if (!/pp pg/.test(lab) || !/7%/.test(lab) || !/\$1,500/.test(lab)) fail('labor card ' + lab);
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word on dashboard');
-  if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header not Owner view');
+  if (await p.evaluate(() => role !== 'Owner' || /Owner view/.test(document.body.innerText))) fail('Owner role, brand name only');
   if (await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => { const x = b.getBoundingClientRect(); return /🎙|🎤/.test(b.textContent) && x.width >= 100 && x.height >= 100 && b.offsetParent; }))) fail('centered mic on dashboard');
   await shot(p, 'owner-dash');
   // every number drills down, and Home comes back to the dashboard
@@ -63,12 +63,12 @@ try {
     if (!(await p.$('#dn-dash'))) fail('no Home on tab ' + k); await p.evaluate(() => document.getElementById('dn-dash').click()); await p.waitForSelector('#dgrid', { timeout: 4000 }); }
   // Team & Time keeps the old Owner tools (clock in/out, who is on, labor)
   await p.click('#dn-more'); await p.waitForSelector('#s-team'); await p.evaluate(() => document.getElementById('s-team').click()); await p.waitForSelector('#ow-now'); await p.waitForSelector('#ow-in');
-  await p.click('#dn-timber'); await p.waitForSelector('#tbqa'); for (const id of ['ft-storm', 'ft-equip', 's-lc', 's-pay', 's-coi2', 's-leads2']) if (!(await p.waitForSelector('#tbqa #' + id, { timeout: 5000 }).catch(() => null))) fail('quick action ' + id);
+  await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-extras'); for (const id of ['ft-storm', 's-eq', 's-lc', 's-pay', 's-coi', 's-leads']) if (!(await p.waitForSelector('#' + id, { timeout: 5000 }).catch(() => null))) fail('quick action ' + id);
   if (await p.evaluate(() => /business tools/i.test(document.body.innerText))) fail('Business tools name still shown');
   if (await p.$('#dtimber')) fail('separate Timber header button still there');
   // Timber opens a quick action from chat
   await p.type('#tbq', 'open payroll'); await p.click('#tbsend'); await p.waitForSelector('#prf', { timeout: 5000 });
-  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbqa');
+  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq'); if (await p.$('#tbqa')) fail('quick-action chips still in Ask Timber');
   // (C) speed: tab switch and cached screens render well under 150 ms
   await p.evaluate(() => ownerHome()); await p.waitForSelector('#dgrid');
   const ms = await p.evaluate(async () => { const t = []; const m = (f) => { const a = performance.now(); f(); t.push(performance.now() - a); };
@@ -94,12 +94,12 @@ try {
   await shot(p, 'job-chips');
   await p.evaluate(() => ownerHome());
   // (E) Timber: chat + hands-free voice; exact numbers from the server; never the word AI
-  if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header lost Owner view after drill-down'); await p.waitForSelector('#dn-timber'); await p.click('#dn-timber'); await p.waitForSelector('#tbq');
+  if (await p.evaluate(() => sessionStorage.fdOwner !== '1' || /Owner view/.test(document.body.innerText))) fail('lost Owner after drill-down'); await p.waitForSelector('#dn-timber'); await p.click('#dn-timber'); await p.waitForSelector('#tbq');
   await p.type('#tbq', 'labor today vs jobs'); await p.click('#tbsend');
   await p.waitForFunction(() => /Labor today is \$100 against \$1500/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word in Timber');
   { const m = await p.evaluate(() => ({ emoji: /🎙|🎤/.test(document.body.innerHTML), fab: !!document.querySelector('#vhfab svg.fdmic'), seg: !!document.querySelector('#tbdict svg.fdmic'), ring: getComputedStyle(document.getElementById('vhfab')).color, outline: !!document.querySelector('#vhfab svg.fdmic g.m[fill="none"]'), sz: document.getElementById('vhfab')?.getBoundingClientRect().width }));
-    if (m.emoji || !m.fab || !m.seg || m.ring !== 'rgb(120, 162, 47)' || !m.outline || m.sz !== 56) fail('mic icon ' + JSON.stringify(m)); }
+    if (m.emoji || !m.fab || !m.seg || m.ring !== 'rgb(120, 162, 47)' || !m.outline || m.sz !== 0) fail('mic icon (corner mic hidden like Miller) ' + JSON.stringify(m)); }
   await shot(p, 'ask-timber');
   await shot(p, 'timber');
   // No Type/Talk modes (Austin, Nov 1): just the text box with a dictation mic; corner mic stays
