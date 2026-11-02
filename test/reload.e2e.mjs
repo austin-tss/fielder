@@ -42,9 +42,9 @@ try {
   await p.evaluate(() => ftJobs('invoiced')); await w(500); await p.reload({ waitUntil: 'domcontentloaded' }); await w(2500);
   r = await p.evaluate(() => ({ t: window.FTFIL, owner: sessionStorage.fdOwner, home: !!document.querySelector('.ohero') })); if (r.home || r.t !== 'invoiced') fail('reload on Invoiced ' + JSON.stringify(r));
   await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq'); await p.reload({ waitUntil: 'domcontentloaded' }); await w(2500);
-  if (!(await p.evaluate(() => document.body.classList.contains('tbopen') && !!document.getElementById('tbq')))) fail('reload with Ask Timber open');
+  if (!(await p.evaluate(() => view === 'timber' && location.hash === '#timber' && !!document.getElementById('tbq')))) fail('reload with Ask Timber open');
   await p.screenshot({ path: '/workspace/fielder-parity10-timber-clean.png' });
-  const lay = await p.evaluate(() => { const q = document.getElementById('tbq').getBoundingClientRect(), c = document.querySelector('#tbdr .card.tb').getBoundingClientRect(), s = document.getElementById('tbsend').getBoundingClientRect(); return { qw: q.width, cw: c.width, sendIn: s.right <= q.right + 1 && s.left > q.left }; });
+  const lay = await p.evaluate(() => { const q = document.getElementById('tbq').getBoundingClientRect(), c = document.querySelector('.card.tb').getBoundingClientRect(), s = document.getElementById('tbsend').getBoundingClientRect(); return { qw: q.width, cw: c.width, sendIn: s.right <= q.right + 1 && s.left > q.left }; });
   if (lay.qw < lay.cw - 60 || !lay.sendIn) fail('box not full width ' + JSON.stringify(lay));
   await p.evaluate(() => logoHome()); await w(300); await p.reload({ waitUntil: 'domcontentloaded' }); await w(2500);
   if (!(await p.evaluate(() => !!document.querySelector('.ohero')))) fail('home after logo');

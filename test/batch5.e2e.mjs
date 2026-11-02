@@ -68,7 +68,7 @@ try {
   await shot(p, 'timber-sheet');
   GEM = [call('cannotDo', { request: 'Text every customer a coupon' }), say('I cannot do that yet. Want me to ask the VNXT team?')]; const m0 = featOutbox.length;
   await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq', { visible: true });
-  await p.type('#tbq', 'Text every customer a coupon'); await p.click('#tbsend'); await p.waitForSelector('#tbvnxt', { timeout: 8000 }); await shot(p, 'timber-vnxt'); await p.click('#tbvnxt');
+  await p.type('#tbq', 'Text every customer a coupon'); await p.click('#tbsend'); await p.waitForSelector('#tbvnxt', { timeout: 8000 }); await shot(p, 'timber-vnxt'); await p.evaluate(() => document.getElementById('tbvnxt').click());
   await p.waitForFunction(() => /Sent to the VNXT team/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   const vm = featOutbox.slice(m0); if (!vm.length || vm.some((m) => m.to !== 'austin@techsourcedsolutions.com')) fail('VNXT mail ' + JSON.stringify(vm.map((m) => m.to)));
   GEM = [call('addSupply', { item: 'chainsaw chains', qty: '4', store: 'Home Depot' }), say('Added chainsaw chains to Supplies.')]; await p.type('#tbq', 'order more chainsaw chains from Home Depot'); await p.click('#tbsend');

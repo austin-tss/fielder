@@ -74,14 +74,11 @@ try {
   await w(500); r = await p.evaluate(() => ({ n: SPOKE.filter((x) => x.t.trim()).length, said: TB_SAID.length, played: window.PLAYED || 0, no: window.TB_NOTTS }));
   if (TTSGEM.length || r.n !== r.said || !r.no) fail('nokey fallback ' + JSON.stringify(r)); await p.close();
   // ---- c373cfa: expandable box (Enter sends small, newline big), Talk to type label ----
-  p = await open('4321', 390); await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbbig');
+  p = await open('4321', 390); await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq');
   if ((await p.$eval('#tbdict', (e) => e.title)) !== 'Talk to type') fail('mic label');
   GS = [[chunk('Two jobs.')]]; const s0 = STREAMS.length; await p.type('#tbq', 'jobs'); await p.keyboard.press('Enter'); await p.waitForFunction(() => /Two jobs/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 }).catch(() => fail('Enter should send when small'));
-  await p.click('#tbbig'); await w(400); const h = await p.$eval('#tbq', (e) => e.getBoundingClientRect().height + ' ' + e.className + ' ' + e.style.cssText + ' ' + getComputedStyle(e).height + ' ' + getComputedStyle(e).maxHeight + ' ' + [...document.styleSheets].flatMap((ss) => { try { return [...ss.cssRules] } catch (x) { return [] } }).filter((r) => r.selectorText && e.matches(r.selectorText) && r.style.height).map((r) => r.selectorText + '=' + r.style.height).join('|')); if (parseFloat(h) < 180) fail('expanded height ' + h);
-  const s1 = STREAMS.length; await p.type('#tbq', 'line one'); await p.keyboard.press('Enter'); await p.type('#tbq', 'line two'); await w(400);
-  if (STREAMS.length !== s1 || !/line one\nline two/.test(await p.$eval('#tbq', (e) => e.value))) fail('Enter should add a line when expanded'); void s0;
-  await shot(p, 'timber-expanded');
-  await p.click('#tbbig'); await w(400); if ((await p.$eval('#tbq', (e) => e.getBoundingClientRect().height)) > 70) fail('collapse');
+  for (let k = 0; k < 9; k++) { await p.keyboard.down('Shift'); await p.keyboard.press('Enter'); await p.keyboard.up('Shift'); await p.type('#tbq', 'line ' + k); } await w(300);
+  { const hh = await p.$eval('#tbq', (e) => e.getBoundingClientRect().height); if (hh < 80 || hh > 205) fail('box grows to 200px ' + hh); } await shot(p, 'timber-grow');
   await p.close();
   // ---- c373cfa: delete VNXT requests: Owner any, crew only their own, one confirm ----
   p = await open('7711', 390); await p.evaluate(() => api({ a: 'vxAdd', request: 'Crew wants a rain button' }));
@@ -106,9 +103,9 @@ try {
   if ((await p.$$eval('#owrole option', (o) => o.length)) !== 4) fail('four roles'); await shot(p, 'add-team-member');
   GS = [[chunk('Late reply that must not come back.')]]; setGemStream(() => GS.shift() || null, 700);
   await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq'); await p.type('#tbq', 'slow one'); await p.click('#tbsend'); await w(150);
-  await p.click('#tbtop'); await w(1500); setGemStream(() => GS.shift() || null);
+  await p.evaluate(() => ownerHome()); await w(1500); setGemStream(() => GS.shift() || null);
   if (/Late reply/.test(await p.evaluate(() => sessionStorage.tbHist || ''))) fail('in-flight reply leaked after tuck');
-  await p.click('#tbtop'); await p.waitForSelector('#tbs1', { visible: true }); if (/slow one|Late reply/.test(await p.$eval('#tbmsgs', (e) => e.innerText))) fail('reopen not empty');
+  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbs1', { visible: true }); if (/slow one|Late reply/.test(await p.$eval('#tbmsgs', (e) => e.innerText))) fail('reopen not empty');
   GS = [[chunk('Fresh answer.')]]; await p.type('#tbq', 'next'); await p.click('#tbsend'); await p.waitForFunction(() => /Fresh answer/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 }).catch(() => fail('next question blocked'));
   await p.close();
   setTts('ok');

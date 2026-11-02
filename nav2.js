@@ -20,7 +20,7 @@ window.fdHome=home;
 bar.querySelector('#bb-back').onclick=()=>{if(typeof BACKFN!=='undefined'&&BACKFN)goBack();else home()};bar.querySelector('#bb-home').onclick=home;
 let pushed=false;
 /* Miller 94e8b90: big non-sticky Done (lists) / Cancel (edit forms) at the end of every non-home screen; logo still goes home */
-function done(){const A0=document.getElementById('app')||(typeof A!=='undefined'?A:null);if(!A0)return;const sub=!atHome()&&!(typeof view!=='undefined'&&view==='timber');let d=document.getElementById('fddone');
+function done(){const A0=document.getElementById('app')||(typeof A!=='undefined'?A:null);if(!A0)return;const sub=(!atHome()||(sessionStorage.fdOwner==='1'&&!A0.querySelector('.otk,#owdash,.ohero')))&&!(typeof view!=='undefined'&&view==='timber');let d=document.getElementById('fddone');
  if(!sub||!A0.children.length){if(d)d.remove();return}if(d&&d.parentNode===A0&&d===A0.lastElementChild)return;if(d)d.remove();
  const form=!!A0.querySelector('input:not([type=checkbox]):not([type=radio]):not([type=hidden]),select,textarea')&&!!A0.querySelector('#owsave,#eadd,button.btn.huge[onclick*="save" i],button.btn.huge[onclick*="Save"]');
  d=document.createElement('button');d.id='fddone';d.type='button';d.className='btn huge';d.style.cssText='margin:18px 0 8px;background:#112337;color:#fff';d.textContent=form&&/owedit/.test(view)?'✕ Cancel':'✓ Done';
@@ -77,7 +77,7 @@ addEventListener('resize',place);setInterval(()=>{sync();wrapVH();wrapOS()},400)
 window.logoHome=function(){let r='';try{r=role}catch(e){}if(!r)return;if(window.tbDrawer)tbDrawer(false);try{if(typeof okToLeave==='function'&&!okToLeave())return}catch(e){}try{typeof armBack==='function'&&armBack(null)}catch(e){}if(typeof navHome==='function')navHome();else{view='';render()}window.scrollTo(0,0)};
 /* Reload stays on the current screen (Austin, Nov 1): remember the last top-level screen this session and reopen it after a refresh,
    instead of falling back to a role home (the Owner used to land on the Office list for a moment, or stay there). */
-(function(){const R=['ownerHome','ownerSect','ftJobs','ftNeed','ftVnxt','ftSupplies','ftReceipts','ownerTeam','ownerTeamAdd','openCusts','ftReadyInv','sched','openSet','ftSet','ftExtras','ftLeads','ftLaborCmp','ftLaborDay','ftPayroll','ftMap','ftProfit','ftWx','ftStorm','ftFollow','ftEquip','ftPermits','ftCOI','ftSafeRep','openOutstanding','empScreen'];
+(function(){const R=['ownerHome','ownerSect','ftTimber','ftJobs','ftNeed','ftVnxt','ftSupplies','ftReceipts','ownerTeam','ownerTeamAdd','openCusts','ftReadyInv','sched','openSet','ftSet','ftExtras','ftLeads','ftLaborCmp','ftLaborDay','ftPayroll','ftMap','ftProfit','ftWx','ftStorm','ftFollow','ftEquip','ftPermits','ftCOI','ftSafeRep','openOutstanding','empScreen'];
  let replaying=false;
  function wrap(){for(const n of R){const o=window[n];if(typeof o!=='function'||o._rt)continue;const g=function(){if(!replaying){try{const a=[...arguments].filter(x=>x==null||/^(string|number|boolean)$/.test(typeof x));sessionStorage.fdRoute=JSON.stringify([n,a])}catch(e){}}return o.apply(this,arguments)};g._rt=1;Object.keys(o).forEach(k=>{try{g[k]=o[k]}catch(e){}});window[n]=g}}
  wrap();setTimeout(wrap,0);{let n=0;const iv=setInterval(()=>{wrap();if(++n>50)clearInterval(iv)},100)}document.addEventListener('click',wrap,true);
@@ -88,3 +88,8 @@ window.logoHome=function(){let r='';try{r=role}catch(e){}if(!r)return;if(window.
   const go=()=>{const f=window[rt[0]];const ready=typeof jobs!=='undefined'&&(jobs.length||Date.now()-t0>4000);if(!f||!ready){if(Date.now()-t0<8000)return setTimeout(go,60);window.FD_ROUTE_ON=0;return}
    replaying=true;try{f.apply(window,rt[1]||[])}catch(e){}replaying=false;if(TBO&&window.ftTimber)setTimeout(()=>{try{ftTimber()}catch(e){}},150);setTimeout(()=>{window.FD_ROUTE_ON=0},3000)};setTimeout(go,0)}
 })();
+
+// Miller 39f0cd2: Ask Timber is a side-nav full page only; top bar and drop-down removed. Hash keeps #timber / #need on refresh.
+{const s9=document.createElement('style');s9.textContent='#tbtop,#tbdr,#tbtoast{display:none!important}#brand #who{display:none!important}';document.head.appendChild(s9);
+ {let pv='';new MutationObserver(()=>{let v='';try{v=view}catch(e){}if(pv==='timber'&&v!=='timber'){try{tbStop()}catch(e){}}pv=v}).observe(document.getElementById('app')||document.body,{childList:true})}
+ setInterval(()=>{let v='';try{v=view}catch(e){}const cur=v==='timber'?'timber':v==='need'?'need':'';if((location.hash||'').slice(1)!==cur){try{history.replaceState(history.state,'',location.pathname+location.search+(cur?'#'+cur:''))}catch(e){}}},400)}

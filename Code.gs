@@ -1199,12 +1199,12 @@ function ft2Range_(period,day){var tz=CLOCK_TZ,d=Utilities.parseDate(day+' 12:00
  else{s=d;e=new Date(d.getTime()+86400000)}
  var days=[];for(var t=s.getTime();t<e.getTime()-3600000;t+=86400000)days.push(Utilities.formatDate(new Date(t),tz,'yyyy-MM-dd'));
  return {days:days,from:days[0],to:days[days.length-1]}}
-function ft2LaborCmp_(d){var period={day:1,week:1,month:1,range:1}[d.period]?d.period:'day',day=/^\d{4}-\d\d-\d\d$/.test(d.date||'')?d.date:ftYmd_(Date.now());
+function ft2LaborCmp_(d){d.period='day';d.vs='jobs';var period='day',day=/^\d{4}-\d\d-\d\d$/.test(d.date||'')?d.date:ftYmd_(Date.now());
  var vs={jobs:1,invoiced:1,collected:1,quoted:1,hours:1}[d.vs]?d.vs:'jobs',by={none:1,job:1,crew:1,customer:1,source:1,service:1}[d.by]?d.by:'none';
  var R=ft2Range_(period,period=='range'?d.from:day,d.from,d.to),tz=CLOCK_TZ,now=Date.now(),js=load_(),bl=load_('blocks.json'),ps=ftAllPunches_(),rm=ftRateMap_(),sched={},jd={};
  bl.forEach(function(x){if(!x.job||!x.date)return;(jd[x.job]=jd[x.job]||{})[x.date]=1;(sched[x.date]=sched[x.date]||[]);if(sched[x.date].indexOf(x.job)<0)sched[x.date].push(x.job)});
  var U={},perDay={},inR={};R.days.forEach(function(x){inR[x]=1;perDay[x]={labor:0,cmp:0,hours:0}});
- var add=function(job,who,h,c,dy){var k=(job||'')+'|'+who;U[k]=U[k]||{job:job,who:who,h:0,c:0};U[k].h+=h;U[k].c+=c;perDay[dy].labor+=c;perDay[dy].hours+=h};
+ var offJob={h:0,c:0},add=function(job,who,h,c,dy){if(!job){offJob.h+=h;offJob.c+=c;return}var k=(job||'')+'|'+who;U[k]=U[k]||{job:job,who:who,h:0,c:0};U[k].h+=h;U[k].c+=c;perDay[dy].labor+=c;perDay[dy].hours+=h};
  R.days.forEach(function(dy){var a=Utilities.parseDate(dy+' 00:00',tz,'yyyy-MM-dd HH:mm').getTime(),b=a+86400000,tj=sched[dy]||[];
   ps.forEach(function(p){var s=Math.max(new Date(p.in).getTime(),a),e=Math.min(p.out?new Date(p.out).getTime():now,b);if(e<=s)return;var h=(e-s)/3600000,r=rm[clockKey_(p.who)]||0,l=p.job&&tj.indexOf(p.job)>=0?[p.job]:(typeof ftCrewJobs_==='function'?ftCrewJobs_(tj,dy,p.who):tj);
    if(!l.length)return add(null,p.who,h,h*r,dy);l.forEach(function(id){add(id,p.who,h/l.length,h*r/l.length,dy)})})});

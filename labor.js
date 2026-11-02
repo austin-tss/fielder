@@ -2,7 +2,7 @@
 (function(){
 const st=document.createElement('style');st.textContent=`
 .lc .crumb{font-size:14px;color:#5b6168;margin:0 0 6px}.lc .crumb a{color:#34460d;font-weight:800;text-decoration:none}
-.lc .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 8px}
+.lc .seg{display:grid;grid-template-columns:1fr;gap:6px;margin:0 0 8px}
 .lc .seg button,.lc .lcch button{margin:0;min-height:48px;border-radius:12px;border:2px solid var(--line);background:#fff;color:#112337;font:inherit;font-weight:800;font-size:16px}
 .lc .seg button.on,.lc .lcch button.on{background:#78a22f;border-color:#78a22f;color:#fff}
 .lc .per{display:flex;align-items:center;gap:6px;margin:0 0 10px}.lc .per button{flex:0 0 56px;min-height:52px;margin:0;font-size:26px;border-radius:12px;border:2px solid var(--line);background:#fff;font-weight:900}
@@ -26,11 +26,11 @@ let S={period:'day',date:ymd(new Date()),vs:'jobs',by:'job',fby:'',fkey:''},STAC
 const lbl=r=>{const f=s=>new Date(s+'T12:00');if(S.period==='day'){const t=ymd(new Date()),y=ymd(new Date(Date.now()-864e5));return S.date===t?'Today':S.date===y?'Yesterday':f(S.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
  if(S.period==='month')return f(S.date).toLocaleDateString('en-US',{month:'long',year:'numeric'});
  return r?f(r.from).toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+f(r.to).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'This week'};
-window.ftLaborCmp=async function(o,push){if(push)STACK.push(Object.assign({},S));if(o)S=Object.assign({},S,o);view='ftlc';
+window.ftLaborCmp=async function(o,push){if(push)STACK.push(Object.assign({},S));if(o)S=Object.assign({},S,o);S.period='day';S.vs='jobs';view='ftlc';
  armBack(()=>{if(STACK.length){S=STACK.pop();ftLaborCmp()}else ownerHome()});window.scrollTo(0,0);
  const q={a:'laborCmp',period:S.period,date:S.date,vs:S.vs,by:S.by,fby:S.fby,fkey:S.fkey};
  const draw=r=>{if(view!=='ftlc')return;const T=r&&r.total,isH=S.vs==='hours';
-  const seg=['day','week','month'].map(p=>`<button type="button" id="lp-${p}" class="${S.period===p?'on':''}" onclick="ftLaborCmp({period:'${p}'})">${p[0].toUpperCase()+p.slice(1)}</button>`).join('');
+  const seg=['day'].map(p=>`<button type="button" id="lp-${p}" class="${S.period===p?'on':''}" onclick="ftLaborCmp({period:'${p}'})">${p[0].toUpperCase()+p.slice(1)}</button>`).join('');
   const ch=(m,k,cur,id)=>Object.keys(m).map(x=>`<button type="button" id="${id}-${x}" class="${cur===x?'on':''}" onclick="ftLaborCmp({${k}:'${x}'})">${m[x]}</button>`).join('');
   const crumb=(role==='Owner'&&window.ftDashNav?ftDashNav('money'):'')+`<div class="crumb"><a href="#" onclick="ownerHome();return false">Dashboard</a> › ${S.fkey?`<a href="#" onclick="ftLaborCmp({fby:'',fkey:''});return false">Labor compare</a> › ${esc(S.fkey)}`:'Labor compare'}</div>`;
   let body='<p>Loading…</p>';
@@ -47,10 +47,10 @@ window.ftLaborCmp=async function(o,push){if(push)STACK.push(Object.assign({},S))
      <div class="s">${usd(x.labor)} labor · ${isH?'':usd(x.cmp)+' · '}${(x.hours||0).toFixed(1)} h${x.crew&&x.crew.length&&S.by!=='crew'?' · '+esc(x.crew.join(', ')):''}${tap?'<span class="go">›</span>':''}</div></button>`}).join(''):'<p>Nothing in this period.</p>');}
   body=body.replace(/(<div class="key">[\s\S]*?<\/div>)<!--R-->/,'<!--R-->$1');A.innerHTML=`<div class="card lc">${crumb}<h2 style="margin:0 0 8px">💲 Labor compare</h2><div class="seg">${seg}</div>
    <div class="per"><button type="button" id="lcprev" onclick="ftLaborStep(-1)">‹</button><b id="lcper">${lbl(r)}</b><button type="button" id="lcnext" onclick="ftLaborStep(1)">›</button></div>
-   ${body.split('<!--R-->')[0]}<div class="lbl">Compare labor to</div><div class="lcch" id="lcvs">${ch(VS,'vs',S.vs,'lv')}</div>
+   ${body.split('<!--R-->')[0]}<div class="lbl">Compared to that day's jobs only</div>
    <div class="lbl">Break down by</div><div class="lcch" id="lcby">${ch(BY,'by',S.by,'lb')}</div>${body.split('<!--R-->')[1]||''}</div>`;
   const on=document.querySelector('#lcvs .on,#lcby .on');document.querySelectorAll('.lc .lcch .on').forEach(b=>b.scrollIntoView({inline:'center',block:'nearest'}));window.scrollTo(0,0)};
- draw(null);try{const r=await api(q);setTimeout(()=>Object.keys(VS).forEach(v=>{if(v!==S.vs)api(Object.assign({},q,{vs:v})).catch(()=>{})}),300);if(JSON.stringify(q)===JSON.stringify({a:'laborCmp',period:S.period,date:S.date,vs:S.vs,by:S.by,fby:S.fby,fkey:S.fkey}))draw(r)}catch(e){if(view==='ftlc')toast(e.message)}};
+ draw(null);try{const r=await api(q);if(JSON.stringify(q)===JSON.stringify({a:'laborCmp',period:S.period,date:S.date,vs:S.vs,by:S.by,fby:S.fby,fkey:S.fkey}))draw(r)}catch(e){if(view==='ftlc')toast(e.message)}};
 window.ftLaborStep=function(n){const d=new Date(S.date+'T12:00');if(S.period==='day')d.setDate(d.getDate()+n);else if(S.period==='week')d.setDate(d.getDate()+7*n);else{d.setDate(1);d.setMonth(d.getMonth()+n)}ftLaborCmp({date:ymd(d)})};
 window.ftOpenJob=function(id){if(role==='Owner'||sessionStorage.fdOwner==='1'){if(role==='Owner')ownerDo('Manager','mgr')}const go=()=>{const j=(jobs||[]).find(x=>x.id===id);if(j){(window.mview||cview)(id)}else toast('Job not found')};if(jobs&&jobs.length)go();else setTimeout(go,800)};
 window.ftLaborDay=function(day){ftLaborCmp({period:'day',date:day||ymd(new Date()),vs:'jobs',by:'job',fby:'',fkey:''})};

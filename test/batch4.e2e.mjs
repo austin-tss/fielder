@@ -51,8 +51,8 @@ try {
   await p.evaluate(() => ownerHome()); await p.click('#dn-timber'); await p.waitForSelector('#tbx'); await p.waitForSelector('#tbs1'); if (await p.$('#tbs2')) fail('more than two suggestions');
   await p.evaluate(() => { sessionStorage.tbHist = JSON.stringify([{ who: 'me', text: 'hi' }, { who: 'tm', text: 'Hello', open: { id: 'H-1', label: 'Open Hal Hartwell' } }]); ftTimber(); });
   await p.waitForFunction(() => /Open Hal Hartwell/.test(document.getElementById('tbmsgs').innerText));
-  await p.evaluate(() => document.getElementById('dn-dash').click()); await w(100);
-  if (await p.evaluate(() => /Hal Hartwell/.test(sessionStorage.tbHist || ''))) fail('Timber chat should clear when tucked away'); if (await p.evaluate(() => document.body.classList.contains('tbopen'))) fail('chat not tucked on leave');
+  await p.evaluate(() => ownerHome()); await w(100); await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq');
+  if (/Hal Hartwell/.test(await p.$eval('#tbmsgs', (e) => e.innerText))) fail('Timber chat should start fresh after leaving');
   // Timber draft -> quote screen for review, nothing created or sent
   const n0 = created.length, m0 = featOutbox.length;
   await p.evaluate(() => { ftTimber(); ftTimberDraft({ name: 'Pat Pine', email: 'pat@example.com', phone: '850-555-0100', address: '9 Pine St', items: [{ title: 'Remove two pines', price: 1400 }] }); });
