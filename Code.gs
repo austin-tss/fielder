@@ -508,15 +508,15 @@ function get_(e){var p=(e&&e.parameter)||{};
 // Backend always answers JSON. Login and read-only actions never take the lock; writes use a short tryLock
 // and answer BUSY_ instead of waiting 30 s; emails, PDFs and texts run only after the lock is released.
 function doPost(e){try{return out_(typeof featPost_==='function'?featPost_(e):post_(e))}catch(x){return out_({ok:false,err:String(x&&x.message||x)})}}
-var KNOWN_={followUp:1,setStatus:1,login:1,aiKeys:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
+var KNOWN_={loginsList:1,followUp:1,setStatus:1,login:1,aiKeys:1,approvePublic:1,empList:1,empAdd:1,empDel:1,qboconnect:1,qbodisconnect:1,voiceQuote:1,qnList:1,qnScan:1,qnDismiss:1,qnStart:1,smsOnWay:1,sendQuoteText:1,jdates:1,settings:1,feedback:1,cedit:1,importCustomers:1,block:1,unblock:1,create:1,upload:1,archive:1,finish:1,invoice:1,paid:1,email:1,respond:1,qedit:1,iedit:1,clockStatus:1,clockIn:1,clockOut:1,clockList:1,clockFix:1,clockDevice:1,empEdit:1,labor:1};
 function post_(e){var d;try{d=JSON.parse(e.postData.contents)}catch(x){return {ok:false,err:'Bad request'}}
   if(!d||typeof d!=='object')return {ok:false,err:'Bad request'};
   if(!Object.prototype.hasOwnProperty.call(KNOWN_,String(d.a)))return {ok:false,err:'Bad action'};
-  if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);return {ok:true,role:lr,name:le?le.name:'',perms:le&&Array.isArray(le.perms)?le.perms:null};}return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
+  if(d.a=='login'){var lr=roleOf_(d);if(lr){var le=empOf_(d);loginLog_(d,true,lr,le&&le.name?le.name:'');return {ok:true,role:lr,name:le?le.name:'',perms:le&&Array.isArray(le.perms)?le.perms:null};}loginLog_(d,false,'','');return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'Wrong PIN'};}
   if(d.a=='approvePublic')return approvePublic_(d);
   var me=roleOf_(d);if(!me)return {ok:false,err:locked_out_()?'Too many wrong codes. Try again in 15 minutes.':'PIN required'};
   if(d.a=='aiKeys'){if(me!=='Owner')return {ok:false,err:'Only the Owner can do that.'};return aiKeys_(d);}
-  var OWN=me==='Owner';var pe_=empOf_(d),need_=PERM_OF_[d.a];if(!OWN&&pe_&&Array.isArray(pe_.perms)&&need_&&!(d.forWho)&&pe_.perms.indexOf(need_)<0)return {ok:false,err:'You do not have permission for that. Ask the Owner.'};
+  var OWN=me==='Owner';if(d.a=='loginsList'){if(!OWN)return {ok:false,err:'Only the Owner can see login activity.'};var LL=[];try{LL=load_('logins.json')}catch(eL){}if(!Array.isArray(LL))LL=[];var lim=Math.max(1,Math.min(500,Number(d.limit)||100));return {ok:true,items:LL.slice(-lim).reverse()};}var pe_=empOf_(d),need_=PERM_OF_[d.a];if(!OWN&&pe_&&Array.isArray(pe_.perms)&&need_&&!(d.forWho)&&pe_.perms.indexOf(need_)<0)return {ok:false,err:'You do not have permission for that. Ask the Owner.'};
   if(d.a=='labor'){if(!OWN)return {ok:false,err:'Only the Owner can see labor cost.'};return laborApi_(d);}
   if(d.a=='empList'||d.a=='empAdd'||d.a=='empDel'||d.a=='empEdit'){if(me!=='Admin'&&!OWN)return {ok:false,err:'Only Admin can manage employees.'};if(d.a=='empEdit'&&!OWN)return {ok:false,err:'Only the Owner can edit employees.'};return empApi_(d,OWN);}var ck=clockApi_(d,me);if(ck)return ck;if(!can_(me,d.a))return {ok:false,err:'Your role cannot do that.'};var meName=me;
   if(d.a=='qboconnect'){if(me!=='Manager'&&!OWN)return {ok:false,err:'Your role cannot do that.'};var qUrl=qboConnectUrl_();if(!qUrl)return {ok:false,err:'QuickBooks is not set up yet. Add QBO_CLIENT_ID and QBO_CLIENT_SECRET in Script Properties.'};return {ok:true,url:qUrl};}
@@ -1564,3 +1564,8 @@ function tbDictate_(d){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,
  if(code<200||code>=300)return {ok:false,err:'Could not hear that ('+code+'). Try again or type it.'};
  var t='';try{t=body.candidates[0].content.parts.map(function(x){return x.text||''}).join('').trim()}catch(e2){}
  return {ok:true,text:clip_(t.replace(/^["']|["']$/g,''),1000)};}
+
+// Login monitoring: every login attempt (success and failure). Never stores the PIN. Keeps the last 500.
+function loginLog_(d,ok,role,name){try{var ua=String(d&&d.ua||'').slice(0,300),dev=/iPhone/.test(ua)?'iPhone':/iPad/.test(ua)?'iPad':/Android/.test(ua)?'Android':/Macintosh/.test(ua)?'Mac':/Windows/.test(ua)?'Windows':/Linux/.test(ua)?'Linux':'',br=/CriOS|Chrome\//.test(ua)&&!/Edg\//.test(ua)?'Chrome':/Edg\//.test(ua)?'Edge':/Firefox|FxiOS/.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'',
+  row={at:new Date().toISOString(),ok:!!ok,role:String(role||''),name:clip_(String(name||''),80),client:[dev,br].filter(String).join(' · ')||(ua?'Other':''),locked:!ok&&locked_out_()};
+  var L=lock_(5000);try{var l=[];try{l=load_('logins.json')}catch(e){}if(!Array.isArray(l))l=[];l.push(row);if(l.length>500)l=l.slice(-500);save_(l,'logins.json')}finally{if(L)L.releaseLock()}}catch(e){Logger.log('loginLog_ '+e)}}

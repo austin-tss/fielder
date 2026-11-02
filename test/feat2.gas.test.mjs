@@ -105,3 +105,19 @@ test('Timber sendInvoice: most recent or named invoice, test inbox only, no doub
   const cd = g.post({ a: 'timber', pin: OWN, data: 'cannotDo', args: { request: 'Send the most recent invoice built to austin@techsourcedsolutions.com' } });
   assert.match(JSON.stringify(cd), /sendInvoice/); assert.doesNotMatch(JSON.stringify(cd), /"offered":true/);
 });
+
+test('login monitoring: every attempt logged without the PIN; loginsList is Owner-only; capped at 500', () => {
+  const g = gas();
+  const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
+  assert.equal(g.post({ a: 'login', pin: OWN, ua }).ok, true);
+  assert.equal(g.post({ a: 'login', pin: '0909', ua }).ok, false);
+  assert.equal(g.post({ a: 'login', pin: MGR }).ok, true);
+  const raw = JSON.stringify(g.readJson('logins.json'));
+  for (const p of [OWN, '0909', MGR]) assert.ok(!raw.includes(p), 'PIN must never be stored');
+  const l = g.post({ a: 'loginsList', pin: OWN }); assert.equal(l.ok, true, JSON.stringify(l));
+  assert.equal(l.items.length, 3); assert.equal(l.items[0].role, 'Manager'); assert.equal(l.items[1].ok, false); assert.equal(l.items[2].role, 'Owner'); assert.equal(l.items[2].client, 'iPhone · Safari');
+  assert.ok(!JSON.stringify(l).includes(OWN));
+  assert.equal(g.post({ a: 'loginsList', pin: MGR }).ok, false); assert.equal(g.post({ a: 'loginsList', pin: CREW }).ok, false); assert.equal(g.post({ a: 'loginsList' }).ok, false);
+  g.writeJson('logins.json', Array.from({ length: 499 }, (_, i) => ({ at: new Date(i).toISOString(), ok: true, role: 'Crew' })));
+  g.post({ a: 'login', pin: OWN }); g.post({ a: 'login', pin: OWN }); assert.equal(g.readJson('logins.json').length, 500);
+});

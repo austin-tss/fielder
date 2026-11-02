@@ -97,9 +97,11 @@ function handleApi(req, res, body) {
   }
   const d = JSON.parse(body || '{}');
   hits.push({ a: d.a || '', to: d.email || '', send: !!d.send, keys: Object.keys(d) });
+  if (d.a === 'loginsList') return send(res, 200, JSON.stringify(ROLEPINS[String(d.pin || '')] === 'Owner' ? { ok: true, items: LOGINS.slice().reverse() } : { ok: false, err: 'Only the Owner can see login activity.' }));
   if (d.a === 'login') {
     const e = employees.find((u) => u.pin === String(d.pin || ''));
     const r = e ? e.role : ROLEPINS[String(d.pin || '')];
+    LOGINS.push({ at: new Date().toISOString(), ok: !!r, role: r || '', name: e ? e.name : '', client: /iPhone/.test(d.ua || '') ? 'iPhone · Safari' : d.ua ? 'Other' : '' }); if (LOGINS.length > 500) LOGINS.splice(0, LOGINS.length - 500);
     return send(res, 200, JSON.stringify(r ? { ok: true, role: r, name: e ? e.name : '', perms: e && e.perms ? e.perms : null } : { ok: false, err: 'Wrong PIN' }));
   }
   if (d.a === 'labor') {
@@ -439,3 +441,5 @@ const LINKS = makeLinks({ exec: 'https://exec.mock/exec', fetch: async (url) => 
   return new Response(out, { headers: { 'content-type': 'application/json' } }); } });
 let DASHW = null; export const WORKER_HITS = [];
 export function resetDashCache() { DASHW = null; }
+
+export const LOGINS = [];
