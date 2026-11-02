@@ -56,10 +56,10 @@ try {
     if (m.side !== 'none' || m.nav === 'none' || m.cols !== 2) fail('phone layout changed ' + JSON.stringify(m)); await shot(p, 'owner-phone'); await p.close(); }
   // ---- Timber talks back, spreadsheets, VNXT, supplies ----
   let p = await open('4321', 1280); await p.waitForSelector('#ds-timber'); await p.click('#ds-timber'); await p.waitForSelector('#tbspk');
-  if (!/Voice on/.test(await p.$eval('#tbspk', (e) => e.textContent))) fail('voice should default on');
-  GEM = [say('Labor today is $100.')]; await p.type('#tbq', 'labor today'); await p.click('#tbsend');
+  if (!/Read aloud off/.test(await p.$eval('#tbspk', (e) => e.textContent))) fail('voice should default off each session'); await p.click('#tbspk'); if (!/Read aloud on/.test(await p.$eval('#tbspk', (e) => e.textContent))) fail('voice turn on');
+  await p.evaluate(() => { window.TB_NOTTS = 1; }); GEM = [say('Labor today is $100.')]; await p.type('#tbq', 'labor today'); await p.click('#tbsend');
   await p.waitForFunction(() => SPOKE.some((x) => /\$100/.test(x.t)), { timeout: 8000 }); if ((await p.evaluate(() => SPOKE.at(-1).v)) !== 'Samantha') fail('voice pick');
-  await p.click('#tbspk'); if (!/Voice off/.test(await p.$eval('#tbspk', (e) => e.textContent))) fail('toggle'); const n0 = await p.evaluate(() => SPOKE.length);
+  await p.click('#tbspk'); if (!/Read aloud off/.test(await p.$eval('#tbspk', (e) => e.textContent))) fail('toggle'); const n0 = await p.evaluate(() => SPOKE.length);
   GEM = [say('Two quotes sent.')]; await p.type('#tbq', 'how many quotes'); await p.click('#tbsend'); await p.waitForFunction(() => /Two quotes sent/.test(document.getElementById('tbmsgs').innerText)); await w(200);
   if ((await p.evaluate(() => SPOKE.length)) !== n0) fail('spoke while Voice off'); await p.click('#tbspk');
   GEM = [call('makeSpreadsheet', { what: 'jobs' }), say('Your spreadsheet is ready.')]; await p.type('#tbq', 'spreadsheet of jobs'); await p.click('#tbsend'); await p.waitForSelector('#tbsheet', { timeout: 8000 });
@@ -77,9 +77,9 @@ try {
   await p.evaluate(() => [...document.querySelectorAll('[id^="sok-"]')][0].click()); await p.waitForFunction(() => /Needed/.test(A.innerText) && document.querySelector('[id^="sst-"]'), { timeout: 5000 }); await p.evaluate(() => [...document.querySelectorAll('[id^="sst-"]')][0].click()); await p.waitForFunction(() => /Ordered/.test(A.innerText), { timeout: 5000 }); await shot(p, 'supplies');
   await p.evaluate(() => ownerSect('more')); await p.waitForSelector('#s-vx'); await p.click('#s-vx'); await p.waitForFunction(() => /Text every customer a coupon/.test(A.innerText), { timeout: 5000 }); await shot(p, 'vnxt-requests');
   await p.close();
-  // Gemini TTS fallback when the device cannot speak
-  p = await open('4321', 1280, { noSS: true }); await p.waitForSelector('#ds-timber'); await p.click('#ds-timber'); await p.waitForSelector('#tbq'); GEM = [say('Labor today is $100.')];
-  await p.type('#tbq', 'labor today'); await p.click('#tbsend'); await p.waitForFunction(() => window.TB_SPOKE === 'cloud' && window.PLAYED >= 1, { timeout: 8000 }); await p.close();
+  // Gemini voice (Worker /api/tts) works even when the device cannot speak
+  p = await open('4321', 1280, { noSS: true }); await p.waitForSelector('#ds-timber'); await p.click('#ds-timber'); await p.waitForSelector('#tbq'); await p.click('#tbspk'); GEM = [say('Labor today is $100.')];
+  await p.type('#tbq', 'labor today'); await p.click('#tbsend'); await p.waitForFunction(() => window.TB_SPOKE === 'gemini' && window.PLAYED >= 1, { timeout: 8000 }); await p.close();
   // crew adds a supply from More; cannot advance it
   p = await open('7711', 390); await p.waitForSelector('#s-more'); await p.click('#s-more'); await p.waitForSelector('#m-sup'); await p.click('#m-sup'); await p.waitForSelector('#su-i');
   await p.type('#su-i', 'Bar oil'); await p.click('#su-add'); await p.waitForFunction(() => /Bar oil/.test(A.innerText), { timeout: 6000 }); if (!(await p.evaluate(() => [...document.querySelectorAll('[id^="sst-"]')].every((b) => b.disabled)))) fail('crew can advance supplies');

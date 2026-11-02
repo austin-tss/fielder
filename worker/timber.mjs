@@ -13,7 +13,27 @@ export function makeTimber(o) {
     if (v && v.ok) { CTX.set(k, { t: Date.now(), v }); if (cache && ck) await cache.put(ck, new Response(JSON.stringify(v), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=120' } })); }
     return v;
   }
-  return async function timberStream(req, env, ctx) {
+  // Fast Gemini voice (Miller 8226f7f): POST /api/tts {pin, t} -> WAV straight from Gemini TTS, no Apps Script hop.
+  // Owner-only via the cached Timber context check; 503 'nokey' without the GEMINI_API_KEY secret (the app then uses the phone voice).
+  const TTS_MODELS = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts']; let TTS_OK = null;
+  const wav = (pcm, rate) => { const h = new DataView(new ArrayBuffer(44)), w = (o, s) => { for (let i = 0; i < s.length; i++) h.setUint8(o + i, s.charCodeAt(i)); }; w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length, true); w(8, 'WAVE'); w(12, 'fmt '); h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true); h.setUint32(24, rate, true); h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length, true); const o = new Uint8Array(44 + pcm.length); o.set(new Uint8Array(h.buffer), 0); o.set(pcm, 44); return o; };
+  async function tts(req, env, ctx) {
+    const d = await req.json().catch(() => ({})); const auth = {}; if (d.pin != null) auth.pin = String(d.pin);
+    const t = String(d.t || '').replace(/[*_#`>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 500); if (!t) return new Response('empty', { status: 400 });
+    if (!env.GEMINI_API_KEY) return new Response('nokey', { status: 503 });
+    const c = await ctxFor(auth); if (!c || !c.ok) return new Response('auth', { status: 403 });
+    let cache = null, ck = null; try { cache = typeof caches !== 'undefined' ? caches.default : null; if (cache) { const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('fttts|' + t)))].map((x) => x.toString(16).padStart(2, '0')).join(''); ck = new Request('https://tts.fielder.internal/' + h); const hit = await cache.match(ck); if (hit) return new Response(hit.body, { headers: { 'content-type': 'audio/wav', 'x-tts': 'cache' } }); } } catch (e) {}
+    const ms = TTS_OK ? [TTS_OK].concat(TTS_MODELS.filter((m) => m !== TTS_OK)) : TTS_MODELS;
+    for (const m of ms) {
+      let r; try { r = await F('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Read this aloud in a clear, warm, friendly American voice at a natural, relaxed conversational pace, like a helpful office manager: ' + t }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Sulafat' } } } } }) }); } catch (e) { continue; }
+      if (!r.ok) continue; const j = await r.json().catch(() => null); const part = (((((j || {}).candidates || [])[0] || {}).content || {}).parts || []).find((p) => p.inlineData || p.inline_data); if (!part) continue; const id = part.inlineData || part.inline_data;
+      const bin = Uint8Array.from(atob(id.data), (x) => x.charCodeAt(0)); const rate = +((String(id.mimeType || id.mime_type || '').match(/rate=(\d+)/) || [])[1]) || 24000; const out = /wav/i.test(id.mimeType || id.mime_type || '') ? bin : wav(bin, rate); TTS_OK = m;
+      if (cache && ck) { const p = cache.put(ck, new Response(out, { headers: { 'content-type': 'audio/wav', 'cache-control': 'max-age=86400' } })); try { ctx && ctx.waitUntil ? ctx.waitUntil(p) : await p; } catch (e) {} }
+      return new Response(out, { headers: { 'content-type': 'audio/wav', 'x-tts': m } });
+    }
+    return new Response('tts failed', { status: 502 });
+  }
+  const timberStream = async function (req, env, ctx) {
     const d = await req.json().catch(() => ({})); const auth = {}; if (d.pin != null) auth.pin = String(d.pin);
     const bg = (p) => { try { ctx && ctx.waitUntil ? ctx.waitUntil(p) : p; } catch (e) {} };
     if (d.warm) { if (!env.GEMINI_API_KEY) return Response.json({ ok: false }); const v = await ctxFor(auth); return Response.json({ ok: !!(v && v.ok) }); }
@@ -48,4 +68,6 @@ export function makeTimber(o) {
     })());
     return new Response(readable, { headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' } });
   };
+  timberStream.tts = tts;
+  return timberStream;
 }

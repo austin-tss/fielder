@@ -40,7 +40,7 @@ try {
   // ---- Timber streaming via the Worker route ----
   let GS = []; setGemStream(() => GS.shift() || null);
   let p = await open('4321', 1280); await p.waitForSelector('#ds-timber'); await p.click('#ds-timber'); await p.waitForSelector('#tbq');
-  await p.waitForFunction(() => true); await w(300); if (!STREAMS.some((s) => s.warm && s.pin === '4321')) fail('Timber did not warm the context');
+  await p.waitForFunction(() => true); await w(300); await p.click('#tbspk'); if (!STREAMS.some((s) => s.warm && s.pin === '4321')) fail('Timber did not warm the context');
   GS = [[chunk('Labor today is $100. '), chunk('Nobody is on the clock.')]];
   await p.type('#tbq', 'labor today'); await p.click('#tbsend');
   await p.waitForFunction(() => window.TB_STREAM === 'stream' && /Nobody is on the clock/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });

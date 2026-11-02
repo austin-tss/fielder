@@ -41,20 +41,20 @@ body.tbopen #tbdr{display:block}#tbdr .card.tb{margin:0 auto;max-width:760px}
 #tbtoast{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--tbt,140px) + 8px);z-index:70;background:#112337;color:#fff;font-weight:700;font-size:16px;padding:12px 18px;border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.25);max-width:92vw;cursor:pointer;border-left:5px solid #78a22f}
 @media (min-width:768px){#tbtop{order:0;flex:0 1 440px;margin:0 8px 0 auto}body.dk #tbdr{left:var(--sw,240px)}}`;document.head.appendChild(st);
 const b=document.createElement('button');b.id='tbtop';b.type='button';b.setAttribute('aria-expanded','false');
-b.innerHTML='<span style="font-size:24px">🌲</span><span class="tl">Ask Timber<small id="tbtsub">Tap to type or talk</small></span><span class="bd" id="tbbd">1</span><span class="ar" id="tbar">▾</span>';
+b.innerHTML='<span style="font-size:24px">🌲</span><span class="tl">Ask Timber<small id="tbtsub">Tap to ask</small></span><span class="bd" id="tbbd">1</span><span class="ar" id="tbar">▾</span>';
 const d=document.createElement('div');d.id='tbdr';d.innerHTML='<div id="tbdrb"></div>';document.body.appendChild(d);
 let unread=0;const isOpen=()=>document.body.classList.contains('tbopen');
 function place(){const h=document.querySelector('header');if(h)document.documentElement.style.setProperty('--tbt',Math.round(h.getBoundingClientRect().bottom)+'px')}
 function sub(t){const s=b.querySelector('#tbtsub');if(s)s.textContent=t}
-window.tbDrawer=function(open){document.body.classList.toggle('tbopen',open);b.setAttribute('aria-expanded',open?'true':'false');b.querySelector('#tbar').textContent=open?'▴':'▾';
- if(open){unread=0;b.classList.remove('new');sub('Tap ▴ to tuck away');place();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}setTimeout(()=>{const q=document.getElementById('tbq');if(q&&matchMedia('(min-width:768px)').matches)q.focus()},50)}else sub(window.TB_LAST?'Last: '+TB_LAST:'Tap to type or talk')};
-b.onclick=()=>{try{window.tbUnlock&&tbUnlock()}catch(e){}if(isOpen())tbDrawer(false);else if(document.querySelector('#tbdrb .tb'))tbDrawer(true);else ftTimber()};
+window.tbDrawer=function(open){/* Miller c373cfa: tucking Timber away stops read-aloud/dictation and clears the chat; every open starts fresh */if(!open&&document.body.classList.contains('tbopen')){try{window.tbStop&&tbStop()}catch(e){}sessionStorage.tbHist='[]';const db=document.getElementById('tbdrb');if(db)db.innerHTML=''}document.body.classList.toggle('tbopen',open);b.setAttribute('aria-expanded',open?'true':'false');b.querySelector('#tbar').textContent=open?'▴':'▾';
+ if(open){unread=0;b.classList.remove('new');sub('Tap ▴ to tuck away');place();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}setTimeout(()=>{const q=document.getElementById('tbq');if(q&&matchMedia('(min-width:768px)').matches)q.focus()},50)}else sub('Tap to ask')};
+b.onclick=()=>{try{window.tbUnlock&&tbUnlock()}catch(e){}if(isOpen())tbDrawer(false);else{sessionStorage.tbHist='[]';ftTimber()}};
 function toast(t){let e=document.getElementById('tbtoast');if(!e){e=document.createElement('div');e.id='tbtoast';e.setAttribute('role','status');e.onclick=()=>{e.remove();ftTimber()};document.body.appendChild(e)}e.textContent='🌲 Timber: '+t;clearTimeout(e._t);e._t=setTimeout(()=>e.remove(),6000)}
 window.tbNotify=function(text){const t=String(text||'Done').replace(/[*_#`>]/g,'').replace(/\s+/g,' ').trim().slice(0,140);window.TB_LAST=t;
  if(isOpen()&&!document.hidden){sub('Tap ▴ to tuck away');return 'open'}
- unread++;const bd=b.querySelector('#tbbd');if(bd)bd.textContent=unread;b.classList.add('new');sub('New: '+t);let how='badge';
+ unread++;const bd=b.querySelector('#tbbd');if(bd)bd.textContent=unread;b.classList.add('new');sub('Timber answered. Tap to ask again');let how='badge';
  try{if(window.Notification&&Notification.permission==='granted'){const n=new Notification('Timber',{body:t,icon:'mark.svg',tag:'timber'});n.onclick=()=>{window.focus();ftTimber();n.close()};how='notification'}}catch(e){}
- if(!document.hidden)toast(t);window.TB_NOTE=how;return how};
+ window.TB_NOTE=how;return how};
 const wrap=()=>{const f=window.ftTimberAsk;if(!f||f._nb)return;const g=async function(){const r=await f.apply(this,arguments);try{const h=JSON.parse(sessionStorage.tbHist||'[]'),l=h[h.length-1];if(l&&l.who==='tm')tbNotify(l.text)}catch(e){}return r};g._nb=1;window.ftTimberAsk=g};
 function sync(){const h=document.querySelector('header');if(!h)return;if(b.parentNode!==h){const g=document.getElementById('gear');h.insertBefore(b,g||null)}wrap();
  let r='';try{r=role}catch(e){}const on=!!r&&(r==='Owner'||sessionStorage.fdOwner==='1')&&!!window.ftTimber;/* Ask Timber chat is Owner-only (Austin, Nov 1); Estimators keep Have Timber fill this quote */document.body.classList.toggle('hastb',on);if(!on&&isOpen())tbDrawer(false);if(!on&&!r&&document.querySelector('#tbdrb .tb')){document.getElementById('tbdrb').innerHTML=''}place()}

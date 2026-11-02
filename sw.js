@@ -1,7 +1,7 @@
 // Fielder Field Desk service worker: caches the app shell only.
 // Never touches API calls (Apps Script /exec, ?a=, pin=), other sites, or anything that is not a GET.
 // Bump VERSION on each release; old caches are deleted when the new worker activates.
-const VERSION = 'fd-shell-2026-11-01-parity19';
+const VERSION = 'fd-shell-2026-11-01-parity22';
 const SHELL = ['./', 'index.html', 'form.js', 'v5.js', 'csv.js', 'flags.js', 'voice.js', 'clock.js', 'vhome.js', 'gps.js', 'quotes.js', 'owner.js', 'tips.js', 'feat.js', 'dash.js', 'labor.js', 'timber.js', 'batch3.js', 'perf.js', 'crew.js', 'simple.js', 'desk.js', 'supplies.js', 'receipts.js', 'nav2.js', 'need.js', 'mic.js', 'book.html', 'pay.html', 'sign.html', 'portal.html', 'logo.png', 'logo.svg', 'mark.svg', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', (e) => {
@@ -18,7 +18,8 @@ function isShell(url) {
   if (rel === null) return false;
   return rel === '' || SHELL.includes(rel) || rel.startsWith('icons/');
 }
-// Stale-while-revalidate: answer from cache instantly, fetch a fresh copy for next open.
+// Page: network first (so a new release's ?v= script URLs load right away); cached page only if offline or slower than 3 s.
+// Assets: exact URL (including ?v=) from cache, else network; an old copy is used only when offline. (Miller c373cfa)
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -29,9 +30,13 @@ self.addEventListener('fetch', (e) => {
   if (!nav && !isShell(url)) return;
   const key = nav ? new URL('index.html', self.location).href : req;
   e.respondWith(caches.open(VERSION).then(async (c) => {
-    const hit = await c.match(key, { ignoreSearch: true });
-    const fresh = fetch(req).then((r) => { if (r && r.ok && r.type === 'basic') c.put(key, r.clone()); return r; }).catch(() => null);
-    if (hit) { e.waitUntil(fresh); return hit; }
-    return (await fresh) || new Response('Offline', { status: 503 });
+    const net = fetch(req).then((r) => { if (r && r.ok && r.type === 'basic') c.put(key, r.clone()); return r; }).catch(() => null);
+    if (nav) {
+      const r = await Promise.race([net, new Promise((ok) => setTimeout(() => ok(null), 3000))]);
+      return r || (await c.match(key, { ignoreSearch: true })) || (await net) || new Response('Offline', { status: 503 });
+    }
+    const exact = await c.match(req);
+    if (exact) { e.waitUntil(net); return exact; }
+    return (await net) || (await c.match(req, { ignoreSearch: true })) || new Response('Offline', { status: 503 });
   }));
 });

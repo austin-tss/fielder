@@ -62,13 +62,13 @@ try {
   await p.type('#tbq', 'how many jobs today'); await p.click('#tbsend'); await p.click('#tbtop');
   await p.waitForFunction(() => document.getElementById('tbtop').classList.contains('new'), { timeout: 8000 }).catch(async () => fail('no badge when tucked ' + await p.evaluate(() => document.body.className + ' / ' + document.getElementById('tbmsgs').innerText + ' / ' + window.ftTimberAsk._nb + ' / ' + document.getElementById('tbtop').className + ' / ' + (() => { try { return tbNotify('x') } catch (e) { return 'ERR ' + e.message } })() + ' / ' + sessionStorage.tbHist.slice(-120))));
   const nt = await p.evaluate(() => ({ bd: document.getElementById('tbbd').textContent, sub: document.getElementById('tbtsub').textContent, toast: (document.getElementById('tbtoast') || {}).textContent || '' }));
-  if (nt.bd !== '1' || !/New: You have 2 jobs/.test(nt.sub) || !/Timber: You have 2 jobs/.test(nt.toast)) fail('notify ' + JSON.stringify(nt));
+  if (nt.bd !== '1' || nt.sub !== 'Timber answered. Tap to ask again' || nt.toast) fail('notify (badge only, no banner) ' + JSON.stringify(nt));
   await shot(p, 'timber-badge');
   setGemStream(() => GS.shift() || null);
-  await p.click('#tbtoast'); await p.waitForFunction(() => document.body.classList.contains('tbopen') && !document.getElementById('tbtop').classList.contains('new'));
-  // chat persists across pages for the session
+  await p.click('#tbtop'); await p.waitForFunction(() => document.body.classList.contains('tbopen') && !document.getElementById('tbtop').classList.contains('new'));
+  // chat clears when tucked away (Miller c373cfa): every open starts fresh with the two suggestions
   await p.click('#brand'); await p.waitForSelector('.ohero'); await p.evaluate(() => ownerSect('money')); await w(200); await p.click('#tbtop');
-  if (!/2 jobs today/.test(await p.$eval('#tbmsgs', (e) => e.innerText))) fail('chat cleared on leave');
+  await p.waitForSelector('#tbs1', { visible: true }).catch(() => fail('fresh suggestions on reopen')); if (/2 jobs today/.test(await p.$eval('#tbmsgs', (e) => e.innerText)) || (await p.evaluate(() => document.getElementById('tbtsub').textContent)) !== 'Tap ▴ to tuck away') fail('chat should clear on close');
   // dictation mic: records, Gemini writes the words into the box for editing; nothing is asked or sent
   await p.evaluate(() => { navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [{ stop() {} }] }); window.MediaRecorder = function () { this.mimeType = 'audio/webm'; this.start = () => {}; this.stop = () => { this.ondataavailable && this.ondataavailable({ data: new Blob(['x'], { type: 'audio/webm' }) }); setTimeout(() => this.onstop && this.onstop(), 10); }; }; document.getElementById('tbq').value = ''; });
   GEM.push(say('How many jobs are scheduled tomorrow?')); const st0 = STREAMS.length;

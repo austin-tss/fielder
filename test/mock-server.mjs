@@ -301,6 +301,14 @@ export function start(port) {
         const r = u.pathname === '/api/dash' ? await h(new Request('http://x' + req.url, { method: 'POST', body }), { waitUntil() {} }) : await h(new Request('http://x' + req.url, req.method === 'POST' ? { method: 'POST', body } : {}));
         res.writeHead(r.status, { 'content-type': r.headers.get('content-type') }); res.end(await r.text()); }); return; }
     if ((u.pathname === '/a' || u.pathname === '/x') && FEAT) { LINKS(new Request('http://x' + req.url)).then(async (r) => { res.writeHead(r.status, { 'content-type': r.headers.get('content-type') }); res.end(await r.text()); }); return; }
+    if (u.pathname === '/api/tts' && req.method === 'POST') {
+      if (!FEAT) return send(res, 404, 'no worker');
+      const chunks = []; req.on('data', (c) => chunks.push(c));
+      req.on('end', async () => { const body = Buffer.concat(chunks).toString('utf8'); TTSHITS.push(JSON.parse(body || '{}').t);
+        const r = await TIMBER.tts(new Request('http://x/api/tts', { method: 'POST', body }), TTS_MODE === 'nokey' ? {} : { GEMINI_API_KEY: 'test-key-not-real' }, null);
+        res.writeHead(r.status, { 'content-type': r.headers.get('content-type') || 'text/plain' }); res.end(Buffer.from(await r.arrayBuffer())); });
+      return;
+    }
     if (u.pathname === '/api/timber' && req.method === 'POST') {
       if (!GEMSTREAM || !FEAT) return send(res, 404, 'no stream');
       const chunks = []; req.on('data', (c) => chunks.push(c));
@@ -416,12 +424,15 @@ function featCall(d) {
 }
 
 // ---- Worker /api/timber stream, run for real against the emulated Apps Script; Gemini is faked by setGemStream(fn(body) -> array of SSE chunk objects).
-let GEMSTREAM = null, STREAM_DELAY = 0; export const STREAMS = [], GEMCALLS = [];
+let GEMSTREAM = null, STREAM_DELAY = 0; export const STREAMS = [], GEMCALLS = [], TTSHITS = [], TTSGEM = [];
+let TTS_MODE = 'ok'; export function setTts(m) { TTS_MODE = m; }
 export function setGemStream(fn, delay) { GEMSTREAM = fn; STREAM_DELAY = delay || 0; }
 const TIMBER = makeTimber({ exec: 'https://exec.mock/exec', fetch: async (url, init) => {
   if (url === 'https://exec.mock/exec') { const d = JSON.parse(init.body); const own = (FEAT.ctx.FT6_RCP_ || {}); void own; return new Response(JSON.stringify(featCall(d)), { headers: { 'content-type': 'application/json' } }); }
   if (/streamGenerateContent/.test(url)) { const b = JSON.parse(init.body); GEMCALLS.push({ url, body: b }); const list = GEMSTREAM(b); if (!list) return new Response('err', { status: 500 });
     return new Response(list.map((o) => 'data: ' + JSON.stringify(o) + '\r\n\r\n').join(''), { headers: { 'content-type': 'text/event-stream' } }); }
+  if (/:generateContent$/.test(url) && /-tts:/.test(url)) { TTSGEM.push(url.match(/models\/([^:]+)/)[1]); if (TTS_MODE === 'fail') return new Response('err', { status: 500 });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000', data: Buffer.alloc(4800).toString('base64') } }] } }] }), { headers: { 'content-type': 'application/json' } }); }
   return new Response('offline', { status: 599 }); } });
 const LINKS = makeLinks({ exec: 'https://exec.mock/exec', fetch: async (url) => { const prm = Object.fromEntries(new URL(url).searchParams);
   FEAT.writeJson('jobs.json', jobs); const out = FEAT.ctx.doGet({ parameter: prm }).getContent(); const js = FEAT.readJson('jobs.json'); jobs.splice(0, jobs.length, ...js);

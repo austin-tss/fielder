@@ -98,8 +98,8 @@ try {
   await p.type('#tbq', 'labor today vs jobs'); await p.click('#tbsend');
   await p.waitForFunction(() => /Labor today is \$100 against \$1500/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word in Timber');
-  { const m = await p.evaluate(() => ({ emoji: /🎙|🎤/.test(document.body.innerHTML), fab: !!document.querySelector('#vhfab svg.fdmic'), seg: !!document.querySelector('#tbdict svg.fdmic'), ring: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('stroke'), fill: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('fill'), sz: document.getElementById('vhfab')?.getBoundingClientRect().width }));
-    if (m.emoji || !m.fab || !m.seg || m.ring !== '#78a22f' || m.fill !== '#112337' || m.sz !== 56) fail('mic icon ' + JSON.stringify(m)); }
+  { const m = await p.evaluate(() => ({ emoji: /🎙|🎤/.test(document.body.innerHTML), fab: !!document.querySelector('#vhfab svg.fdmic'), seg: !!document.querySelector('#tbdict svg.fdmic'), ring: getComputedStyle(document.getElementById('vhfab')).color, outline: !!document.querySelector('#vhfab svg.fdmic g.m[fill="none"]'), sz: document.getElementById('vhfab')?.getBoundingClientRect().width }));
+    if (m.emoji || !m.fab || !m.seg || m.ring !== 'rgb(120, 162, 47)' || !m.outline || m.sz !== 56) fail('mic icon ' + JSON.stringify(m)); }
   await shot(p, 'ask-timber');
   await shot(p, 'timber');
   // No Type/Talk modes (Austin, Nov 1): just the text box with a dictation mic; corner mic stays

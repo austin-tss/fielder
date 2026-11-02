@@ -1446,7 +1446,7 @@ function supAdd_(d,a){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN req
  var s={id:newId_('S-'),item:item,qty:clip_(a.qty,40),notes:clip_(a.notes,300),needBy:/^\d{4}-\d\d-\d\d$/.test(a.needBy||'')?a.needBy:'',store:clip_(a.store,80),who:who,role:role,status:'Waiting approval',nonce:Utilities.getUuid(),at:new Date().toISOString()};
  var L=lock_(10000);if(!L)return BUSY_;try{var l=supLoad_();l.unshift(s);save_(l.slice(0,500),'supplies.json')}finally{unlock_(L)}
  f6SupMail_(s);return {ok:true,item:f6Pub_(s)}}
-var FT5_LISTS_={supDecide:1,supList:1,supAdd:1,supStep:1,supArchive:1,vxList:1,vxStep:1,vxArchive:1,vxMine:1,vxAdd:1};
+var FT5_LISTS_={supDecide:1,supList:1,supAdd:1,supStep:1,supArchive:1,vxList:1,vxStep:1,vxArchive:1,vxMine:1,vxAdd:1,vxDel:1};
 function ft5Lists_(d){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN required'};
  if(d.a=='supList'){var l=supLoad_().filter(function(s){return !s.archived}).map(f6Pub_);return {ok:true,items:l,open:l.filter(function(s){return s.status!=='Got it'&&s.status!=='Denied'}).length,canDecide:f6CanDecide_(d)}}
  if(d.a=='supDecide')return f6Rcp_(d);
@@ -1455,7 +1455,9 @@ function ft5Lists_(d){var role=roleOf_(d);if(!role)return {ok:false,err:'PIN req
    if(d.a=='supArchive')s.archived=true;else if(s.status==='Waiting approval'||s.status==='Denied')return {ok:false,err:'Approve it first.'};else{s.status=SUP_ST[(SUP_ST.indexOf(s.status)+1)%SUP_ST.length];s.updated=new Date().toISOString()}save_(l2,'supplies.json');return {ok:true,item:f6Pub_(s)}}finally{unlock_(L)}}
  // Need something? (Miller 92221aa): any signed-in role sends a request (same log + test-inbox email as Timber's Ask the VNXT team) and tracks its status; Owner sees everyone's.
  if(d.a=='vxAdd')return tbVnxt_(d,d.request);
- if(d.a=='vxMine'){var e9=empOf_(d),me=e9&&e9.name?e9.name:role,m=[];try{m=load_('vnxt_requests.json')}catch(x){}if(!Array.isArray(m))m=[];m=m.map(function(r,i){return {id:r.id||'V-'+i,at:r.at,user:r.user,role:r.role,request:r.request,status:r.status||'New',archived:!!r.archived}}).filter(function(r){return role==='Owner'||r.user===me});return {ok:true,items:m.reverse(),me:me}}
+ // Delete a request (Miller c373cfa): Owner any, everyone else only their own; hidden (archived), not erased.
+ if(d.a=='vxDel'){var e8=empOf_(d),me8=e8&&e8.name?e8.name:role,L8=lock_(10000);if(!L8)return BUSY_;try{var v8=[];try{v8=load_('vnxt_requests.json')}catch(x){}if(!Array.isArray(v8))v8=[];var r8=null;v8.forEach(function(r,i){if((r.id||'V-'+i)==d.id)r8=r});if(!r8)return {ok:false,err:'Not found'};if(role!=='Owner'&&r8.user!==me8)return {ok:false,err:'You can only delete your own requests.'};r8.archived=true;r8.deletedAt=new Date().toISOString();save_(v8,'vnxt_requests.json');return {ok:true}}finally{unlock_(L8)}}
+ if(d.a=='vxMine'){var e9=empOf_(d),me=e9&&e9.name?e9.name:role,m=[];try{m=load_('vnxt_requests.json')}catch(x){}if(!Array.isArray(m))m=[];m=m.map(function(r,i){return {id:r.id||'V-'+i,at:r.at,user:r.user,role:r.role,request:r.request,status:r.status||'New',archived:!!r.archived}}).filter(function(r){return !r.archived&&(role==='Owner'||r.user===me)});return {ok:true,items:m.reverse(),me:me}}
 if(role!=='Owner')return {ok:false,err:'Owner only.'};
  var v=[];try{v=load_('vnxt_requests.json')}catch(e){}if(!Array.isArray(v))v=[];v.forEach(function(r,i){if(!r.id)r.id='V-'+i;if(!r.status)r.status='New'});
  if(d.a=='vxList')return {ok:true,items:v.filter(function(r){return !r.archived}).reverse()};
