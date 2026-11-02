@@ -839,7 +839,7 @@ function voiceSchema_(){var S={type:'STRING'},N={type:'NUMBER'};
     required:['customer','estimate','crew']};}
 function voicePrompt_(){var svc=[];try{svc=(settings_().form.services||[]).map(function(x){return x.name+(x.price?' ($'+x.price+')':'')})}catch(e){}
   return 'You are the estimator assistant for '+CO.name+', a tree service in Tallahassee, Florida. The estimator is walking a job and talking out loud. '+
-  'Split what they say into three parts. CUSTOMER: name, phone, email, street address with city, state, zip if said. '+
+  'Split what they say into three parts. CUSTOMER: name, phone, email, street address with city, state, zip if said. Copy any spoken or typed email and street address exactly (spoken "at"/"dot" become @ and .). Use an empty string for anything not said; never write null, none or N/A. '+
   'ESTIMATE (customer sees this): one line item per piece of work with a short professional service title, a one-sentence customer-friendly description, qty (default 1), and price in US dollars if a price was said (else 0); total of the prices; customerNotes = only things meant for the customer (scheduling promises, warranty, what is included). '+
   'CREW (internal only, never shown to the customer): access and gate codes, dogs, parking; hazards such as power lines, structures, dead wood, bees; equipment needed such as bucket truck, crane, stump grinder, mats; haul-away and cleanup instructions; tree locations and details such as species, size, which side of the house; and any other internal remark, opinion, or margin talk. '+
   'Never put gate codes, hazards, equipment, opinions about the customer, or internal pricing talk in the estimate. Leave a field empty if it was not said. Do not invent prices or contact details. '+
@@ -854,8 +854,12 @@ function voiceQuote_(d){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false
   var code=res.getResponseCode(),body={};try{body=JSON.parse(res.getContentText()||'{}')}catch(e){}
   if(code<200||code>=300){Logger.log('Gemini '+code+' '+res.getContentText().slice(0,500));var gm='';try{gm=String((body.error||{}).message||'').slice(0,200)}catch(e3){}return {ok:false,err:'Gemini could not read that ('+code+(gm?': '+gm:'')+'). Try again or type the notes.'};}
   var out={};try{out=JSON.parse(body.candidates[0].content.parts.map(function(x){return x.text||''}).join(''))}catch(e2){return {ok:false,err:'Gemini answer was not readable. Try again.'};}
-  return {ok:true,result:voiceClean_(out)};}
-function voiceClean_(o){o=o||{};var c=o.customer||{},e=o.estimate||{},k=o.crew||{},S=function(v,n){return clip_(v,n||1000)};
+  return {ok:true,result:voiceClean_(out,text)};}
+function voiceClean_(o,src){o=o||{};var c=o.customer||{},e=o.estimate||{},k=o.crew||{},S=function(v,n){v=(v==null?'':String(v)).trim();if(/^(null|undefined|none|n\/?a|unknown|not (provided|given|said|mentioned)|-)$/i.test(v))v='';return clip_(v,n||1000)};
+  var raw=String(src||'')+'\n'+String(o.transcript||''),em=S(c.email,200),ph=S(c.phone,40);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){var m=raw.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);em=m?m[0]:''}
+  if(ph.replace(/\D/g,'').length<7){var p=raw.match(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);ph=p?p[0].trim():''}
+  c={name:c.name,phone:ph,email:em,address:c.address};
   var items=(e.items||[]).slice(0,30).map(function(i){var q=Number(i.qty)||1,p=Number(i.price)||0;return {service:S(i.service,120),description:S(i.description,600),qty:q,price:p}});
   return {transcript:S(o.transcript,8000),customer:{name:S(c.name,120),phone:S(c.phone,40),email:S(c.email,200),address:S(c.address,300)},
     estimate:{items:items,total:items.reduce(function(a,i){return a+i.qty*i.price},0),customerNotes:S(e.customerNotes,1500)},
