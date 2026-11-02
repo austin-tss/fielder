@@ -44,7 +44,7 @@ try {
   await p.click('#tbtop'); await p.waitForSelector('#tbdrb .tb', { visible: true });
   if (await p.evaluate(() => !document.body.classList.contains('tbopen') || document.getElementById('tbar').textContent !== '▴')) fail('drop-down not open');
   if (await p.evaluate((b) => A.innerHTML.length !== b, before)) fail('page replaced by Timber');
-  const lay = await p.evaluate(() => { const s = document.getElementById('tbvoice').getBoundingClientRect(), q = document.getElementById('tbq').getBoundingClientRect(), m = document.getElementById('tbmsgs').getBoundingClientRect(); return { under: q.top >= s.bottom - 2 && q.top < m.top + 2, sug: document.querySelectorAll('#tbsug button').length, mic: !!document.getElementById('tbmic'), h: document.getElementById('tbdr').getBoundingClientRect().height, ih: innerHeight }; });
+  const lay = await p.evaluate(() => { const s = document.getElementById('tbvoice').getBoundingClientRect(), q = document.getElementById('tbq').getBoundingClientRect(), m = document.getElementById('tbmsgs').getBoundingClientRect(); return { under: q.top >= s.bottom - 2 && q.top - s.bottom < 30, sug: document.querySelectorAll('#tbsug button').length, mic: !!document.getElementById('tbmic'), h: document.getElementById('tbdr').getBoundingClientRect().height, ih: innerHeight }; });
   if (!lay.under) fail('text box not under Type/Talk'); if (lay.sug !== 2) fail('suggestions ' + lay.sug); if (lay.mic) fail('separate mic'); if (lay.h > lay.ih * 0.66) fail('drop-down too tall ' + JSON.stringify(lay));
   await shot(p, 'timber-dropdown');
   // nav tab opens the same drop-down, not a page
