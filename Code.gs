@@ -450,7 +450,7 @@ function meta_(j,label,no){return '<table width="100%" style="font-size:14px;mar
 function imgs_(ps,pre){var inl={},h='';(ps||[]).forEach(function(p,i){inl[pre+i]=DriveApp.getFileById(p.id).getBlob();
   h+='<img src="cid:'+pre+i+'" style="width:48%;max-width:290px;border-radius:8px;margin:4px 1%;display:inline-block">';});return {inl:inl,h:h};}
 function logoBlob_(){return Utilities.newBlob(Utilities.base64Decode(LOGO.split(',')[1]),'image/png','logo.png');}
-function respUrl_(j,k){return 'https://ft.vnxt.app/x?a=respond&id='+encodeURIComponent(j.id)+'&ans='+k;}
+function respUrl_(j,k){return 'https://fielder.tss-receivables.workers.dev/x?a=respond&id='+encodeURIComponent(j.id)+'&ans='+k;}
 function quoteHtml_(j,photosHtml,logoSrc,baseFn){var copy=FDForm.quoteCopy(settings_(),j);var btn=function(k,t,c){return '<a href="'+baseFn(k)+'" style="display:block;margin:8px 0;padding:15px;background:'+c+';color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:16px;text-align:center">'+t+'</a>';};
   return head_('Estimate',j.est,logoSrc)+'<p style="font-size:16px">Dear '+esc_(j.name)+',</p><p style="line-height:1.6">'+bodyHtml_(copy.body)+'</p>'+
   meta_(j,'Estimate #',j.est)+custBlock_(j)+itemsTable_(j)+(photosHtml?'<p style="margin:18px 0 6px"><b style="color:'+NAVY+'">Site photos</b></p>'+photosHtml:'')+
@@ -485,7 +485,7 @@ function respond_(j,p){if(p.ans=='A'||p.ans=='B')applyDiscount_(j);j.response={a
 var PAGE_JSON_=false;// Worker /a asks for the page body as JSON and shows it in the Fielder frame
 function page_(b){if(PAGE_JSON_)return out_({ok:true,page:String(b)});return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#f4f6f1;font-family:Arial,sans-serif;color:#231f20}.w{max-width:520px;margin:0 auto;padding:18px}h2{color:'+NAVY+'}.s{display:block;width:100%;margin:8px 0;padding:18px;font-size:19px;font-weight:bold;border:3px solid '+NAVY+';background:#fff;color:'+NAVY+';border-radius:12px;text-align:center;cursor:pointer}input[type=radio]{display:none}input[type=radio]:checked+.s{background:'+GREEN+';border-color:'+GREEN+';color:#fff}textarea,input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:14px;border:2px solid #cfd6c4;border-radius:10px}.go{width:100%;padding:20px;font-size:21px;font-weight:bold;background:'+GREEN+';color:#fff;border:0;border-radius:12px;margin-top:14px}</style><div style="background:'+NAVY+';color:#fff;padding:14px 18px;font-weight:bold;font-size:18px">'+CO.name+'</div><div class="w">'+b+'</div>').setTitle('Fielder Tree Service').addMetaTag('viewport','width=device-width,initial-scale=1');}
 function respForm_(j,ans){var slots=SLOTS.map(function(s,i){return '<input type=radio name=avail id=s'+i+' value="'+s+'"'+(i==3?' checked':'')+'><label class=s for=s'+i+'>'+s+'</label>'}).join('');
-  return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="https://ft.vnxt.app/x" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
+  return page_('<h2>'+esc_(LABELS[ans])+'</h2><p>Estimate '+esc_(j.est||j.id)+' &middot; '+esc_(j.address)+'</p>'+custBlock_(j)+'<form method=get action="https://fielder.tss-receivables.workers.dev/x" target="_top"><input type=hidden name=a value=respond><input type=hidden name=id value="'+esc_(j.id)+'"><input type=hidden name=ans value="'+ans+'"><input type=hidden name=done value=1>'+
    (ans=='B'||ans=='O'?'<p><b>'+(ans=='B'?'What would you like changed?':'Your question or message:')+'</b></p><textarea name=text rows=4></textarea>':'')+
    '<p><b>When works best for the work?</b> Tap one:</p>'+slots+'<p><b>Preferred date or time (optional)</b></p><input type=text name=when placeholder="e.g. Tuesday Nov 3 morning">'+
    '<button class=go>Send my answer</button></form>');}
@@ -1473,7 +1473,7 @@ function f6Key_(){var p=PropertiesService.getScriptProperties(),k=p.getProperty(
 function f6Sig_(kind,id,v,nonce){return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(kind+'|'+id+'|'+v+'|'+nonce,f6Key_())).replace(/=+$/,'')}
 // Email action links land on the Worker (ft.vnxt.app/a), which calls /exec server-side with fmt=json and shows a branded Fielder page.
 // (Apps Script /exec links break on phones signed into Google.) Old /exec links bounce to the Worker.
-var APP_URL='https://ft.vnxt.app';
+var APP_URL='https://fielder.tss-receivables.workers.dev';
 function f6Link_(kind,id,v,nonce){return APP_URL+'/a?a=ok&k='+kind+'&id='+encodeURIComponent(id)+'&v='+v+'&s='+f6Sig_(kind,id,v,nonce)}
 function f6Bounce_(p,path){var q=Object.keys(p).filter(function(k){return k!=='fmt'}).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(p[k])}).join('&'),u=APP_URL+(path||'/a')+'?'+q;
  return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><p style="font:18px Arial;padding:24px">One moment… <a href="'+esc_(u)+'" target="_top">Tap here if nothing happens</a></p><script>try{window.top.location.href='+JSON.stringify(u)+'}catch(e){}</script>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)}

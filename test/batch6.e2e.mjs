@@ -67,7 +67,7 @@ try {
   await p.type('#su-i', 'Rope'); await p.click('#su-add'); await p.waitForFunction(() => /Rope/.test(A.innerText), { timeout: 6000 }); await p.close();
   const sm = featOutbox.slice(m0); if (sm.length !== 2 || sm.some((m) => m.to !== 'austin@techsourcedsolutions.com')) fail('supply mails ' + JSON.stringify(sm.map((m) => m.to)));
   const oilMail = sm.find((m) => /Bar oil/.test(m.subject)), ropeMail = sm.find((m) => /Rope/.test(m.subject));
-  if (!/^https:\/\/ft\.vnxt\.app\/a\?a=ok&k=sup/.test(linkIn(oilMail, 'yes').href)) fail('link host ' + linkIn(oilMail, 'yes').href);
+  if (!/^https:\/\/fielder\.tss-receivables\.workers\.dev\/a\?a=ok&k=sup/.test(linkIn(oilMail, 'yes').href)) fail('link host ' + linkIn(oilMail, 'yes').href);
   p = await open('1234', 1280); await p.evaluate(() => ftSupplies()); await p.waitForSelector('[id^="sok-"]'); await shot(p, 'supply-approve-estimator');
   const oilId = linkIn(oilMail, 'yes').searchParams.get('id'); await p.click('#sok-' + oilId); await p.waitForFunction((id) => /Needed/.test((document.getElementById('sup-' + id) || {}).innerText || ''), { timeout: 6000 }, oilId); await p.close();
   // email link for Rope, opened on the Worker page (mock host stands in for ft.vnxt.app)

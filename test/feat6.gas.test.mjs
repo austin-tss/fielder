@@ -27,9 +27,9 @@ test('supply request waits approval; email to test inbox only with signed single
   assert.equal(a.item.status, 'Waiting approval'); assert.equal(a.item.nonce, undefined, 'nonce never sent to the app');
   assert.equal(g.mails.length, 1); assert.equal(g.mails[0].to, 'austin@techsourcedsolutions.com'); assert.match(g.mails[0].subject, /^Fielder Tree: supply request - Bar oil/); assert.match(g.mails[0].htmlBody, />Approve<\/a>/);
   assert.equal(g.post({ a: 'supStep', pin: OWN, id: a.item.id }).ok, false, 'no steps before approval');
-  const yes = linkOf(g.mails[0], 'yes'); assert.equal(yes.origin + yes.pathname, 'https://ft.vnxt.app/a'); assert.ok(!/script\.google/.test(g.mails[0].htmlBody), 'no /exec links in the email');
+  const yes = linkOf(g.mails[0], 'yes'); assert.equal(yes.origin + yes.pathname, 'https://fielder.tss-receivables.workers.dev/a'); assert.ok(!/script\.google/.test(g.mails[0].htmlBody), 'no /exec links in the email');
   const bad = new URL(yes.href); bad.searchParams.set('s', 'forged'); assert.match(await getPage(g, bad), /Link not valid/); assert.equal(g.readJson('supplies.json')[0].status, 'Waiting approval');
-  const old = execGet(g, Object.fromEntries(yes.searchParams)); assert.match(old, /ft\.vnxt\.app\/a\?a=ok&k=sup/, 'old /exec link bounces to the Worker'); assert.equal(g.readJson('supplies.json')[0].status, 'Waiting approval');
+  const old = execGet(g, Object.fromEntries(yes.searchParams)); assert.match(old, /fielder\.tss-receivables\.workers\.dev\/a\?a=ok&k=sup/, 'old /exec link bounces to the Worker'); assert.equal(g.readJson('supplies.json')[0].status, 'Waiting approval');
   const pg = await getPage(g, yes); assert.match(pg, /✔ Approved: Bar oil/); assert.match(pg, /Fielder Field Desk/); assert.match(pg, /Open Field Desk/); assert.equal(g.readJson('supplies.json')[0].status, 'Needed');
   assert.match(await getPage(g, yes), /Already Needed/, 'link works once'); assert.match(await getPage(g, linkOf(g.mails[0], 'no')), /Nothing changed/);
   assert.equal(g.readJson('supplies.json')[0].status, 'Needed');
@@ -77,15 +77,15 @@ test('speak/voice requests: prompt says Voice is on and never cannotDo/askVnxt; 
   assert.match(c.decl.find((d) => d.name === 'cannotDo').description, /Never for requests to speak/);
 });
 test('customer quote answer links go through ft.vnxt.app/x; the time-window form posts back to /x; old /exec links bounce', async () => {
-  const g = gas(); const u = new URL(g.ctx.respUrl_({ id: 'J1' }, 'C')); assert.equal(u.origin + u.pathname, 'https://ft.vnxt.app/x');
+  const g = gas(); const u = new URL(g.ctx.respUrl_({ id: 'J1' }, 'C')); assert.equal(u.origin + u.pathname, 'https://fielder.tss-receivables.workers.dev/x');
   g.ctx.writeJson ? 0 : 0; const js = g.readJson('jobs.json'); js[0].status = 'sent'; g.writeJson('jobs.json', js);
-  const f = await getPage(g, new URL('https://ft.vnxt.app/x?a=respond&id=J1&ans=B')); assert.match(f, /action="\/x"/); assert.match(f, /Fielder Field Desk/); assert.ok(!/script\.google/.test(f));
-  const done = await getPage(g, new URL('https://ft.vnxt.app/x?a=respond&id=J1&ans=B&done=1&text=Less+please&avail=Weekends')); assert.match(done, /Thank you/);
+  const f = await getPage(g, new URL('https://fielder.tss-receivables.workers.dev/x?a=respond&id=J1&ans=B')); assert.match(f, /action="\/x"/); assert.match(f, /Fielder Field Desk/); assert.ok(!/script\.google/.test(f));
+  const done = await getPage(g, new URL('https://fielder.tss-receivables.workers.dev/x?a=respond&id=J1&ans=B&done=1&text=Less+please&avail=Weekends')); assert.match(done, /Thank you/);
   assert.equal(g.readJson('jobs.json')[0].response.text, 'Less please');
-  assert.match(execGet(g, { a: 'respond', id: 'J1', ans: 'C' }), /ft\.vnxt\.app\/x\?a=respond&id=J1&ans=C/);
+  assert.match(execGet(g, { a: 'respond', id: 'J1', ans: 'C' }), /fielder\.tss-receivables\.workers\.dev\/x\?a=respond&id=J1&ans=C/);
 });
 test('/api/gas proxies customer-page JSON calls (GET and POST) to Apps Script', async () => {
   const seen = []; const h = makeLinks({ exec: 'https://script.google.com/macros/s/X/exec', fetch: async (url, init) => { seen.push({ url, method: init.method || 'GET', body: init.body }); return new Response('{"ok":true,"n":1}'); } });
-  const r1 = await h(new Request('https://ft.vnxt.app/api/gas?a=quotePublic&t=abc')); assert.deepEqual(await r1.json(), { ok: true, n: 1 }); assert.equal(seen[0].url, 'https://script.google.com/macros/s/X/exec?a=quotePublic&t=abc');
-  const r2 = await h(new Request('https://ft.vnxt.app/api/gas', { method: 'POST', body: '{"a":"sign"}' })); assert.equal(r2.headers.get('content-type'), 'application/json; charset=utf-8'); assert.equal(seen[1].method, 'POST'); assert.equal(seen[1].body, '{"a":"sign"}');
+  const r1 = await h(new Request('https://fielder.tss-receivables.workers.dev/api/gas?a=quotePublic&t=abc')); assert.deepEqual(await r1.json(), { ok: true, n: 1 }); assert.equal(seen[0].url, 'https://script.google.com/macros/s/X/exec?a=quotePublic&t=abc');
+  const r2 = await h(new Request('https://fielder.tss-receivables.workers.dev/api/gas', { method: 'POST', body: '{"a":"sign"}' })); assert.equal(r2.headers.get('content-type'), 'application/json; charset=utf-8'); assert.equal(seen[1].method, 'POST'); assert.equal(seen[1].body, '{"a":"sign"}');
 });

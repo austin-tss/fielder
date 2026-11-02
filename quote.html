@@ -14,7 +14,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px}th{text-align:left;font
 </style></head><body><div class="pg"><div class="hd"><img src="logo.png" alt="Fielder"><div><b>Fielder Tree Care &amp; Service</b><small>Estimate</small></div></div><div class="bar"></div><div id="m" class="sk">Loading your estimate…</div>
 <div class="ft">Fielder Tree Service, LLC · 1382 Timberlane Rd Suite C, Tallahassee, FL 32312 · <a href="tel:8506568737">(850) 656-8737</a> · office@fieldertree.com</div></div>
 <script>
-var Q=new URLSearchParams(location.search),T=Q.get('id')||'',API=Q.get('api')||'/api/gas',M=document.getElementById('m');
+var Q=new URLSearchParams(location.search),T=Q.get('id')||'',API=Q.get('api')||(/workers\.dev$|^127\.|^localhost$/.test(location.hostname)?'/api/gas':'https://script.google.com/macros/s/AKfycbwQDIAb7fwXFVL6g9AjA-tKGoUcwal0-tozzbwJ4EOcNnaHE4AcqUOxdXuNMvRpKYJAlw/exec'),M=document.getElementById('m');
 function e(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function $m(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function err(t){M.className='in';M.innerHTML='<h1>Sorry</h1><p>'+e(t)+'</p><p><a href="tel:8506568737">Call (850) 656-8737</a></p>'}
