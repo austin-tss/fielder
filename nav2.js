@@ -45,14 +45,14 @@ b.innerHTML='<span style="font-size:24px">🌲</span><span class="tl">Ask Timber
 const d=document.createElement('div');d.id='tbdr';d.innerHTML='<div id="tbdrb"></div>';document.body.appendChild(d);
 let unread=0;const isOpen=()=>document.body.classList.contains('tbopen');
 function place(){const h=document.querySelector('header');if(h)document.documentElement.style.setProperty('--tbt',Math.round(h.getBoundingClientRect().bottom)+'px')}
-function sub(t){const s=document.getElementById('tbtsub');if(s)s.textContent=t}
-window.tbDrawer=function(open){document.body.classList.toggle('tbopen',open);b.setAttribute('aria-expanded',open?'true':'false');document.getElementById('tbar').textContent=open?'▴':'▾';
+function sub(t){const s=b.querySelector('#tbtsub');if(s)s.textContent=t}
+window.tbDrawer=function(open){document.body.classList.toggle('tbopen',open);b.setAttribute('aria-expanded',open?'true':'false');b.querySelector('#tbar').textContent=open?'▴':'▾';
  if(open){unread=0;b.classList.remove('new');sub('Tap ▴ to tuck away');place();try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}setTimeout(()=>{const q=document.getElementById('tbq');if(q&&matchMedia('(min-width:768px)').matches)q.focus()},50)}else sub(window.TB_LAST?'Last: '+TB_LAST:'Tap to type or talk')};
 b.onclick=()=>{try{window.tbUnlock&&tbUnlock()}catch(e){}if(isOpen())tbDrawer(false);else if(document.querySelector('#tbdrb .tb'))tbDrawer(true);else ftTimber()};
 function toast(t){let e=document.getElementById('tbtoast');if(!e){e=document.createElement('div');e.id='tbtoast';e.setAttribute('role','status');e.onclick=()=>{e.remove();ftTimber()};document.body.appendChild(e)}e.textContent='🌲 Timber: '+t;clearTimeout(e._t);e._t=setTimeout(()=>e.remove(),6000)}
 window.tbNotify=function(text){const t=String(text||'Done').replace(/[*_#`>]/g,'').replace(/\s+/g,' ').trim().slice(0,140);window.TB_LAST=t;
  if(isOpen()&&!document.hidden){sub('Tap ▴ to tuck away');return 'open'}
- unread++;const bd=document.getElementById('tbbd');if(bd)bd.textContent=unread;b.classList.add('new');sub('New: '+t);let how='badge';
+ unread++;const bd=b.querySelector('#tbbd');if(bd)bd.textContent=unread;b.classList.add('new');sub('New: '+t);let how='badge';
  try{if(window.Notification&&Notification.permission==='granted'){const n=new Notification('Timber',{body:t,icon:'mark.svg',tag:'timber'});n.onclick=()=>{window.focus();ftTimber();n.close()};how='notification'}}catch(e){}
  if(!document.hidden)toast(t);window.TB_NOTE=how;return how};
 const wrap=()=>{const f=window.ftTimberAsk;if(!f||f._nb)return;const g=async function(){const r=await f.apply(this,arguments);try{const h=JSON.parse(sessionStorage.tbHist||'[]'),l=h[h.length-1];if(l&&l.who==='tm')tbNotify(l.text)}catch(e){}return r};g._nb=1;window.ftTimberAsk=g};
