@@ -44,11 +44,13 @@ try {
   await p.waitForSelector('#dgrid', { timeout: 1500 }).catch(() => fail('dashboard not instant on reload'));
   if (ERR.length) fail('reload errors ' + ERR.join('|'));
   await w(800); if (!(await p.$('.ohero'))) fail('reload left Owner home');
-  // bottom bar
-  await p.evaluate(() => ftJobs('all')); await p.waitForSelector('#bbar:not([hidden])', { visible: true }); await shot(p, 'bottom-bar');
-  await p.click('#bb-back'); await p.waitForSelector('.ohero', { timeout: 4000 }).catch(() => fail('Back did not return to Owner home'));
+  // no Back bars (Miller 92221aa): logo = role home, history back still works, corner mic kept
+  await p.evaluate(() => ftJobs('all')); await w(300);
+  if (await p.evaluate(() => { const b = document.getElementById('bbar'); return !!(b && b.offsetParent); })) fail('bottom Back/Home bar still showing');
+  if (!(await p.$('#vhfab'))) fail('corner mic removed (Fielder keeps it)');
+  await shot(p, 'no-back-bar');
+  await p.click('#brand'); await p.waitForSelector('.ohero', { timeout: 4000 }).catch(() => fail('logo did not go to Owner home'));
   await p.evaluate(() => ftJobs('all')); await w(300); await p.goBack(); await p.waitForSelector('.ohero', { timeout: 4000 }).catch(() => fail('history back'));
-  await p.evaluate(() => ftJobs('all')); await w(300); await p.click('#bb-home'); await p.waitForSelector('.ohero', { timeout: 4000 }).catch(() => fail('Home'));
   // archived select
   await p.evaluate(() => ftJobs('archived')); await p.waitForFunction(() => /Arlo/.test(document.body.innerText), { timeout: 5000 });
   await p.evaluate(() => { selOn(); SEL.add('B7-2'); selBar(); });

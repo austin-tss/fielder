@@ -55,7 +55,7 @@ try {
   GS = []; GEM = [say('Fallback answer.')]; await p.type('#tbq', 'anything'); await p.click('#tbsend');
   await p.waitForFunction(() => window.TB_STREAM === 'fallback' && /Fallback answer/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   // ---- sidebar highlight follows the page ----
-  for (const [js, id] of [["ownerSect('money')", 'money'], ['ftTimber()', 'timber'], ['ftReceipts()', 'rcps'], ['ownerHome()', 'home'], ["ownerSect('jobs')", 'jobs'], ["ftSupplies()", 'more']]) {
+  for (const [js, id] of [["ownerSect('money')", 'money'], ['ftNeed()', 'need'], ['ftReceipts()', 'rcps'], ['ownerHome()', 'home'], ["ownerSect('jobs')", 'jobs'], ["ftSupplies()", 'more']]) {
     await p.evaluate(js); await p.waitForFunction((id) => { const b = document.querySelector('#dside button.on'); return b && b.id === 'ds-' + id; }, { timeout: 4000 }, id).catch(() => fail('highlight ' + js));
   }
   await p.close();

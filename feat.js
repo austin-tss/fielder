@@ -36,7 +36,7 @@ function tools(){const r=role,own=isOwn(),s=S();const b=[];
  if(r==='Owner'){add('ft-sched','📅 Schedule','ownerDo(\'Manager\',\'sched\')');add('ft-set','⚙️ Payments, texts, reviews','ftSet()')}
  if(r==='Manager'&&!own)add('ft-remind','🔔 Send tomorrow’s reminders','ftRemind()');
  return b}
-window.ftTools=()=>{if(!window.FTST||!window.FTST.on)st(true).then(()=>{if(view==='timber'&&document.getElementById('tbqa')&&window.ftTimber)ftTimber()});return tools()};
+window.ftTools=()=>{if(!window.FTST||!window.FTST.on)st(true).then(()=>{if(window.tbOn&&tbOn()&&document.getElementById('tbqa')&&window.ftTimber)ftTimber()});return tools()};
 function grid(){return `<div class="card" id="ftcard"><button class="btn huge g" id="ft-timber" type="button" onclick="ftTimber()" style="margin:0">🌲 Ask Timber</button></div>`}
 window.ftGrid=()=>grid();
 function stormBar(){return S().storm&&(role==='Owner'||role==='Manager'||role==='Crew')?`<div class="ftstorm" id="ftstormbar">🌀 STORM MODE ON<button type="button" onclick="ftStormNew()">+ Storm call</button></div>`:''}

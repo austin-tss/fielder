@@ -71,7 +71,7 @@ test('Worker endpoints: ctx gives prompt, declarations, actions, snapshot; tool 
 });
 test('speak/voice requests: prompt says Voice is on and never cannotDo/askVnxt; no VNXT mail', () => {
   const g = gas(); const c = g.post({ a: 'timber', pin: OWN, ctx: 1 }); assert.equal(c.ok, true);
-  assert.match(c.sys, /Speaking out loud is already how you answer when Voice is on/); assert.match(c.sys, /NEVER call cannotDo or askVnxt for speak, voice or audible requests/);
+  assert.match(c.sys, /Your replies are spoken out loud by the app when Voice is on/); assert.match(c.sys, /cannot hear you, give short practical steps: turn the phone volume up/); assert.match(c.sys, /Never answer with only the words Voice is on/); assert.match(c.sys, /NEVER call cannotDo or askVnxt for speak, voice or audible requests/);
   assert.match(c.decl.find((d) => d.name === 'cannotDo').description, /Never for requests to speak/);
 });
 test('customer quote answer links go through ft.vnxt.app/x; the time-window form posts back to /x; old /exec links bounce', async () => {

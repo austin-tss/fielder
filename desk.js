@@ -48,10 +48,10 @@ const own=()=>sessionStorage.fdOwner==='1'||(typeof role!=='undefined'&&role==='
 const more="(view='',render(),window.ftSimpleMore&&ftSimpleMore())";
 window.ftReadyInv=()=>list('Ready to invoice',jobs.filter(j=>j.status=='complete'&&!j.invoice).sort(byNew),'aview');
 const T={
- own:[['home','🏠','Home',"ownerHome()"],['quotes','📝','Quotes',"ownerSect('quotes')"],['jobs','🌳','Jobs',"ownerSect('jobs')"],['money','💵','Money',"ownerSect('money')"],['rcps','🧾','Receipts',"ftReceipts()"],['timber','🌲','Ask Timber',"ftTimber()"],['more','☰','More',"ownerSect('more')"]],
- Manager:[['home','🏠','Home',"view='';render()"],['quotes','📝','Quotes',"ftJobs('sent')"],['jobs','🌳','Jobs',"ftJobs('jobs')"],['sched','📅','Schedule',"sched()"],['cust','👥','Customers',"openCusts()"],['timber','🌲','Ask Timber',"ftTimber()"],['more','☰','More',more]],
- Admin:[['home','🏠','Home',"view='';render()"],['ready','🧾','Ready to invoice',"ftReadyInv()"],['inv','💵','Invoices',more],['pay','💳','Payments',"ftJobs('invoiced')"],['cust','👥','Customers',"openCusts()"],['more','☰','More',more]],
- Crew:[['home','🏠','Home',"view='';render()"],['jobs','🌳','My jobs',"(view='',render(),window.ftSimpleMore&&ftSimpleMore())"],['clock','⏱','Clock in or out',"clockTap()"],['more','☰','More',more]]};
+ own:[['home','🏠','Home',"ownerHome()"],['quotes','📝','Quotes',"ownerSect('quotes')"],['jobs','🌳','Jobs',"ownerSect('jobs')"],['money','💵','Money',"ownerSect('money')"],['rcps','🧾','Receipts',"ftReceipts()"],['timber','🌲','Ask Timber',"ftTimber()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',"ownerSect('more')"]],
+ Manager:[['home','🏠','Home',"view='';render()"],['quotes','📝','Quotes',"ftJobs('sent')"],['jobs','🌳','Jobs',"ftJobs('jobs')"],['sched','📅','Schedule',"sched()"],['cust','👥','Customers',"openCusts()"],['timber','🌲','Ask Timber',"ftTimber()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]],
+ Admin:[['home','🏠','Home',"view='';render()"],['ready','🧾','Ready to invoice',"ftReadyInv()"],['inv','💵','Invoices',more],['pay','💳','Payments',"ftJobs('invoiced')"],['cust','👥','Customers',"openCusts()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]],
+ Crew:[['home','🏠','Home',"view='';render()"],['jobs','🌳','My jobs',"(view='',render(),window.ftSimpleMore&&ftSimpleMore())"],['clock','⏱','Clock in or out',"clockTap()"],['need','🙋','Need something?',"ftNeed()"],['more','☰','More',more]]};
 let KEY='',CUR='home';
 function tabs(){if(typeof role==='undefined'||!role)return null;return own()?T.own:T[role]||null}
 function draw(){const t=tabs(),k=(t?(own()?'own':role):'')+'|'+CUR;document.body.classList.toggle('dk',!!t);if(k===KEY)return;KEY=k;let s=document.getElementById('dside');
@@ -60,7 +60,7 @@ function draw(){const t=tabs(),k=(t?(own()?'own':role):'')+'|'+CUR;document.body
  s.querySelectorAll('button').forEach(b=>b.onclick=()=>{CUR=b.id.slice(3);KEY='';draw();try{if(typeof armBack==='function')armBack(null);(new Function(b.dataset.f))();window.scrollTo(0,0)}catch(e){console.log(e)}})}
 window.ftDeskDraw=()=>{KEY='';draw()};
 // Highlight follows whichever page is open, however it was opened (sidebar, home buttons, Timber, back).
-const HOOK={ownerHome:()=>'home',ftTimber:()=>'timber',sched:()=>'sched',openCusts:()=>'cust',ftReadyInv:()=>'ready',ftSimpleMore:()=>role==='Admin'?null:'more',clockTap:null,ftSupplies:()=>'more',ftVnxt:()=>'more',ftScanReceipt:()=>role==='Crew'&&!own()?'home':'more',ftReceipts:()=>own()?'rcps':'more',
+const HOOK={ownerHome:()=>'home',ftNeed:()=>'need',sched:()=>'sched',openCusts:()=>'cust',ftReadyInv:()=>'ready',ftSimpleMore:()=>role==='Admin'?null:'more',clockTap:null,ftSupplies:()=>'more',ftVnxt:()=>'more',ftScanReceipt:()=>role==='Crew'&&!own()?'home':'more',ftReceipts:()=>own()?'rcps':'more',
  ownerSect:k=>({home:'home',dash:'home',quotes:'quotes',jobs:'jobs',money:'money',timber:'timber'})[k]||'more',
  ftJobs:k=>own()?null:role==='Admin'?(/invoiced|paid/.test(k||'')?'pay':null):role==='Manager'?(/sent|quote/.test(k||'')?'quotes':'jobs'):'jobs',render:()=>!view?'home':null};
 function hook(){for(const n in HOOK){const f=window[n];if(typeof f!=='function'||f.__dk||!HOOK[n])continue;const g=function(){const r=f.apply(this,arguments);try{const c=HOOK[n].apply(null,arguments);if(c&&(tabs()||[]).some(t=>t[0]===c)&&c!==CUR){CUR=c;KEY='';draw()}}catch(e){}return r};g.__dk=1;window[n]=g}}

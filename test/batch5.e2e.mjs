@@ -35,7 +35,7 @@ async function open(pin, width, opts = {}) {
 const shot = (p, n) => p.screenshot({ path: '/workspace/fielder-parity8-' + n + '.png' });
 try {
   // ---- layout: sidebar per role at 1280 and 820, phone unchanged ----
-  const SIDE = { '4321': ['home', 'quotes', 'jobs', 'money', 'rcps', 'timber', 'more'], '1234': ['home', 'quotes', 'jobs', 'sched', 'cust', 'timber', 'more'], '6789': ['home', 'ready', 'inv', 'pay', 'cust', 'more'], '7711': ['home', 'jobs', 'clock', 'more'] };
+  const SIDE = { '4321': ['home', 'quotes', 'jobs', 'money', 'rcps', 'timber', 'need', 'more'], '1234': ['home', 'quotes', 'jobs', 'sched', 'cust', 'timber', 'need', 'more'], '6789': ['home', 'ready', 'inv', 'pay', 'cust', 'need', 'more'], '7711': ['home', 'jobs', 'clock', 'need', 'more'] };
   const NAME = { '4321': 'owner', '1234': 'estimator', '6789': 'office', '7711': 'crew' };
   for (const [pin, ids] of Object.entries(SIDE)) for (const width of [1280, 820]) {
     const p = await open(pin, width); await p.waitForSelector('#dside button', { timeout: 6000 });
@@ -67,6 +67,7 @@ try {
   await p.click('#tbsheet'); await w(800); const f = fs.readdirSync(dl).find((x) => /^Fielder jobs .*\.csv$/.test(x)); if (!f || !/Dana Desk/.test(fs.readFileSync(dl + '/' + f, 'utf8'))) fail('spreadsheet download ' + fs.readdirSync(dl));
   await shot(p, 'timber-sheet');
   GEM = [call('cannotDo', { request: 'Text every customer a coupon' }), say('I cannot do that yet. Want me to ask the VNXT team?')]; const m0 = featOutbox.length;
+  await p.evaluate(() => ftTimber()); await p.waitForSelector('#tbq', { visible: true });
   await p.type('#tbq', 'Text every customer a coupon'); await p.click('#tbsend'); await p.waitForSelector('#tbvnxt', { timeout: 8000 }); await shot(p, 'timber-vnxt'); await p.click('#tbvnxt');
   await p.waitForFunction(() => /Sent to the VNXT team/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   const vm = featOutbox.slice(m0); if (!vm.length || vm.some((m) => m.to !== 'austin@techsourcedsolutions.com')) fail('VNXT mail ' + JSON.stringify(vm.map((m) => m.to)));
