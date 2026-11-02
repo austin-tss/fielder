@@ -14,7 +14,7 @@ const st=document.createElement('style');st.textContent=`
 .tb .vst{text-align:center;font-weight:800;font-size:18px;min-height:26px}`;document.head.appendChild(st);
 const SUG=['How many jobs today?','What did we bring in this week?']
 const H=()=>{try{return JSON.parse(sessionStorage.tbHist||'[]')}catch(e){return []}},setH=h=>sessionStorage.tbHist=JSON.stringify(h.slice(-30));
-let mode=sessionStorage.tbMode||'chat',live=false,busy=false,rec=null,state='';
+let mode='chat',live=false,busy=false,rec=null,state='';
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 function bubbles(){return H().map((m,ix)=>`<div class="b ${m.who==='me'?'me':'tm'}${m.setup?' setup':''}">${esc(m.text)}${m.offer&&!m.offerDone?`<br><button class="btn n" type="button" id="tbvnxt" style="margin-top:8px;min-height:46px" onclick="ftTimberVnxt(${ix})">Ask the VNXT team</button>`:''}${m.open&&m.open.name?`<br><button class="btn" type="button" id="tbsheet" style="margin-top:8px;min-height:46px" onclick="ftTimberSheet(${ix})">📊 Open spreadsheet</button>`:''}${m.open&&m.open.id&&!m.open.name?`<br><button class="btn n" type="button" style="margin-top:8px;min-height:44px" onclick="ftTimberOpen('${esc(m.open.id)}')">${esc(m.open.label||'Open')}</button>`:''}${m.setup&&(role==='Owner'||sessionStorage.fdOwner==='1')?`<br><button class="btn n" type="button" style="margin-top:8px;min-height:44px" onclick="ftTimberSetup&&ftTimberSetup()">Set it up</button>`:''}</div>`).join('')+(busy?(window.TB_LIVE?`<div class="b tm" id="tbwait">${esc(TB_LIVE)}</div>`:'<div class="b tm wait" id="tbwait">Timber is on it…</div>'):'')}
 function tbHost(){return document.getElementById('tbdrb')||A}function tbOn(){const d=document.getElementById('tbdrb');return !!(d&&d.querySelector('.tb'))}window.tbOn=tbOn;
@@ -28,12 +28,10 @@ const SYN={'ft-storm':'storm','ft-follow':'review|follow','ft-profit':'profit','
 window.ftTimberTool=function(q){const t=String(q||'').toLowerCase();if(!/^(please )?(open|show|go to|start|run|take me to|pull up)\b|^(quickbooks|payroll|storm|equipment|crew map|weather|coi|lead sources?)\b/.test(t))return null;
  const x=tlist().find(x=>SYN[x.id]&&new RegExp('\\b('+SYN[x.id]+')').test(t))||tlist().find(x=>t.includes(plain(x.l)));if(!x)return null;setTimeout(()=>{try{(new Function(x.fn))()}catch(e){}},0);return 'Opening '+plain(x.l).replace(/^\w/,c=>c.toUpperCase())+'.'};
 // Ask Timber is a drop-down under the top bar (nav2.js): it never replaces the page, and the chat lasts for the session.
-window.ftTimber=function(m){tbWarm();if(m)mode=sessionStorage.tbMode=m;if(mode==='chat')stopVoice();if(window.tbDrawer)tbDrawer(true);
+window.ftTimber=function(m){tbWarm();mode=sessionStorage.tbMode='chat';if(window.tbDrawer)tbDrawer(true);
  const h=H(),own=role==='Owner'||sessionStorage.fdOwner==='1';
- tbHost().innerHTML=`<div class="card tb"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h2 style="margin:0 0 4px">🌲 Ask Timber</h2><button type="button" id="tbspk" onclick="tbUnlock();localStorage.tbSpk=localStorage.tbSpk==='0'?'1':'0';this.textContent=localStorage.tbSpk==='0'?'🔇 Voice off':'🔊 Voice on';if(localStorage.tbSpk==='0')try{speechSynthesis.cancel()}catch(e){}" style="margin:0;width:auto;min-height:44px;padding:0 12px;border-radius:22px;border:2px solid var(--line);background:#fff;font:inherit;font-weight:800;font-size:15px;color:#112337;white-space:nowrap">${localStorage.tbSpk==='0'?'🔇 Voice off':'🔊 Voice on'}</button></div><p id="tbx" style="margin:0 0 8px;color:#5b6168">Your business helper. Ask about jobs, money and crew, or tell it to make a quote, schedule a job or send an invoice. Type or tap Talk.</p>
- <div class="seg"><button type="button" id="tbchat" class="${mode==='chat'?'on':''}" onclick="ftTimber('chat')">💬 Type</button><button type="button" id="tbvoice" class="${mode==='voice'?'on':''}${live?' live':''}" onclick="ftTimberTalk()">${live?'■ Stop':FDMIC()+' Talk'}</button></div>
- ${mode==='chat'?`<div class="ask" style="margin:0 0 8px"><input id="tbq" placeholder="Ask Timber…" enterkeyhint="send" onkeydown="if(event.key==='Enter')ftTimberAsk()"><button class="btn" type="button" id="tbsend" onclick="ftTimberAsk()">Ask</button></div>`:''}
- ${mode==='voice'?`<div class="vst" id="tbvst">${SR?'Tap Talk and ask. Timber answers out loud, then listens again. Tap Stop to end.':'This phone can’t listen here. Use Type.'}</div>`:''}
+ tbHost().innerHTML=`<div class="card tb"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h2 style="margin:0 0 4px">🌲 Ask Timber</h2><button type="button" id="tbspk" onclick="tbUnlock();localStorage.tbSpk=localStorage.tbSpk==='0'?'1':'0';this.textContent=localStorage.tbSpk==='0'?'🔇 Voice off':'🔊 Voice on';if(localStorage.tbSpk==='0')try{speechSynthesis.cancel()}catch(e){}" style="margin:0;width:auto;min-height:44px;padding:0 12px;border-radius:22px;border:2px solid var(--line);background:#fff;font:inherit;font-weight:800;font-size:15px;color:#112337;white-space:nowrap">${localStorage.tbSpk==='0'?'🔇 Voice off':'🔊 Voice on'}</button></div><p id="tbx" style="margin:0 0 8px;color:#5b6168">Your business helper. Ask about jobs, money and crew, or tell it to make a quote, schedule a job or send an invoice. Type it, or tap the mic to say it.</p>
+ <div class="ask tbask" style="margin:0 0 8px"><input id="tbq" placeholder="Ask Timber…" enterkeyhint="send" onkeydown="if(event.key==='Enter')ftTimberAsk()"><button type="button" id="tbdict" class="tbdict${DICT?' rec':''}" aria-label="Speak into the text box" title="Speak into the text box" onclick="ftTimberDictate()">${DICT?'■':FDMIC()}</button><button class="btn" type="button" id="tbsend" onclick="ftTimberAsk()">Ask</button></div><div class="vst" id="tbvst"></div>
  <div class="msgs" id="tbmsgs"></div>
  ${h.length?'':`<div class="sug" id="tbsug">${SUG.map((s,i)=>`<button type="button" id="tbs${i}" onclick="ftTimberAsk(this.textContent)">${esc(s)}</button>`).join('')}</div>`}
  ${chips()}
@@ -96,11 +94,28 @@ function listen(){if(!SR){toast('This phone can’t listen here. Use Type.');liv
  rec.onend=()=>{if(!got&&live&&!busy&&tbOn())setTimeout(()=>{if(live&&!busy&&tbOn())listen()},300)};state='Listening…';paint();try{rec.start()}catch(e){}}
 function stopVoice(){live=false;state='';try{rec&&rec.abort()}catch(e){}try{speechSynthesis.cancel()}catch(e){}try{AUD&&AUD.pause()}catch(e){}}
 // One Talk button (Miller 92221aa): Talk starts listening and turns into a red Stop.
-window.ftTimberTalk=function(){tbUnlock();if(mode!=='voice'){live=false;ftTimber('voice')}ftTimberMic()};
+
 window.ftTimberMic=function(){tbUnlock();live=!live;if(live)listen();else{stopVoice();paint()}};
 // nav tab, and an entry on Manager/Admin homes
 const OS=window.ownerSect;window.ownerSect=function(k){if(k==='timber'||k==='tools')return ftTimber();return OS?OS.apply(this,arguments):undefined};
 // (homes get the Ask Timber card from feat.js)
 // voice: "timber", "ask timber how much …"
 const V0=window.FTV2;window.FTV2=function(t){t=String(t||'');if(/^(open |show )?(the )?(business )?tools$|^ask timber$/i.test(t.trim())){ftTimber();return 'Ask Timber'}if(/^(open|show|go to|pull up) /i.test(t)&&!/jobs?\b|customer|invoice for/i.test(t)&&/payroll|quickbooks|storm|equipment|crew map|coi|insurance|lead source|weather|permit|labou?r compare|review|follow|profit|safety/i.test(t)){const tl=window.ftTimberTool&&ftTimberTool(t);if(tl)return tl}const m=t.match(/^(?:hey |ask |open )?timber[,.]?\s*(.*)$/i);if(m&&role!=='Crew'&&role!=='Estimator'){if(m[1])ftTimberAsk(m[1]);else ftTimber();return 'Timber'}return V0?V0(t):false};
+// Dictation (Austin, Nov 1): no Type/Talk modes. The mic in the text box records a short clip; Gemini turns it into text in the box
+// so it can be edited and sent. Not hands-free. The floating corner mic elsewhere in the app is unchanged.
+let DICT=null;
+const stD=document.createElement('style');stD.textContent='.tbask{display:flex;gap:6px;align-items:stretch}.tbask input{flex:1;min-width:0}.tbask #tbsend{flex:0 0 auto;width:auto}#tbvst:empty{display:none}.tbdict{flex:0 0 50px!important;width:50px!important;max-width:50px;min-height:48px;margin:0!important;border:1px solid #dfe3da!important;border-radius:12px!important;background:#fff!important;box-shadow:none!important;color:#112337;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}.tbdict svg{width:30px;height:30px}.tbdict.rec{background:#c0392b!important;border-color:#c0392b!important;color:#fff;font-size:20px;font-weight:800}';document.head.appendChild(stD);
+function dpaint(t){const b=document.getElementById('tbdict');if(b){b.classList.toggle('rec',!!DICT);b.innerHTML=DICT?'■':FDMIC();b.setAttribute('aria-label',DICT?'Stop and write it in the box':'Speak into the text box')}const s=document.getElementById('tbvst');if(s)s.textContent=t||''}
+window.ftTimberDictate=async function(){tbUnlock();if(DICT){try{DICT.rec.stop()}catch(e){}return}
+ if(!navigator.mediaDevices||!window.MediaRecorder){toast('This phone can’t record here. Type it instead.');return}
+ let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){dpaint('Microphone is blocked. Allow it in Settings, or type.');return}
+ try{speechSynthesis.cancel()}catch(e){}
+ const rec=new MediaRecorder(stream),parts=[];DICT={rec,stream};rec.ondataavailable=e=>{if(e.data&&e.data.size)parts.push(e.data)};
+ rec.onstop=async()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}clearTimeout(DICT&&DICT.t);DICT=null;dpaint('Writing it down…');
+  const blob=new Blob(parts,{type:rec.mimeType||'audio/webm'});if(!blob.size){dpaint('');return}
+  const b64=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(String(f.result).split(',')[1]||'');f.readAsDataURL(blob)});
+  try{const r=await api({a:'timber',dictate:1,audio:b64,mime:blob.type});if(r.ok===false)throw new Error(r.err||'Try again');const q=document.getElementById('tbq');
+   if(q){q.value=(q.value?q.value.trim()+' ':'')+String(r.text||'').trim();q.focus();try{q.setSelectionRange(q.value.length,q.value.length)}catch(e){}}dpaint(r.text?'Check it, then tap Ask.':'Didn’t catch that. Try again.')}
+  catch(e){dpaint(String(e.message||e))}};
+ rec.start();DICT.t=setTimeout(()=>{try{rec.stop()}catch(e){}},60000);dpaint('Listening… tap ■ when you’re done.')};
 })();

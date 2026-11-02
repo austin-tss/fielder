@@ -51,8 +51,8 @@ try {
   await p.click('#tbtop'); await p.waitForSelector('#tbdrb .tb', { visible: true });
   if (await p.evaluate(() => !document.body.classList.contains('tbopen') || document.getElementById('tbar').textContent !== '▴')) fail('drop-down not open');
   if (await p.evaluate((b) => A.innerHTML.length !== b, before)) fail('page replaced by Timber');
-  const lay = await p.evaluate(() => { const s = document.getElementById('tbvoice').getBoundingClientRect(), q = document.getElementById('tbq').getBoundingClientRect(), m = document.getElementById('tbmsgs').getBoundingClientRect(); return { under: q.top >= s.bottom - 2 && q.top - s.bottom < 30, sug: document.querySelectorAll('#tbsug button').length, mic: !!document.getElementById('tbmic'), h: document.getElementById('tbdr').getBoundingClientRect().height, ih: innerHeight }; });
-  if (!lay.under) fail('text box not under Type/Talk'); if (lay.sug !== 2) fail('suggestions ' + lay.sug); if (lay.mic) fail('separate mic'); if (lay.h > lay.ih * 0.66) fail('drop-down too tall ' + JSON.stringify(lay));
+  const lay = await p.evaluate(() => { const q = document.getElementById('tbq').getBoundingClientRect(), d = document.getElementById('tbdict').getBoundingClientRect(); return { under: !document.getElementById('tbvoice') && !document.getElementById('tbchat') && Math.abs(d.top - q.top) < 8 && d.left >= q.right - 2, sug: document.querySelectorAll('#tbsug button').length, mic: !!document.getElementById('tbmic'), h: document.getElementById('tbdr').getBoundingClientRect().height, ih: innerHeight }; });
+  if (!lay.under) fail('Type/Talk still there or mic not beside the box ' + JSON.stringify(lay)); if (lay.sug !== 2) fail('suggestions ' + lay.sug); if (lay.mic) fail('separate mic'); if (lay.h > lay.ih * 0.66) fail('drop-down too tall ' + JSON.stringify(lay));
   await shot(p, 'timber-dropdown');
   // nav tab opens the same drop-down, not a page
   await p.click('#tbtop'); await w(100); await p.evaluate(() => ownerSect('timber')); await w(200);
@@ -69,9 +69,13 @@ try {
   // chat persists across pages for the session
   await p.click('#brand'); await p.waitForSelector('.ohero'); await p.evaluate(() => ownerSect('money')); await w(200); await p.click('#tbtop');
   if (!/2 jobs today/.test(await p.$eval('#tbmsgs', (e) => e.innerText))) fail('chat cleared on leave');
-  // one Talk button -> red Stop
-  await p.click('#tbvoice'); await p.waitForFunction(() => /Stop/.test(document.getElementById('tbvoice').textContent)); await shot(p, 'timber-stop');
-  await p.click('#tbvoice'); await p.waitForFunction(() => /Talk/.test(document.getElementById('tbvoice').textContent)); await p.click('#tbchat');
+  // dictation mic: records, Gemini writes the words into the box for editing; nothing is asked or sent
+  await p.evaluate(() => { navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [{ stop() {} }] }); window.MediaRecorder = function () { this.mimeType = 'audio/webm'; this.start = () => {}; this.stop = () => { this.ondataavailable && this.ondataavailable({ data: new Blob(['x'], { type: 'audio/webm' }) }); setTimeout(() => this.onstop && this.onstop(), 10); }; }; document.getElementById('tbq').value = ''; });
+  GEM.push(say('How many jobs are scheduled tomorrow?')); const st0 = STREAMS.length;
+  await p.click('#tbdict'); await p.waitForFunction(() => document.getElementById('tbdict').classList.contains('rec')); await shot(p, 'timber-dictating');
+  await p.click('#tbdict'); await p.waitForFunction(() => document.getElementById('tbq').value === 'How many jobs are scheduled tomorrow?', { timeout: 8000 }).catch(async () => fail('dictation text ' + await p.evaluate(() => document.getElementById('tbq').value + ' / ' + document.getElementById('tbvst').textContent)));
+  if (STREAMS.length !== st0) fail('dictation sent the question'); await shot(p, 'timber-dictated');
+  await p.evaluate(() => { document.getElementById('tbq').value = ''; });
   // voice intercept only while Voice is off
   await p.evaluate(() => { localStorage.tbSpk = '1'; }); GS.push([chunk('Yes, I can hear you. What do you need?')]);
   const s0 = STREAMS.length; await p.evaluate(() => ftTimberAsk('Can you hear me?'));

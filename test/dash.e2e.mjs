@@ -94,22 +94,16 @@ try {
   await shot(p, 'job-chips');
   await p.evaluate(() => ownerHome());
   // (E) Timber: chat + hands-free voice; exact numbers from the server; never the word AI
-  if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header lost Owner view after drill-down'); await p.waitForSelector('#dn-timber'); await p.click('#dn-timber'); await p.waitForSelector('#tbchat');
+  if (!/Owner view/.test(await p.evaluate(() => document.body.innerText))) fail('header lost Owner view after drill-down'); await p.waitForSelector('#dn-timber'); await p.click('#dn-timber'); await p.waitForSelector('#tbq');
   await p.type('#tbq', 'labor today vs jobs'); await p.click('#tbsend');
   await p.waitForFunction(() => /Labor today is \$100 against \$1500/.test(document.getElementById('tbmsgs').innerText), { timeout: 8000 });
   if (/\bAI\b/.test(await p.evaluate(() => document.body.innerText))) fail('AI word in Timber');
-  { const m = await p.evaluate(() => ({ emoji: /🎙|🎤/.test(document.body.innerHTML), fab: !!document.querySelector('#vhfab svg.fdmic'), seg: !!document.querySelector('#tbvoice svg.fdmic'), ring: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('stroke'), fill: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('fill'), sz: document.getElementById('vhfab')?.getBoundingClientRect().width }));
+  { const m = await p.evaluate(() => ({ emoji: /🎙|🎤/.test(document.body.innerHTML), fab: !!document.querySelector('#vhfab svg.fdmic'), seg: !!document.querySelector('#tbdict svg.fdmic'), ring: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('stroke'), fill: document.querySelector('#vhfab svg.fdmic circle')?.getAttribute('fill'), sz: document.getElementById('vhfab')?.getBoundingClientRect().width }));
     if (m.emoji || !m.fab || !m.seg || m.ring !== '#78a22f' || m.fill !== '#112337' || m.sz !== 56) fail('mic icon ' + JSON.stringify(m)); }
   await shot(p, 'ask-timber');
   await shot(p, 'timber');
-  // One Talk button (Miller 92221aa): Talk starts listening and turns into a red Stop; no separate big mic; the corner mic stays
-  if (await p.$('#tbmic')) fail('separate Timber mic still there'); if (!(await p.$('#vhfab'))) fail('corner mic removed');
-  await p.click('#tbvoice'); await p.waitForFunction(() => /Stop/.test(document.getElementById('tbvoice').textContent) && document.getElementById('tbvoice').classList.contains('live'), { timeout: 4000 }).catch(() => fail('Talk did not turn into Stop'));
-  if (await p.evaluate(() => [...document.querySelectorAll('button')].some((b) => { const x = b.getBoundingClientRect(); return /🎙|🎤/.test(b.textContent) && x.width >= 100 && x.height >= 100 && b.offsetParent; }))) fail('centered big mic present'); await w(100);
-  await p.evaluate(() => FAKESR.at(-1).say('what was labor today'));
-  await p.waitForFunction(() => SPOKE.some((t) => /\$100/.test(t)), { timeout: 8000 }).catch(async (e) => { console.log(await p.$eval('#tbmsgs', (x) => x.innerText), gemQ.length, JSON.stringify(gemQ.at(-1)?.contents.at(-1)).slice(0, 600)); throw e; });
-  await p.waitForFunction(() => FAKESR.at(-1).live, { timeout: 4000 }); // listens again after talking back
-  await shot(p, 'timber-voice');
+  // No Type/Talk modes (Austin, Nov 1): just the text box with a dictation mic; corner mic stays
+  if (await p.$('#tbvoice') || await p.$('#tbchat') || await p.$('#tbmic')) fail('Type/Talk or separate mic still there'); if (!(await p.$('#vhfab'))) fail('corner mic removed');
   if (!gemQ.length || gemQ.some((b) => !b.tools[0].functionDeclarations.length)) fail('Gemini function calling not used');
   await p.close();
   console.log('dash e2e ok');

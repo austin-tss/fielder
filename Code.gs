@@ -1261,6 +1261,7 @@ function tbDecl_(){return Object.keys(TB_FUNCS).map(function(k){var F=TB_FUNCS[k
  return {name:k,description:F.d,parameters:Object.keys(props).length?{type:'OBJECT',properties:props}:{type:'OBJECT',properties:{}}}})}
 function timber_(d){
  if(d.tts)return tbTts_(String(d.tts));
+ if(d.dictate)return tbDictate_(d);
  if(d.vnxt){FT_TBD_=d;var vr=tbVnxt_(d,d.vnxt);return vr.ok?{ok:true,answer:'Sent to the VNXT team.'}:vr}
  if(d.data){var o={};String(d.data).split(',').forEach(function(n){o[n]=tbRun_(n,d.args||{})});return {ok:true,data:o}}
  if(d.tool)return tbTool_(d);
@@ -1534,3 +1535,14 @@ TB_FUNCS.receipts={d:'Scanned receipts (spending) between two dates, optionally 
   var by={},bj={};l.forEach(function(x){by[x.store]=(by[x.store]||0)+x.total;if(x.jobName)bj[x.jobName]=(bj[x.jobName]||0)+x.total});
   return {total:Math.round(l.reduce(function(a,x){return a+x.total},0)*100)/100,count:l.length,byStore:by,byJob:bj,notReimbursed:Math.round(l.filter(function(x){return !x.reimbursed}).reduce(function(a,x){return a+x.total},0)*100)/100}}};
 TB_READ_.receipts=1;
+
+// Dictation for the Ask Timber text box: speech in -> plain text out (the user edits and sends it). PIN role required by timber_.
+function tbDictate_(d){var key=prop_('GEMINI_API_KEY');if(!key)return {ok:false,setup:true,err:'Dictation needs setup: add GEMINI_API_KEY in Script Properties.'};
+ var audio=String(d.audio||''),mime=String(d.mime||'audio/webm').split(';')[0].trim().toLowerCase();if(mime==='audio/x-m4a'||mime==='audio/m4a')mime='audio/mp4';
+ if(!audio)return {ok:false,err:'Nothing was recorded. Try again.'};if(audio.length>4000000)return {ok:false,err:'That was too long. Keep it under about a minute.'};
+ var res=UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/'+VOICE_MODEL+':generateContent?key='+encodeURIComponent(key),{method:'post',contentType:'application/json',muteHttpExceptions:true,
+  payload:JSON.stringify({contents:[{role:'user',parts:[{text:'Transcribe exactly what the speaker says, in US English, as one plain sentence or question for a tree service business app. Fix obvious filler words (um, uh). Return only the text, nothing else. If nothing was said, return an empty string.'},{inline_data:{mime_type:mime,data:audio}}]}],generationConfig:{temperature:0,thinkingConfig:{thinkingLevel:'minimal'}}})});
+ var code=res.getResponseCode(),body={};try{body=JSON.parse(res.getContentText()||'{}')}catch(e){}
+ if(code<200||code>=300)return {ok:false,err:'Could not hear that ('+code+'). Try again or type it.'};
+ var t='';try{t=body.candidates[0].content.parts.map(function(x){return x.text||''}).join('').trim()}catch(e2){}
+ return {ok:true,text:clip_(t.replace(/^["']|["']$/g,''),1000)};}
