@@ -69,6 +69,11 @@ test('Worker endpoints: ctx gives prompt, declarations, actions, snapshot; tool 
   assert.equal(g.post({ a: 'timber', pin: CREW, tool: 'addSupply', args: { item: 'X' } }).ok, false, 'crew has no Timber (unchanged)');
   assert.equal(g.post({ a: 'timber', tool: 'today', args: {} }).ok, false, 'PIN required');
 });
+test('speak/voice requests: prompt says Voice is on and never cannotDo/askVnxt; no VNXT mail', () => {
+  const g = gas(); const c = g.post({ a: 'timber', pin: OWN, ctx: 1 }); assert.equal(c.ok, true);
+  assert.match(c.sys, /Speaking out loud is already how you answer when Voice is on/); assert.match(c.sys, /NEVER call cannotDo or askVnxt for speak, voice or audible requests/);
+  assert.match(c.decl.find((d) => d.name === 'cannotDo').description, /Never for requests to speak/);
+});
 test('customer quote answer links go through ft.vnxt.app/x; the time-window form posts back to /x; old /exec links bounce', async () => {
   const g = gas(); const u = new URL(g.ctx.respUrl_({ id: 'J1' }, 'C')); assert.equal(u.origin + u.pathname, 'https://ft.vnxt.app/x');
   g.ctx.writeJson ? 0 : 0; const js = g.readJson('jobs.json'); js[0].status = 'sent'; g.writeJson('jobs.json', js);

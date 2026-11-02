@@ -2,7 +2,7 @@
 // respond links bounce), Owner home banner + ticker + 8 count-up tiles, per-PIN instant snapshot + Worker dash cache, Owner
 // reload stays on the dashboard, bottom Back/Home bar + history back, Archived Select offers only Restore.
 import puppeteer from 'puppeteer-core';
-import { start, addJob, featOn, WORKER_HITS, resetDashCache } from './mock-server.mjs';
+import { start, addJob, featOn, featOutbox, outbox, GEMCALLS, STREAMS, WORKER_HITS, resetDashCache } from './mock-server.mjs';
 featOn({ fetch: () => ({ code: 599, body: 'offline' }) });
 const server = await start(0); const base = 'http://127.0.0.1:' + server.address().port, api = base + '/exec';
 const DAY = 864e5, iso = (ms) => new Date(ms).toISOString();
@@ -56,6 +56,23 @@ try {
   await shot(p, 'archived-restore');
   await p.click('#seldel'); await p.waitForFunction(() => !/Arlo/.test(document.getElementById('app')?.innerText || document.body.innerText), { timeout: 5000 }).catch(() => {});
   if (await p.evaluate(() => window.FTFIL) !== 'archived') fail('restore left Archived tab');
+  // ---- Bug fix: "Speak audibly to me" turns Voice on locally; no API call, no cannotDo, no VNXT request, no mail ----
+  await p.evaluate(() => { localStorage.tbSpk = '0'; window.SPOKE = []; Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speaking: false, getVoices: () => [], addEventListener() {}, speak(u) { SPOKE.push(u.text); setTimeout(() => u.onend && u.onend(), 20); }, cancel() {} } }); window.SpeechSynthesisUtterance = function (t) { this.text = t; }; });
+  const before = { hits: WORKER_HITS.length, gem: GEMCALLS.length, st: STREAMS.length, mail: featOutbox.length, ob: outbox.length };
+  const reqs0 = p.reqs.length; await p.evaluate(() => ftTimber()); await w(200);
+  const said = await p.evaluate(() => ftTimberAsk('Speak audibly to me.'));
+  if (!/Voice is on/.test(said || '')) fail('speak request not intercepted: ' + said);
+  await w(400); if (await p.evaluate(() => localStorage.tbSpk) !== '1') fail('Voice not turned on');
+  if (!/Voice is on/.test(await p.evaluate(() => document.getElementById('tbmsgs').innerText))) fail('confirmation not shown');
+  const newReq = p.reqs.slice(reqs0).filter((u) => /\/api\/timber|\/exec|\/api\/gas/.test(u) && !/a=img/.test(u));
+  const tbPosts = newReq.filter((u) => /\/api\/timber/.test(u));
+  if (tbPosts.length > 1) fail('Timber API called for speak request ' + tbPosts.join(' '));
+  if (GEMCALLS.length !== before.gem || STREAMS.length !== before.st) fail('model called for speak request');
+  if (featOutbox.length !== before.mail || outbox.length !== before.ob) fail('mail sent for speak request');
+  if (/VNXT/i.test(await p.evaluate(() => document.getElementById('tbmsgs').innerText))) fail('offered VNXT for speak request');
+  await shot(p, 'voice-on');
+  // a real question still goes to the API
+  if (await p.evaluate(() => tbVoiceReq('What jobs today?') || tbVoiceReq('speak to the customer') || tbVoiceReq('turn off voice'))) fail('voice intercept too broad');
   await p.close();
   console.log('batch7 e2e ok');
 } finally { await browser.close(); server.close(); }
