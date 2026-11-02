@@ -38,6 +38,12 @@ const linkIn = (m, v) => new URL((m.body.match(new RegExp((v === 'yes' ? 'Approv
 try {
   let GS = []; setGemStream(() => GS.shift() || null);
   let p = await open('4321', 390);
+  // empty drop-down: exactly two short suggestions; thin gray edge, soft shadow, panel <= 62% height
+  await p.evaluate(() => { sessionStorage.tbHist = '[]'; ftTimber(); }); await p.waitForSelector('#tbsug');
+  const E = await p.evaluate(() => { const d = getComputedStyle(document.getElementById('tbdr')); return { sug: [...document.querySelectorAll('#tbsug button')].map((b) => b.textContent), bb: d.borderBottomWidth + ' ' + d.borderBottomColor, sh: d.boxShadow, mh: document.getElementById('tbdr').getBoundingClientRect().height / innerHeight }; });
+  if (JSON.stringify(E.sug) !== JSON.stringify(['How many jobs today?', 'What did we bring in this week?'])) fail('suggestions ' + JSON.stringify(E.sug));
+  if (E.bb !== '1px rgb(223, 227, 218)' || !/0\.1\)/.test(E.sh) || E.mh > 0.62) fail('drop-down style ' + JSON.stringify(E));
+  await shot(p, 'timber-empty'); await p.evaluate(() => tbDrawer(false)); await w(100);
   // bar in the header; drop-down over the current page (page stays)
   await p.waitForSelector('#tbtop', { visible: true }); await p.evaluate(() => ownerSect('jobs')); await w(300);
   const before = await p.evaluate(() => A.innerHTML.length);

@@ -12,7 +12,7 @@ const st=document.createElement('style');st.textContent=`
 .tb .vbig{position:fixed;right:16px;bottom:16px;z-index:60;margin:0;width:64px;height:64px;min-height:0;padding:0;border-radius:50%;border:0;box-shadow:0 2px 8px rgba(17,35,55,.3);background:transparent;color:#fff;font-size:26px}.tb .vbig .fdmic{width:64px;height:64px}
 .tb .vbig.on{background:transparent}@keyframes tbp{50%{box-shadow:0 0 0 14px rgba(180,35,24,.18)}}
 .tb .vst{text-align:center;font-weight:800;font-size:18px;min-height:26px}`;document.head.appendChild(st);
-const SUG=['How much did we spend on labor yesterday and what did we bring in?','Make a quote for Pat Pine at 9 Pine St: remove two pines $1,400','Schedule Hartwell for Friday with Carlos and Tyler','Invoice the Whitaker job']
+const SUG=['How many jobs today?','What did we bring in this week?']
 const H=()=>{try{return JSON.parse(sessionStorage.tbHist||'[]')}catch(e){return []}},setH=h=>sessionStorage.tbHist=JSON.stringify(h.slice(-30));
 let mode=sessionStorage.tbMode||'chat',live=false,busy=false,rec=null,state='';
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -36,7 +36,7 @@ window.ftTimber=function(m){tbWarm();if(m)mode=sessionStorage.tbMode=m;if(mode==
  ${mode==='voice'?`<div class="vst" id="tbvst">${SR?'Tap Talk and ask. Timber answers out loud, then listens again. Tap Stop to end.':'This phone can’t listen here. Use Type.'}</div>`:''}
  <div class="msgs" id="tbmsgs"></div>
  ${chips()}
- ${h.length?'':`<div class="sug" id="tbsug">${SUG.slice(0,2).map((s,i)=>`<button type="button" id="tbs${i}" onclick="ftTimberAsk(this.textContent)">${esc(s)}</button>`).join('')}</div>`}
+ ${h.length?'':`<div class="sug" id="tbsug">${SUG.map((s,i)=>`<button type="button" id="tbs${i}" onclick="ftTimberAsk(this.textContent)">${esc(s)}</button>`).join('')}</div>`}
  ${h.length?`<div class="sug" style="margin-top:10px"><button type="button" onclick="sessionStorage.tbHist='[]';ftTimber()">Start over</button></div>`:''}</div>`;paint()};
 window.ftTimberAsk=async function(q,opt){const byVoice=!!(opt&&opt.voice)||(mode==='voice'&&live);tbUnlock();q=String(q==null?(document.getElementById('tbq')||{}).value||'':q).trim();if(!q||busy)return;{const tool=ftTimberTool(q);if(tool){setH(H().concat([{who:'me',text:q},{who:'tm',text:tool}]));stopVoice();if(window.tbDrawer)tbDrawer(false);toast(tool);return tool}}if(localStorage.tbSpk==='0'&&window.tbVoiceReq(q)){localStorage.tbSpk='1';const ok="Voice is on. I'll speak my answers out loud.";setH(H().concat([{who:'me',text:q},{who:'tm',text:ok}]));if(!tbOn())ftTimber();else paint();speak(ok);return ok}const prev=H(),h=prev.concat([{who:'me',text:q}]);setH(h);busy=true;state='Thinking…';if(!tbOn())ftTimber();else{const s=document.getElementById('tbsug');if(s)s.remove();const i=document.getElementById('tbq');if(i)i.value=''}paint();
  let ans,setup=false,dr=null,op=null,of=null,streamed=false;const talk0=byVoice||spkOn(),hist=prev.filter(m=>!m.setup).slice(-10);
